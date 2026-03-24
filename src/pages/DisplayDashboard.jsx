@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
 import { useSound } from '../hooks/useSound'
@@ -6,11 +7,23 @@ import { formatClock } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
 import PreparingColumn from '../components/PreparingColumn'
 import ReadyColumn from '../components/ReadyColumn'
+import BranchSelect from './BranchSelect'
 import './DisplayDashboard.css'
 
 const READY_TIMEOUT_MS = (parseInt(import.meta.env.VITE_READY_TIMEOUT_MINUTES, 10) || 5) * 60 * 1000
 
 export default function DisplayDashboard() {
+  const [searchParams] = useSearchParams()
+
+  // Show branch selection if no branch specified in URL
+  if (!searchParams.get('branch')) {
+    return <BranchSelect target="display" />
+  }
+
+  return <DisplayDashboardInner />
+}
+
+function DisplayDashboardInner() {
   const { branch, loading, error } = useBranch()
   const { preparing, ready, newOrderFlag } = useOrders(branch?.id)
   const { play, loadSound } = useSound()

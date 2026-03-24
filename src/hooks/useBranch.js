@@ -10,9 +10,15 @@ export function useBranch() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const branchCode = searchParams.get('branch') || DEFAULT_BRANCH
+  const branchCode = searchParams.get('branch')
 
   useEffect(() => {
+    if (!branchCode) {
+      setLoading(false)
+      setError('لم يتم تحديد فرع')
+      return
+    }
+
     const fetchBranch = async () => {
       setLoading(true)
       setError(null)
