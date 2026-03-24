@@ -8,6 +8,8 @@ import Analytics from './pages/Analytics'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
 import AddUser from './pages/AddUser'
+import AdminSidebar from './components/AdminSidebar'
+import AppLogo from './components/AppLogo'
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -50,6 +52,8 @@ function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
+          <AppLogo />
+          <AdminSidebar />
           <Routes>
             {/* Public */}
             <Route path="/login" element={<Login />} />

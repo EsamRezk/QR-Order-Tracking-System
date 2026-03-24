@@ -174,7 +174,14 @@ export default function AddUser() {
                   <label className="adduser-label">الصلاحية</label>
                   <select
                     value={form.role}
-                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                    onChange={(e) => {
+                      const newRole = e.target.value
+                      const updates = { role: newRole }
+                      if (newRole === 'admin') updates.route = '/analytics'
+                      else if (newRole === 'screen') updates.route = '/display'
+                      else updates.route = '/scan'
+                      setForm({ ...form, ...updates })
+                    }}
                     className="adduser-select"
                   >
                     {ROLE_OPTIONS.map(r => (
@@ -183,20 +190,22 @@ export default function AddUser() {
                   </select>
                 </div>
 
-                {/* Route */}
-                <div className="adduser-input-group adduser-input-group--full">
-                  <label className="adduser-label">المسار بعد الدخول</label>
-                  <select
-                    value={form.route}
-                    onChange={(e) => setForm({ ...form, route: e.target.value })}
-                    className="adduser-select"
-                    dir="ltr"
-                  >
-                    {ROUTE_OPTIONS.map(r => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Route - hidden for admin (always /analytics) */}
+                {form.role !== 'admin' && (
+                  <div className="adduser-input-group adduser-input-group--full">
+                    <label className="adduser-label">المسار بعد الدخول</label>
+                    <select
+                      value={form.route}
+                      onChange={(e) => setForm({ ...form, route: e.target.value })}
+                      className="adduser-select"
+                      dir="ltr"
+                    >
+                      {ROUTE_OPTIONS.map(r => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="adduser-form-actions">
