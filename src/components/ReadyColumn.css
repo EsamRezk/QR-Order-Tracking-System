@@ -63,9 +63,15 @@
 
 /* ── Orders List ── */
 .ready-column-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.6rem;
+}
+
+@media (max-width: 768px) {
+    .ready-column-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (min-width: 1200px) {
