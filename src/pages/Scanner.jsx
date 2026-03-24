@@ -54,7 +54,7 @@ export default function Scanner() {
           <span className="scanner-header-badge-text">ماسح الطلبات</span>
         </div>
         <h1 className="scanner-branch-name">{branch?.name_ar}</h1>
-        <p className="scanner-brand-sub">كبة زون</p>
+        <p className="scanner-brand-sub">كبة زونا</p>
       </header>
 
       {/* ── Main ── */}
@@ -139,8 +139,8 @@ export default function Scanner() {
                 <div key={i} className="history-item" style={{ animationDelay: `${i * 50}ms` }}>
                   <div className="history-item-right">
                     <span className={`history-badge ${item.action === 'created' ? 'history-badge--created' :
-                        item.action === 'ready' ? 'history-badge--ready' :
-                          'history-badge--duplicate'
+                      item.action === 'ready' ? 'history-badge--ready' :
+                        'history-badge--duplicate'
                       }`}>
                       {item.action === 'created' ? 'جديد' : item.action === 'ready' ? 'جاهز' : 'مكرر'}
                     </span>
