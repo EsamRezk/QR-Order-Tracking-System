@@ -1,11 +1,24 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useScanner } from '../hooks/useScanner'
 import ScannerView from '../components/ScannerView'
 import { formatTime } from '../utils/formatTime'
+import BranchSelect from './BranchSelect'
 import './Scanner.css'
 
 export default function Scanner() {
+  const [searchParams] = useSearchParams()
+
+  // Show branch selection if no branch specified in URL
+  if (!searchParams.get('branch')) {
+    return <BranchSelect target="scan" />
+  }
+
+  return <ScannerInner />
+}
+
+function ScannerInner() {
   const { branch, loading, error: branchError } = useBranch()
   const { handleScan, lastResult, clearResult, scanning, history } = useScanner(branch?.id)
   const [showFeedback, setShowFeedback] = useState(false)
