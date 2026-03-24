@@ -26,6 +26,9 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_DEFAULT_BRANCH: ${{ secrets.VITE_DEFAULT_BRANCH }}
+          VITE_READY_TIMEOUT_MINUTES: ${{ secrets.VITE_READY_TIMEOUT_MINUTES }}
+          VITE_SCAN_COOLDOWN_MS: ${{ secrets.VITE_SCAN_COOLDOWN_MS }}
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
