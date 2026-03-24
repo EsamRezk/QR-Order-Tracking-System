@@ -10,7 +10,7 @@ export default function OrderCard({ order, fading = false }) {
 
     const interval = setInterval(() => {
       setElapsed(formatElapsed(timeField))
-    }, 10000)
+    }, 1000)
 
     return () => clearInterval(interval)
   }, [order])
@@ -24,7 +24,7 @@ export default function OrderCard({ order, fading = false }) {
   const isReady = order.status === 'ready'
 
   return (
-    <div className={`${fading ? 'animate-fade-out' : 'animate-slide-in'} rounded-lg p-4 lg:p-5 border transition-all ${
+    <div style={{ padding: '1.25rem 1.5rem' }} className={`${fading ? 'animate-fade-out' : 'animate-slide-in'} rounded-lg border transition-all ${
       isReady
         ? 'bg-gradient-to-l from-[#16a34a]/15 to-[#2f2520] border-[#22c55e]/25'
         : 'bg-gradient-to-l from-[#FF5100]/10 to-[#2f2520] border-[#FF5100]/20'
@@ -38,8 +38,8 @@ export default function OrderCard({ order, fading = false }) {
           </div>
           <span className="text-2xl lg:text-4xl font-extrabold text-white">{order.order_id}</span>
         </div>
-        <span className={`text-xs lg:text-sm px-3 py-1.5 rounded-md font-bold ${
-          isReady ? 'bg-[#22c55e]/15 text-[#22c55e]' : 'bg-[#FF5100]/15 text-[#FF7A3D]'
+        <span className={`text-xs lg:text-sm font-bold ${
+          isReady ? 'text-[#22c55e]' : 'text-[#FF7A3D]'
         }`}>
           {channelName}
         </span>
