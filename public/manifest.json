@@ -1,0 +1,19 @@
+{
+  "name": "كبة زون - متتبع الطلبات",
+  "short_name": "كبة زون",
+  "description": "نظام تتبع الطلبات عبر رمز QR - كبة زون",
+  "start_url": "/scan",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1E1810",
+  "background_color": "#1E1810",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

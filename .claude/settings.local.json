@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly)",
+      "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/setup-plan.ps1 -Json)",
+      "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/update-agent-context.ps1 -AgentType claude)",
+      "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json)",
+      "WebFetch(domain:kebbazone.com)"
+    ]
+  },
+  "mcpServers": {
+    "TestSprite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@testsprite/testsprite-mcp@latest"
+      ],
+      "env": {
+        "API_KEY": "sk-user-XbK0tUH2Vx82XQnZq6EBgLqW8a9C5vuHdRKpWGDaNsKrVVVb1Xl0DSVrkavqq3X4saDOg6a7esMMTW0ZkAHCSCT3qJZz57CIXpLqB2zQRlgJRQ_x8vokod_57Xwos2TtR2A"
+      }
+    }
+  }
+}

@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+:root {
+  --kz-primary: #FF5100;
+  --kz-primary-light: #FF7A3D;
+  --kz-dark: #1E1810;
+  --kz-dark-lighter: #2a2018;
+  --kz-dark-card: #2f2520;
+  --kz-cream: #F8F5F4;
+  --kz-cream-dark: #ede8e5;
+  --kz-red: #ce0b0b;
+  --kz-gold: #f7941d;
+  --kz-text: #575250;
+  --kz-text-light: #8a8280;
+  --kz-green: #22c55e;
+  --kz-green-dark: #16a34a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Tajawal', sans-serif;
+  direction: rtl;
+  background-color: var(--kz-dark);
+  color: #ffffff;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Order card slide-in animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Fade-out animation for completed orders */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9) translateY(-8px);
+  }
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.5s ease-out forwards;
+}
+
+/* Pulse animation for scan success */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+.animate-pulse-success {
+  animation: pulse 0.6s ease-in-out;
+}
+
+/* Scanner scan line animation */
+@keyframes scanLine {
+  0%, 100% {
+    top: 0;
+  }
+  50% {
+    top: calc(100% - 2px);
+  }
+}
+
+.animate-scan-line {
+  animation: scanLine 2s linear infinite;
+}
+
+/* Glow effect for new orders */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 81, 0, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(255, 81, 0, 0.3);
+  }
+}
+
+.animate-glow {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--kz-text-light);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--kz-primary);
+}

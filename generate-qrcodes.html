@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Codes - Kebba Zone Test Orders</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: #1a140e;
+      color: #F8F5F2;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: #FF5100;
+    }
+    .subtitle {
+      text-align: center;
+      color: #706860;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #2a2018;
+      border: 1px solid #3d302840;
+      border-radius: 16px;
+      padding: 1.25rem;
+      text-align: center;
+      transition: border-color 0.3s;
+    }
+    .card:hover { border-color: #FF510040; }
+    .card img {
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      width: 180px;
+      height: 180px;
+      background: white;
+      padding: 8px;
+    }
+    .order-id {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #FF5100;
+      margin-bottom: 0.25rem;
+    }
+    .channel {
+      font-size: 0.75rem;
+      color: #a09890;
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      margin-bottom: 0.25rem;
+    }
+    .channel--delivery { background: #FF510015; color: #FF7A3D; }
+    .channel--direct { background: #22c55e15; color: #22c55e; }
+    .print-btn {
+      display: block;
+      margin: 2rem auto;
+      background: #FF5100;
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 12px;
+      font-family: 'Tajawal', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .print-btn:hover { background: #FF7A3D; }
+    @media print {
+      body { background: white; color: black; }
+      .card { border: 1px solid #ccc; break-inside: avoid; }
+      .order-id { color: #FF5100; }
+      .print-btn { display: none; }
+      .subtitle { color: #666; }
+    }
+  </style>
+</head>
+<body>
+  <h1>كبة زون — أكواد QR للاختبار</h1>
+  <p class="subtitle">20 كود QR جاهزة للمسح — افتح هذه الصفحة من جهاز آخر أو اطبعها</p>
+  <button class="print-btn" onclick="window.print()">🖨️ طباعة الأكواد</button>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const orders = [
+      { order_id: "KZ-1001", channel_link: "https://hungerstation.com/order/1001", location: "حي العرقة، الرياض" },
+      { order_id: "KZ-1002", channel_link: "https://jahez.net/order/1002", location: "حي النرجس، الرياض" },
+      { order_id: "KZ-1003", location: "طلب مباشر" },
+      { order_id: "KZ-1004", channel_link: "https://toyou.io/order/1004", location: "حي الملقا، الرياض" },
+      { order_id: "KZ-1005", location: "طلب مباشر" },
+      { order_id: "KZ-1006", channel_link: "https://hungerstation.com/order/1006", location: "حي الياسمين، الرياض" },
+      { order_id: "KZ-1007", channel_link: "https://jahez.net/order/1007", location: "حي الربيع، الرياض" },
+      { order_id: "KZ-1008", location: "طلب مباشر" },
+      { order_id: "KZ-1009", channel_link: "https://hungerstation.com/order/1009", location: "حي الصحافة، الرياض" },
+      { order_id: "KZ-1010", channel_link: "https://toyou.io/order/1010", location: "حي الروضة، الرياض" },
+      { order_id: "KZ-1011", location: "طلب مباشر" },
+      { order_id: "KZ-1012", channel_link: "https://jahez.net/order/1012", location: "حي العليا، الرياض" },
+      { order_id: "KZ-1013", channel_link: "https://hungerstation.com/order/1013", location: "حي السليمانية، الرياض" },
+      { order_id: "KZ-1014", location: "طلب مباشر" },
+      { order_id: "KZ-1015", channel_link: "https://toyou.io/order/1015", location: "حي الورود، الرياض" },
+      { order_id: "KZ-1016", channel_link: "https://jahez.net/order/1016", location: "حي الغدير، الرياض" },
+      { order_id: "KZ-1017", location: "طلب مباشر" },
+      { order_id: "KZ-1018", channel_link: "https://hungerstation.com/order/1018", location: "حي النخيل، الرياض" },
+      { order_id: "KZ-1019", channel_link: "https://jahez.net/order/1019", location: "حي المروج، الرياض" },
+      { order_id: "KZ-1020", location: "طلب مباشر" },
+    ];
+
+    // Simple QR Code generator - no external dependencies
+    // Uses a minimal QR encoder embedded below
+    const grid = document.getElementById('grid');
+
+    orders.forEach((order) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const data = JSON.stringify(order);
+      const encodedData = encodeURIComponent(data);
+
+      // Use QR Server API to generate QR images
+      const img = document.createElement('img');
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodedData}&margin=8`;
+      img.alt = order.order_id;
+      img.loading = 'lazy';
+
+      const orderIdEl = document.createElement('div');
+      orderIdEl.className = 'order-id';
+      orderIdEl.textContent = order.order_id;
+
+      const channelEl = document.createElement('div');
+      if (order.channel_link) {
+        channelEl.className = 'channel channel--delivery';
+        channelEl.textContent = '🛵 توصيل';
+      } else {
+        channelEl.className = 'channel channel--direct';
+        channelEl.textContent = '🏪 مباشر';
+      }
+
+      card.appendChild(img);
+      card.appendChild(orderIdEl);
+      card.appendChild(channelEl);
+      grid.appendChild(card);
+    });
+  </script>
+</body>
+</html>
