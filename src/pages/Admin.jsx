@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import LogoutButton from '../components/LogoutButton'
 import './Admin.css'
 
 const EMPTY_BRANCH = { name_ar: '', name_en: '', code: '', location_label: '' }
@@ -58,10 +59,13 @@ export default function Admin() {
     <div className="admin-root">
       {/* ── Header ── */}
       <header className="admin-header">
-        <div className="admin-header-inner">
-          <div className="admin-header-badge">كبة زون — لوحة الإدارة</div>
-          <h1 className="admin-page-title">إدارة الفروع</h1>
-          <p className="admin-page-subtitle">إضافة وتعديل وإدارة فروع المطعم</p>
+        <div className="admin-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div className="admin-header-badge">كبة زون — لوحة الإدارة</div>
+            <h1 className="admin-page-title">إدارة الفروع</h1>
+            <p className="admin-page-subtitle">إضافة وتعديل وإدارة فروع المطعم</p>
+          </div>
+          <LogoutButton />
         </div>
       </header>
 

@@ -1,9 +1,13 @@
 import { Component } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 import DisplayDashboard from './pages/DisplayDashboard'
 import Scanner from './pages/Scanner'
 import Analytics from './pages/Analytics'
 import Admin from './pages/Admin'
+import Login from './pages/Login'
+import AddUser from './pages/AddUser'
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -45,16 +49,46 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <Routes>
-          <Route path="/display" element={<DisplayDashboard />} />
-          <Route path="/scan" element={<Scanner />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="*" element={<Navigate to="/display" replace />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<Login />} />
+
+            {/* Protected routes */}
+            <Route path="/display" element={
+              <ProtectedRoute allowedRoles={['screen', 'admin']}>
+                <DisplayDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/scan" element={
+              <ProtectedRoute allowedRoles={['user', 'admin']}>
+                <Scanner />
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Analytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Admin />
+              </ProtectedRoute>
+            } />
+            <Route path="/add-user" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AddUser />
+              </ProtectedRoute>
+            } />
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
   )
 }
 
 export default App
+
