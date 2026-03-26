@@ -39,7 +39,8 @@ export default function AddUser() {
   }
 
   const fetchUsers = async () => {
-    const { data } = await supabase.rpc('list_users', { p_admin_id: session.userId })
+    if (!session?.sessionId) return
+    const { data } = await supabase.rpc('rpc_list_users_secure', { p_session_id: session.sessionId })
     if (data?.success) {
       setUsers(data.users || [])
     }
@@ -59,8 +60,8 @@ export default function AddUser() {
     setSubmitting(true)
     setMessage(null)
 
-    const { data } = await supabase.rpc('create_user', {
-      p_admin_id: session.userId,
+    const { data } = await supabase.rpc('rpc_create_user_secure', {
+      p_session_id: session.sessionId,
       p_username: form.username,
       p_password: form.password,
       p_branch_id: form.branch_id || null,
@@ -82,9 +83,9 @@ export default function AddUser() {
   const handleDelete = async (userId, username) => {
     if (!confirm(`هل تريد حذف المستخدم "${username}"؟`)) return
 
-    const { data } = await supabase.rpc('delete_user', {
-      p_admin_id: session.userId,
-      p_user_id: userId,
+    const { data } = await supabase.rpc('rpc_delete_user_secure', {
+      p_session_id: session.sessionId,
+      p_target_user_id: userId,
     })
 
     if (data?.success) {

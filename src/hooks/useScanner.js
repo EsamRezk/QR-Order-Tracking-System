@@ -1,17 +1,19 @@
 import { useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseQR } from '../utils/parseQR'
+import { useAuth } from '../context/AuthContext'
 
 const COOLDOWN_MS = parseInt(import.meta.env.VITE_SCAN_COOLDOWN_MS || '2000')
 
 export function useScanner(branchId) {
+  const { session } = useAuth()
   const [lastResult, setLastResult] = useState(null)
   const [scanning, setScanning] = useState(false)
   const [history, setHistory] = useState([])
   const cooldownRef = useRef(false)
 
   const handleScan = useCallback(async (rawText) => {
-    if (!branchId || cooldownRef.current) return
+    if (!branchId || cooldownRef.current || !session?.sessionId) return
 
     cooldownRef.current = true
     setScanning(true)
@@ -31,46 +33,32 @@ export function useScanner(branchId) {
       let result
 
       if (!existing) {
-        // FIRST SCAN - Create new order
-        const { data: newOrder, error } = await supabase
-          .from('orders')
-          .insert({
-            order_id: parsed.order_id,
-            branch_id: branchId,
-            channel_link: parsed.channel_link,
-            status: 'preparing',
-            raw_qr_data: parsed.raw,
-          })
-          .select()
-          .single()
-
-        if (error) throw error
-
-        await supabase.from('scan_logs').insert({
-          order_id: newOrder.id,
-          scan_type: 'first_scan',
-          scanned_at: new Date().toISOString(),
+        // FIRST SCAN - Create new order via RPC
+        const { data: rpcData, error } = await supabase.rpc('rpc_scanner_insert_order', {
+          p_session_id: session.sessionId,
+          p_order_id: parsed.order_id,
+          p_branch_id: branchId,
+          p_channel_link: parsed.channel_link,
+          p_raw_qr_data: parsed.raw,
+          p_device_info: navigator.userAgent
         })
 
-        result = { action: 'created', order: newOrder }
+        if (error) throw error
+        if (!rpcData?.success) throw new Error(rpcData?.error || 'خطأ في الإنشاء')
+
+        result = { action: 'created', order: rpcData.data }
       } else if (existing.status === 'preparing') {
-        // SECOND SCAN - Mark as ready
-        const { data: updated, error } = await supabase
-          .from('orders')
-          .update({ status: 'ready', ready_at: new Date().toISOString() })
-          .eq('id', existing.id)
-          .select()
-          .single()
-
-        if (error) throw error
-
-        await supabase.from('scan_logs').insert({
-          order_id: existing.id,
-          scan_type: 'second_scan',
-          scanned_at: new Date().toISOString(),
+        // SECOND SCAN - Mark as ready via RPC
+        const { data: rpcData, error } = await supabase.rpc('rpc_scanner_mark_ready', {
+          p_session_id: session.sessionId,
+          p_order_internal_id: existing.id,
+          p_device_info: navigator.userAgent
         })
 
-        result = { action: 'ready', order: updated }
+        if (error) throw error
+        if (!rpcData?.success) throw new Error(rpcData?.error || 'خطأ في التحديث')
+
+        result = { action: 'ready', order: { ...existing, status: 'ready', ready_at: new Date().toISOString() } }
       } else {
         result = { action: 'already_done', order: existing }
       }
@@ -82,7 +70,7 @@ export function useScanner(branchId) {
     } finally {
       setScanning(false)
     }
-  }, [branchId])
+  }, [branchId, session?.sessionId])
 
   const clearResult = useCallback(() => setLastResult(null), [])
 

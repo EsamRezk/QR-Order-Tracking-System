@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
 import { useSound } from '../hooks/useSound'
+import { useAuth } from '../context/AuthContext'
 import { formatClock } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
 import PreparingColumn from '../components/PreparingColumn'
@@ -25,6 +26,7 @@ export default function DisplayDashboard() {
 }
 
 function DisplayDashboardInner() {
+  const { session } = useAuth()
   const { branch, loading, error } = useBranch()
   const { preparing, ready, newOrderFlag } = useOrders(branch?.id)
   const { play, loadSound } = useSound()
@@ -35,19 +37,20 @@ function DisplayDashboardInner() {
 
   // Auto-clear ready orders after timeout
   const completeOrder = useCallback(async (orderId) => {
+    if (!session?.sessionId) return
     setFadingOrders(prev => new Set([...prev, orderId]))
     setTimeout(async () => {
-      await supabase
-        .from('orders')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
-        .eq('id', orderId)
+      await supabase.rpc('rpc_display_complete_order', {
+        p_session_id: session.sessionId,
+        p_order_internal_id: orderId
+      })
       setFadingOrders(prev => {
         const next = new Set(prev)
         next.delete(orderId)
         return next
       })
     }, 500)
-  }, [])
+  }, [session?.sessionId])
 
   useEffect(() => {
     if (!ready.length) return
