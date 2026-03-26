@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import LoadingScreen from '../components/LoadingScreen'
 import './BranchSelect.css'
 
 export default function BranchSelect({ target = 'display' }) {
@@ -45,16 +46,7 @@ export default function BranchSelect({ target = 'display' }) {
     </svg>
   )
 
-  if (loading) {
-    return (
-      <div className="branch-select-fullscreen">
-        <div className="branch-select-loading">
-          <div className="branch-select-spinner" />
-          <div className="branch-select-loading-text">جاري التحميل...</div>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen fullScreen />
 
   return (
     <div className="branch-select-fullscreen">

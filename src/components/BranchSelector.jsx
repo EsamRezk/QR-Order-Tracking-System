@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function BranchSelector({ value, onChange, includeAll = false }) {
   const [branches, setBranches] = useState([])
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
 
   useEffect(() => {
     const fetch = async () => {
@@ -16,19 +18,70 @@ export default function BranchSelector({ value, onChange, includeAll = false }) 
     fetch()
   }, [])
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const options = []
+  if (includeAll) options.push({ id: '', name_ar: 'جميع الفروع' })
+  branches.forEach(b => options.push(b))
+
+  const selectedOption = options.find(o => o.id === (value || '')) || options[0]
+
   return (
-    <select
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value || null)}
-      className="bg-[#2f2520] text-white border border-[#3d3028] rounded-lg px-5 py-3 text-base focus:outline-none focus:border-[#FF5100] transition-colors appearance-none cursor-pointer min-w-[180px]"
-      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FF5100' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 14px center', paddingLeft: '32px' }}
-    >
-      {includeAll && <option value="">جميع الفروع</option>}
-      {branches.map((b) => (
-        <option key={b.id} value={b.id}>
-          {b.name_ar}
-        </option>
-      ))}
-    </select>
+    <div className="relative" ref={dropdownRef}>
+      {/* Trigger — matches date-range-group container style */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="date-range-group cursor-pointer flex items-center gap-2 !pr-5 !pl-4"
+      >
+        <span className="text-sm font-medium text-[#e5e5e5]">
+          {selectedOption?.name_ar || 'اختر الفرع'}
+        </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        >
+          <path fill="#FF5100" d="M6 8L1 3h10z" />
+        </svg>
+      </div>
+
+      {/* Dropdown */}
+      <div
+        className={`absolute top-full right-0 mt-2 min-w-[200px] bg-[#2a2018] border border-[#3d3028] rounded-xl shadow-xl z-50 overflow-hidden transition-all duration-200 origin-top
+          ${isOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}
+      >
+        <div className="max-h-60 overflow-y-auto p-1.5">
+          {options.map((opt) => {
+            const isSelected = (value || '') === opt.id
+            return (
+              <div
+                key={opt.id}
+                onClick={() => {
+                  onChange(opt.id || null)
+                  setIsOpen(false)
+                }}
+                className={`px-4 py-2.5 cursor-pointer transition-colors text-sm font-medium rounded-lg ${
+                  isSelected
+                    ? 'bg-[#FF5100] text-white'
+                    : 'text-[#e5e5e5] hover:bg-[#3d3028]'
+                }`}
+              >
+                {opt.name_ar}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
   )
 }

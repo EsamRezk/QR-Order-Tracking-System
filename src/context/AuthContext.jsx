@@ -64,6 +64,7 @@ export function AuthProvider({ children }) {
 
     const user = data.user
     const newSession = {
+      sessionId: data.sessionId,
       userId: user.id,
       username: user.username,
       branch: user.branch || null,

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import LogoutButton from '../components/LogoutButton'
+import LoadingScreen from '../components/LoadingScreen'
 import './Admin.css'
 
 const EMPTY_BRANCH = { name_ar: '', name_en: '', code: '', location_label: '' }
 
 export default function Admin() {
+  const { session } = useAuth()
   const [branches, setBranches] = useState([])
   const [form, setForm] = useState(EMPTY_BRANCH)
   const [editing, setEditing] = useState(null)
@@ -21,15 +24,19 @@ export default function Admin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name_ar || !form.name_en || !form.code || !form.location_label) return
+    if (!form.name_ar || !form.name_en || !form.code || !form.location_label || !session?.sessionId) return
 
-    if (editing) {
-      await supabase.from('branches').update(form).eq('id', editing)
-      setEditing(null)
-    } else {
-      await supabase.from('branches').insert(form)
-    }
+    await supabase.rpc('rpc_admin_upsert_branch', {
+      p_session_id: session.sessionId,
+      p_id: editing || null,
+      p_name_ar: form.name_ar,
+      p_name_en: form.name_en,
+      p_code: form.code,
+      p_location_label: form.location_label
+    })
+
     setForm(EMPTY_BRANCH)
+    setEditing(null)
     fetchBranches()
   }
 
@@ -44,7 +51,12 @@ export default function Admin() {
   }
 
   const toggleActive = async (branch) => {
-    await supabase.from('branches').update({ is_active: !branch.is_active }).eq('id', branch.id)
+    if (!session?.sessionId) return
+    await supabase.rpc('rpc_admin_toggle_branch', {
+      p_session_id: session.sessionId,
+      p_branch_id: branch.id,
+      p_is_active: !branch.is_active
+    })
     fetchBranches()
   }
 
@@ -166,10 +178,7 @@ export default function Admin() {
 
           {/* ── Branch Table ── */}
           {loading ? (
-            <div className="admin-loading">
-              <div className="admin-spinner" />
-              <div className="admin-loading-text">جاري التحميل...</div>
-            </div>
+            <LoadingScreen />
           ) : (
             <div className="table-card">
               <div className="table-card-header">

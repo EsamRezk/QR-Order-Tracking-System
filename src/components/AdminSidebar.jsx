@@ -79,7 +79,7 @@ export default function AdminSidebar() {
       <button
         onClick={() => setCollapsed(!collapsed)}
         style={{
-          position: 'fixed',
+          position: 'absolute',
           top: 16,
           left: 16,
           zIndex: 1001,

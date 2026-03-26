@@ -6,6 +6,7 @@ import ScannerView from '../components/ScannerView'
 import LogoutButton from '../components/LogoutButton'
 import { formatTime } from '../utils/formatTime'
 import BranchSelect from './BranchSelect'
+import LoadingScreen from '../components/LoadingScreen'
 import './Scanner.css'
 
 export default function Scanner() {
@@ -35,16 +36,7 @@ function ScannerInner() {
   }
 
   /* ── Loading ── */
-  if (loading) {
-    return (
-      <div className="scanner-fullscreen">
-        <div className="scanner-loading">
-          <div className="scanner-spinner" />
-          <div className="scanner-loading-text">جاري التحميل...</div>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen fullScreen />
 
   /* ── Error ── */
   if (branchError) {
@@ -70,7 +62,7 @@ function ScannerInner() {
               <span className="scanner-header-badge-text">ماسح الطلبات</span>
             </div>
             <h1 className="scanner-branch-name">{branch?.name_ar}</h1>
-            <p className="scanner-brand-sub">كبة زونا</p>
+            <p className="scanner-brand-sub">كبة زون</p>
           </div>
           <LogoutButton />
         </div>
