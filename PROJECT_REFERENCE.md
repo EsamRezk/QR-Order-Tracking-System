@@ -94,6 +94,8 @@ e:\My Projects\QR Order Tracking System\
 │   │   ├── Analytics.css
 │   │   ├── Admin.jsx             # صفحة إدارة الفروع + CSS
 │   │   ├── Admin.css
+│   │   ├── Kitchen.jsx            # شاشة المطبخ + CSS
+│   │   ├── Kitchen.css
 │   │   ├── BranchSelect.jsx      # صفحة اختيار الفرع + CSS
 │   │   └── BranchSelect.css
 │   │
@@ -409,6 +411,17 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - يعرض جدول الفروع + حالتها
 - يعرض روابط الفروع النشطة (`/display?branch=` و `/scan?branch=`)
 
+#### `Kitchen.jsx` (شاشة المطبخ)
+- **URL:** `/kitchen?branch=CODE`
+- إذا لم يحدد فرع → يعرض `BranchSelect target="kitchen"`
+- يعرض جميع الطلبات `preparing` في شبكة بطاقات (grid layout)
+- **Header:** اسم الفرع + ساعة حية + عدد الطلبات قيد التحضير
+- **KitchenCard:** يعرض رقم الطلب، القناة (جاهز/هنقرستيشن/مباشر)، الوقت المنقضي، زر "جاهز"
+- **Confirmation Modal:** عند الضغط على "جاهز" يظهر مودال تأكيد → يستدعي `rpc_scanner_mark_ready`
+- **Fading animation:** عند تحويل طلب لجاهز
+- **حالة فارغة:** رسالة "لا توجد طلبات قيد التحضير"
+- **Error state:** يعيد استخدام CSS classes من DisplayDashboard.css
+
 #### `Login.jsx` (تسجيل الدخول)
 - **URL:** `/login`
 - حقلين: username + password (dir=ltr)
@@ -493,6 +506,7 @@ npm run lint      # فحص الكود
 |---------|-------|
 | 2026-03-24 | إنشاء الملف المرجعي الشامل — قراءة كاملة للمشروع |
 | 2026-03-24 | إضافة نظام المصادقة: Login, AuthContext, ProtectedRoute, useIdleTimer, AddUser, LogoutButton + migrations (006-008) |
+| 2026-03-27 | إضافة صفحة المطبخ Kitchen.jsx — عرض طلبات التحضير في grid مع زر جاهز ومودال تأكيد |
 
 ---
 
