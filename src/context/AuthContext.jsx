@@ -80,7 +80,7 @@ export function AuthProvider({ children }) {
 
     // Redirect based on user's configured route
     const route = user.route || '/scan'
-    const needsBranch = ['/scan', '/display'].includes(route)
+    const needsBranch = ['/scan', '/display', '/kitchen'].includes(route)
     if (needsBranch && user.branchCode) {
       navigate(`${route}?branch=${user.branchCode}`)
     } else {
@@ -106,7 +106,7 @@ export function AuthProvider({ children }) {
   const getDefaultRoute = useCallback(() => {
     if (!session) return '/login'
     const route = session.route || '/scan'
-    const needsBranch = ['/scan', '/display'].includes(route)
+    const needsBranch = ['/scan', '/display', '/kitchen'].includes(route)
     if (needsBranch && session.branchCode) {
       return `${route}?branch=${session.branchCode}`
     }
