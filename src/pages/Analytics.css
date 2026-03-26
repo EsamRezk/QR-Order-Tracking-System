@@ -46,6 +46,8 @@
               linear-gradient(135deg, #FF510008 0%, transparent 50%);
   border-bottom: 1px solid var(--border);
   padding: 2rem 0 1.5rem;
+  position: relative;
+  z-index: 50;
 }
 
 .header-inner {
@@ -61,6 +63,14 @@
   margin-bottom: 2rem;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+/* Adjust paddings on smaller screens to dodge fixed logo (Right) and menu icon (Left) */
+@media (max-width: 1650px) {
+  .header-top {
+    padding-right: 180px;
+    padding-left: 90px;
+  }
 }
 
 .header-title-group {
@@ -214,7 +224,12 @@
 
 @media (max-width: 640px) {
   .kpi-grid { grid-template-columns: 1fr; }
-  .header-top { flex-direction: column; }
+  .header-top { 
+    flex-direction: column;
+    padding-right: 0;
+    padding-left: 0;
+    padding-top: 40px;
+  }
   .page-title { font-size: 1.4rem; }
   .header-inner { padding: 0 1rem; }
   .main-content { padding: 1.5rem 1rem; }

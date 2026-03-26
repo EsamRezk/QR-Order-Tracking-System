@@ -7,7 +7,7 @@ export default function AppLogo() {
       alt="كبة زون"
       className="app-logo"
       style={{
-        position: 'fixed',
+        position: 'absolute',
         top: 24,
         right: 24,
         height: 80,
