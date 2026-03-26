@@ -6,6 +6,7 @@ import DisplayDashboard from './pages/DisplayDashboard'
 import Scanner from './pages/Scanner'
 import Analytics from './pages/Analytics'
 import Admin from './pages/Admin'
+import Kitchen from './pages/Kitchen'
 import Login from './pages/Login'
 import AddUser from './pages/AddUser'
 import AdminSidebar from './components/AdminSidebar'
@@ -67,6 +68,11 @@ function App() {
             <Route path="/scan" element={
               <ProtectedRoute allowedRoles={['user', 'admin']}>
                 <Scanner />
+              </ProtectedRoute>
+            } />
+            <Route path="/kitchen" element={
+              <ProtectedRoute allowedRoles={['user', 'admin']}>
+                <Kitchen />
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={
