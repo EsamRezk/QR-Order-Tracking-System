@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import LogoutButton from '../components/LogoutButton'
+import LoadingScreen from '../components/LoadingScreen'
 import './Admin.css'
 
 const EMPTY_BRANCH = { name_ar: '', name_en: '', code: '', location_label: '' }
@@ -166,10 +167,7 @@ export default function Admin() {
 
           {/* ── Branch Table ── */}
           {loading ? (
-            <div className="admin-loading">
-              <div className="admin-spinner" />
-              <div className="admin-loading-text">جاري التحميل...</div>
-            </div>
+            <LoadingScreen />
           ) : (
             <div className="table-card">
               <div className="table-card-header">

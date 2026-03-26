@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import LogoutButton from '../components/LogoutButton'
+import LoadingScreen from '../components/LoadingScreen'
 import './AddUser.css'
 
 const EMPTY_FORM = { username: '', password: '', branch_id: '', route: '/scan', role: 'user' }
@@ -227,10 +228,7 @@ export default function AddUser() {
 
           {/* ── Users Table ── */}
           {loading ? (
-            <div className="adduser-loading">
-              <div className="adduser-loading-spinner" />
-              <div className="adduser-loading-text">جاري التحميل...</div>
-            </div>
+            <LoadingScreen />
           ) : (
             <div className="adduser-table-card">
               <div className="adduser-table-header">

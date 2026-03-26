@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { formatDuration } from '../utils/formatTime'
 import BranchSelector from '../components/BranchSelector'
 import LogoutButton from '../components/LogoutButton'
+import LoadingScreen from '../components/LoadingScreen'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import './Analytics.css'
 
@@ -204,10 +205,7 @@ export default function Analytics() {
       {/* ── Main Content ── */}
       <main className="main-content">
         {loading ? (
-          <div className="loading-container">
-            <div className="loading-spinner" />
-            <div className="loading-text">جاري تحميل البيانات...</div>
-          </div>
+          <LoadingScreen text="جاري تحميل البيانات..." />
         ) : (
           <>
             {/* ── KPI Cards ── */}
