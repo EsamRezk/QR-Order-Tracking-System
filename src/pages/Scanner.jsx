@@ -62,7 +62,7 @@ function ScannerInner() {
               <span className="scanner-header-badge-text">ماسح الطلبات</span>
             </div>
             <h1 className="scanner-branch-name">{branch?.name_ar}</h1>
-            <p className="scanner-brand-sub">كبة زونا</p>
+            <p className="scanner-brand-sub">كبة زون</p>
           </div>
           <LogoutButton />
         </div>
