@@ -32,13 +32,21 @@ export default function BranchSelect({ target = 'display' }) {
     navigate(`/${target}?branch=${code}`)
   }
 
-  const isScanner = target === 'scan'
-  const title = isScanner ? 'ماسح الطلبات' : 'شاشة العرض'
-  const subtitle = isScanner ? 'اختر الفرع للمسح' : 'اختر الفرع لعرض الطلبات'
-  const icon = isScanner ? (
+  const titles = {
+    scan: { title: 'ماسح الطلبات', subtitle: 'اختر الفرع للمسح' },
+    kitchen: { title: 'شاشة المطبخ', subtitle: 'اختر الفرع لعرض طلبات المطبخ' },
+    display: { title: 'شاشة العرض', subtitle: 'اختر الفرع لعرض الطلبات' },
+  }
+  const { title, subtitle } = titles[target] || titles.display
+  const icon = target === 'scan' ? (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 14.625v2.625m0 0v2.625m0-2.625h2.625m-2.625 0H16.5m4.125-2.625v2.625m0 0v2.625m0-2.625h-2.625" />
+    </svg>
+  ) : target === 'kitchen' ? (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
     </svg>
   ) : (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">

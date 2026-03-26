@@ -126,10 +126,11 @@ e:\My Projects\QR Order Tracking System\
 | `/scan?branch=CODE` | `Scanner` | user, admin | ماسح QR للموظفين |
 | `/analytics` | `Analytics` | admin | تقارير وإحصائيات |
 | `/admin` | `Admin` | admin | إدارة الفروع (CRUD) |
+| `/kitchen?branch=CODE` | `Kitchen` | user, admin | شاشة المطبخ — عرض الطلبات قيد التحضير + زر جاهز |
 | `/add-user` | `AddUser` | admin | إضافة وإدارة المستخدمين |
 | `/*` | Redirect → `/login` | — | أي مسار غير معروف |
 
-- إذا لم يتم تحديد `?branch=` في `/display` أو `/scan`، يتم عرض صفحة اختيار الفرع `BranchSelect`.
+- إذا لم يتم تحديد `?branch=` في `/display` أو `/scan` أو `/kitchen`، يتم عرض صفحة اختيار الفرع `BranchSelect`.
 - جميع المسارات (عدا `/login`) محمية بـ `ProtectedRoute`.
 
 ---
@@ -218,7 +219,9 @@ created_at  TIMESTAMPTZ DEFAULT now()
 [QR Scan #1] → INSERT order (status: preparing) + INSERT scan_log (first_scan)
        ↓
 [QR Scan #2] → UPDATE order (status: ready, ready_at) + INSERT scan_log (second_scan)
-       ↓  
+       ↓  (أو)
+[زر جاهز في المطبخ] → UPDATE order (status: ready, ready_at) + INSERT scan_log (second_scan)
+       ↓
 [Auto Timeout] → UPDATE order (status: completed, completed_at)
    (بعد 5 دقائق من ready_at، قابل للتغيير عبر VITE_READY_TIMEOUT_MINUTES)
 ```
@@ -437,8 +440,17 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - يستخدم RPC functions: `create_user`, `list_users`, `delete_user`
 - الأدمن لا يمكنه حذف حسابه
 
+#### `Kitchen.jsx` (شاشة المطبخ)
+- **URL:** `/kitchen?branch=CODE`
+- إذا لم يحدد فرع → يعرض `BranchSelect`
+- يعرض الطلبات "قيد التحضير" في تصميم Grid متجاوب (`auto-fill, minmax(280px, 1fr)`)
+- كل بطاقة تعرض: رقم الطلب، قناة التوصيل، وقت الانتظار، زر "جاهز" أخضر
+- زر "جاهز" → Modal تأكيد → يستدعي `rpc_scanner_mark_ready` → الطلب يختفي بـ fade animation
+- Header: اسم الفرع + ساعة حية + عدد الطلبات قيد التحضير
+- Realtime عبر `useOrders` hook
+
 #### `BranchSelect.jsx` (اختيار الفرع)
-- يظهر عند الدخول على `/display` أو `/scan` بدون `?branch=`
+- يظهر عند الدخول على `/display` أو `/scan` أو `/kitchen` بدون `?branch=`
 - يعرض قائمة بطاقات الفروع النشطة
 - عند الضغط يوجه للصفحة المناسبة مع `?branch=CODE`
 
