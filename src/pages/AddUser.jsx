@@ -15,6 +15,7 @@ const ROLE_OPTIONS = [
 
 const ROUTE_OPTIONS = [
   { value: '/scan', label: '/scan — ماسح الطلبات' },
+  { value: '/kitchen', label: '/kitchen — شاشة المطبخ' },
   { value: '/display', label: '/display — شاشة العرض' },
   { value: '/analytics', label: '/analytics — التحليلات' },
   { value: '/admin', label: '/admin — إدارة الفروع' },
