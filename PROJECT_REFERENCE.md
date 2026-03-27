@@ -75,6 +75,7 @@ e:\My Projects\QR Order Tracking System\
 │   │   ├── LogoutButton.jsx    # زر تسجيل الخروج (يظهر في كل الصفحات)
 │   │   ├── OrderCard.jsx       # بطاقة الطلب (preparing / ready)
 │   │   ├── PreparingColumn.jsx # عمود "قيد التحضير"
+│   │   ├── UserSidebar.jsx     # شريط جانبي للمستخدم العادي (scan + kitchen + logout)
 │   │   ├── ProtectedRoute.jsx  # حماية المسارات حسب الصلاحية
 │   │   ├── ReadyColumn.jsx     # عمود "جاهز"
 │   │   ├── ReadyColumn.css     # ستايل عمود جاهز
@@ -519,6 +520,8 @@ npm run lint      # فحص الكود
 | 2026-03-24 | إنشاء الملف المرجعي الشامل — قراءة كاملة للمشروع |
 | 2026-03-24 | إضافة نظام المصادقة: Login, AuthContext, ProtectedRoute, useIdleTimer, AddUser, LogoutButton + migrations (006-008) |
 | 2026-03-27 | إضافة صفحة المطبخ Kitchen.jsx — عرض طلبات التحضير في grid مع زر جاهز ومودال تأكيد |
+| 2026-03-27 | إضافة UserSidebar للمستخدم العادي (role: user) — يحتوي على ماسح الطلبات + شاشة المطبخ + تسجيل الخروج |
+| 2026-03-27 | إضافة تجديد تلقائي لجلسة DB — get_session_user يمدد expires_at 12 ساعة مع كل استدعاء RPC (010_session_auto_refresh.sql) |
 
 ---
 

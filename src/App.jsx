@@ -10,6 +10,7 @@ import Kitchen from './pages/Kitchen'
 import Login from './pages/Login'
 import AddUser from './pages/AddUser'
 import AdminSidebar from './components/AdminSidebar'
+import UserSidebar from './components/UserSidebar'
 import AppLogo from './components/AppLogo'
 
 class ErrorBoundary extends Component {
@@ -55,6 +56,7 @@ function App() {
         <AuthProvider>
           <AppLogo />
           <AdminSidebar />
+          <UserSidebar />
           <Routes>
             {/* Public */}
             <Route path="/login" element={<Login />} />

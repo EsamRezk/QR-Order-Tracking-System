@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useScanner } from '../hooks/useScanner'
 import ScannerView from '../components/ScannerView'
-import LogoutButton from '../components/LogoutButton'
+
 import { formatTime } from '../utils/formatTime'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
@@ -55,16 +55,13 @@ function ScannerInner() {
     <div className="scanner-root">
       {/* ── Header ── */}
       <header className="scanner-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-          <div>
-            <div className="scanner-header-badge">
-              <span className="scanner-header-dot" />
-              <span className="scanner-header-badge-text">ماسح الطلبات</span>
-            </div>
-            <h1 className="scanner-branch-name">{branch?.name_ar}</h1>
-            <p className="scanner-brand-sub">كبة زون</p>
+        <div>
+          <div className="scanner-header-badge">
+            <span className="scanner-header-dot" />
+            <span className="scanner-header-badge-text">ماسح الطلبات</span>
           </div>
-          <LogoutButton />
+          <h1 className="scanner-branch-name">{branch?.name_ar}</h1>
+          <p className="scanner-brand-sub">كبة زون</p>
         </div>
       </header>
 
