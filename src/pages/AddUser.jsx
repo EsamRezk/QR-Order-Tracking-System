@@ -41,9 +41,20 @@ export default function AddUser() {
 
   const fetchUsers = async () => {
     if (!session?.sessionId) return
-    const { data } = await supabase.rpc('rpc_list_users_secure', { p_session_id: session.sessionId })
-    if (data?.success) {
-      setUsers(data.users || [])
+    try {
+      const { data, error } = await supabase.rpc('rpc_list_users_secure', { p_session_id: session.sessionId })
+      console.log("fetchUsers RPC response:", { data, error })
+      if (error) {
+        setMessage({ type: 'error', text: `RPC Error: ${error.message}` })
+        return
+      }
+      if (data?.success) {
+        setUsers(data.users || [])
+      } else {
+        setMessage({ type: 'error', text: data?.error || 'فشل جلب المستخدمين' })
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: `Exception: ${err.message}` })
     }
   }
 
