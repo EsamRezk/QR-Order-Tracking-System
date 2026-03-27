@@ -72,6 +72,9 @@ export default function Analytics() {
   const [selectedBranch, setSelectedBranch] = useState(null)
   const [dateRange, setDateRange] = useState(7)
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResult, setSearchResult] = useState(null)
+  const [searching, setSearching] = useState(false)
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -80,6 +83,29 @@ export default function Analytics() {
     }
     fetchBranches()
   }, [])
+
+  const handleSearch = async (e) => {
+    e.preventDefault()
+    const q = searchQuery.trim()
+    if (!q) {
+      setSearchResult(null)
+      return
+    }
+    setSearching(true)
+    const { data } = await supabase
+      .from('orders')
+      .select('*, branches(name_ar, name_en)')
+      .ilike('order_id', `%${q}%`)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setSearchResult(data || [])
+    setSearching(false)
+  }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+    setSearchResult(null)
+  }
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -184,6 +210,30 @@ export default function Analytics() {
             </div>
           </div>
 
+          {/* Search */}
+          <form className="order-search-bar" onSubmit={handleSearch}>
+            <div className="order-search-input-wrap">
+              <svg className="order-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path strokeLinecap="round" d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                className="order-search-input"
+                placeholder="ابحث برقم الطلب..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                dir="ltr"
+              />
+              {searchQuery && (
+                <button type="button" className="order-search-clear" onClick={clearSearch}>✕</button>
+              )}
+            </div>
+            <button type="submit" className="order-search-btn" disabled={searching}>
+              {searching ? 'جاري البحث...' : 'بحث'}
+            </button>
+          </form>
+
           {/* Filters */}
           <div className="filters-bar">
             <BranchSelector value={selectedBranch} onChange={setSelectedBranch} includeAll />
@@ -208,6 +258,68 @@ export default function Analytics() {
           <LoadingScreen text="جاري تحميل البيانات..." />
         ) : (
           <>
+            {/* ── Search Results ── */}
+            {searchResult !== null && (
+              <div className="table-card search-results-card">
+                <div className="table-header">
+                  <div className="table-title">
+                    <span className="chart-title-icon">🔍</span>
+                    نتائج البحث عن: <span className="search-query-highlight">{searchQuery}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {searchResult.length > 0 && (
+                      <span className="table-count">{searchResult.length} نتيجة</span>
+                    )}
+                    <button className="search-close-btn" onClick={clearSearch}>إغلاق</button>
+                  </div>
+                </div>
+                {searchResult.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-icon">🔍</div>
+                    <div className="empty-text">لا توجد نتائج لهذا الرقم</div>
+                    <div className="empty-subtext">تأكد من رقم الطلب وحاول مرة أخرى</div>
+                  </div>
+                ) : (
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>رقم الطلب</th>
+                          <th>الفرع</th>
+                          <th>القناة</th>
+                          <th>الحالة</th>
+                          <th>وقت المسح</th>
+                          <th>وقت الجاهزية</th>
+                          <th>مدة التحضير</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {searchResult.map(o => (
+                          <tr key={o.id}>
+                            <td className="order-id-cell">{o.order_id}</td>
+                            <td className="branch-cell">{o.branches?.name_ar || '—'}</td>
+                            <td>
+                              <span className={`channel-badge ${o.channel_link ? 'channel-badge--delivery' : 'channel-badge--direct'}`}>
+                                {o.channel_link ? '🛵 توصيل' : '🏪 مباشر'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`status-badge status-badge--${o.status}`}>
+                                {o.status === 'preparing' ? '🔥 قيد التحضير' : o.status === 'ready' ? '✅ جاهز' : '📦 مكتمل'}
+                              </span>
+                            </td>
+                            <td className="time-cell">{new Date(o.scanned_at).toLocaleString('ar-SA')}</td>
+                            <td className="time-cell">{o.ready_at ? new Date(o.ready_at).toLocaleString('ar-SA') : '—'}</td>
+                            <td className="duration-cell">{o.prep_duration_seconds ? formatDuration(o.prep_duration_seconds) : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ── KPI Cards ── */}
             <div className="kpi-grid">
               {kpiCards.map((card, i) => (
