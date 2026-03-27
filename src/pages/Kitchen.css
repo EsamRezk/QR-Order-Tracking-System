@@ -35,7 +35,7 @@
     z-index: 0;
 }
 
-.kitchen-root > * {
+.kitchen-root>* {
     position: relative;
     z-index: 1;
 }
@@ -109,6 +109,7 @@
     letter-spacing: -0.02em;
     line-height: 1;
     direction: ltr;
+    padding-left: 30px;
 }
 
 .kitchen-count {
@@ -136,8 +137,15 @@
 }
 
 @keyframes kitchen-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
 
 .kitchen-count-text {
@@ -176,8 +184,15 @@
 }
 
 @keyframes kitchen-card-in {
-    from { opacity: 0; transform: translateY(16px) scale(0.97); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .kitchen-card--fading {
@@ -185,7 +200,10 @@
 }
 
 @keyframes kitchen-card-out {
-    to { opacity: 0; transform: scale(0.95); }
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
 }
 
 .kitchen-card-header {
@@ -285,8 +303,13 @@
 }
 
 @keyframes kitchen-overlay-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .kitchen-modal {
@@ -301,8 +324,15 @@
 }
 
 @keyframes kitchen-modal-in {
-    from { opacity: 0; transform: scale(0.9) translateY(20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 .kitchen-modal-icon {
@@ -440,29 +470,94 @@
 }
 
 @keyframes kitchen-waiting {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.3; transform: scale(0.6); }
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.3;
+        transform: scale(0.6);
+    }
 }
 
 /* Responsive */
 @media (min-width: 1200px) {
-    .kitchen-logo { width: 56px; height: 56px; border-radius: 16px; }
-    .kitchen-logo svg { width: 30px; height: 30px; }
-    .kitchen-branch-name { font-size: 1.75rem; }
-    .kitchen-clock { font-size: 3rem; }
-    .kitchen-header-inner { padding: 1.25rem 3rem; padding-right: 136px; }
-    .kitchen-main { padding: 2rem 3rem; }
+    .kitchen-logo {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+    }
+
+    .kitchen-logo svg {
+        width: 30px;
+        height: 30px;
+    }
+
+    .kitchen-branch-name {
+        font-size: 1.75rem;
+    }
+
+    .kitchen-clock {
+        font-size: 3rem;
+    }
+
+    .kitchen-header-inner {
+        padding: 1.25rem 3rem;
+        padding-right: 136px;
+    }
+
+    .kitchen-main {
+        padding: 2rem 3rem;
+    }
 }
 
 @media (max-width: 768px) {
-    .kitchen-header-inner { padding: 0.85rem 1rem; }
-    .kitchen-main { padding: 1rem; }
-    .kitchen-brand { gap: 0.75rem; }
-    .kitchen-logo { width: 40px; height: 40px; border-radius: 10px; }
-    .kitchen-logo svg { width: 22px; height: 22px; }
-    .kitchen-branch-name { font-size: 1.1rem; }
-    .kitchen-clock { font-size: 1.6rem; }
-    .kitchen-grid { grid-template-columns: 1fr; }
-    .kitchen-empty-icon { width: 72px; height: 72px; border-radius: 18px; }
-    .kitchen-empty-icon svg { width: 32px; height: 32px; }
+    .kitchen-header-inner {
+        padding: 0.85rem 1rem;
+    }
+
+    .kitchen-main {
+        padding: 1rem;
+    }
+
+    .kitchen-brand {
+        gap: 0.75rem;
+    }
+
+    .kitchen-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+    }
+
+    .kitchen-logo svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .kitchen-branch-name {
+        font-size: 1.1rem;
+    }
+
+    .kitchen-clock {
+        font-size: 1.6rem;
+    }
+
+    .kitchen-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .kitchen-empty-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+    }
+
+    .kitchen-empty-icon svg {
+        width: 32px;
+        height: 32px;
+    }
 }
