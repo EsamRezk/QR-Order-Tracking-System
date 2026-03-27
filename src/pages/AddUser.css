@@ -389,7 +389,7 @@
   display: table-cell;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .adduser-form-grid {
     grid-template-columns: 1fr;
   }
@@ -402,7 +402,32 @@
     padding: 1.25rem 1rem 1rem;
   }
 
+  .adduser-header-inner {
+    gap: 0.5rem;
+  }
+
+  /* Hide standalone logout on mobile — sidebar has one */
+  .adduser-logout-wrap {
+    display: none;
+  }
+
+  .adduser-page-title {
+    font-size: 1.3rem;
+  }
+
+  .adduser-page-subtitle {
+    font-size: 0.8rem;
+  }
+
   .adduser-main {
     padding: 1rem;
+  }
+
+  .adduser-form-body {
+    padding: 1rem;
+  }
+
+  .adduser-form-header {
+    padding: 0.85rem 1rem;
   }
 }

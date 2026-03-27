@@ -611,18 +611,41 @@
    RESPONSIVE
    ══════════════════════════════════ */
 @media (max-width: 768px) {
+    .admin-header {
+        padding: 1.25rem 0 1rem;
+    }
+
+    .admin-header-inner {
+        padding: 0 1rem !important;
+    }
+
+    /* Hide standalone logout on mobile — sidebar has one */
+    .admin-logout-wrap {
+        display: none;
+    }
+
+    .admin-main {
+        padding: 1rem;
+    }
+
+    .admin-page-title {
+        font-size: 1.35rem;
+    }
+
+    .admin-page-subtitle {
+        font-size: 0.8rem;
+    }
+
     .form-grid {
         grid-template-columns: 1fr;
     }
 
-    .admin-header-inner,
-    .admin-main {
-        padding-left: 1rem;
-        padding-right: 1rem;
+    .form-card-body {
+        padding: 1rem;
     }
 
-    .admin-page-title {
-        font-size: 1.4rem;
+    .form-card-header {
+        padding: 1rem;
     }
 
     .link-row {

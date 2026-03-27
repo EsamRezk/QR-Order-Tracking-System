@@ -107,7 +107,9 @@ export default function AddUser() {
             <h1 className="adduser-page-title">إضافة مستخدم</h1>
             <p className="adduser-page-subtitle">إنشاء حسابات للموظفين والشاشات</p>
           </div>
-          <LogoutButton />
+          <div className="adduser-logout-wrap">
+            <LogoutButton />
+          </div>
         </div>
       </header>
 

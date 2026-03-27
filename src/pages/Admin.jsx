@@ -77,7 +77,9 @@ export default function Admin() {
             <h1 className="admin-page-title">إدارة الفروع</h1>
             <p className="admin-page-subtitle">إضافة وتعديل وإدارة فروع المطعم</p>
           </div>
-          <LogoutButton />
+          <div className="admin-logout-wrap">
+            <LogoutButton />
+          </div>
         </div>
       </header>
 
