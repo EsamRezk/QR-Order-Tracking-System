@@ -36,24 +36,27 @@ function KitchenInner() {
     if (!confirmOrder || !session?.sessionId) return
     setMarking(true)
     try {
-      // Add to fading set
-      setFadingOrders(prev => new Set([...prev, confirmOrder.id]))
-      setConfirmOrder(null)
-
       // Call same RPC used by scanner
-      await supabase.rpc('rpc_scanner_mark_ready', {
+      const { data, error } = await supabase.rpc('rpc_scanner_mark_ready', {
         p_session_id: session.sessionId,
         p_order_internal_id: confirmOrder.id,
         p_device_info: navigator.userAgent
       })
+
+      if (error) throw error
+      if (data && !data.success) {
+        throw new Error(data.error || 'فشل تحويل الطلب')
+      }
+
+      // Add to fading set only strictly after SUCCESS
+      setFadingOrders(prev => new Set([...prev, confirmOrder.id]))
+      setConfirmOrder(null)
+
     } catch (err) {
       console.error('Error marking order ready:', err)
-      // Remove from fading if error
-      setFadingOrders(prev => {
-        const next = new Set(prev)
-        next.delete(confirmOrder?.id)
-        return next
-      })
+      alert('حدث خطأ: ' + (err.message || 'فشل الاتصال'))
+      // Notice we do NOT fade if it errors, so the order stays visible
+      setConfirmOrder(null)
     } finally {
       setMarking(false)
     }
