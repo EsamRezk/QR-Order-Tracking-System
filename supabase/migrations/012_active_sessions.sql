@@ -17,6 +17,12 @@ CREATE INDEX idx_active_sessions_heartbeat ON active_sessions(last_heartbeat);
 -- RLS: enabled, no policies = blocked from direct client access
 ALTER TABLE active_sessions ENABLE ROW LEVEL SECURITY;
 
+-- Enable Realtime for live updates on Logs page
+ALTER PUBLICATION supabase_realtime ADD TABLE active_sessions;
+
+-- SELECT policy needed for Realtime subscription to work
+CREATE POLICY "Read active_sessions" ON active_sessions FOR SELECT USING (true);
+
 -- 2. Upsert heartbeat (any authenticated user)
 CREATE OR REPLACE FUNCTION rpc_upsert_heartbeat(
   p_session_id UUID,

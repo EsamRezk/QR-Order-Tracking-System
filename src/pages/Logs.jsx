@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import './Logs.css'
 
-const REFRESH_INTERVAL = 30 * 1000 // 30 seconds
+const FALLBACK_REFRESH = 60 * 1000 // 60s fallback if realtime fails
 
 const ROLE_LABELS = {
   admin: 'مدير',
@@ -65,10 +65,25 @@ export default function Logs() {
     setLoading(false)
   }, [session?.sessionId])
 
+  // Realtime subscription — refetch on any change to active_sessions
   useEffect(() => {
     fetchOnlineUsers()
-    const interval = setInterval(fetchOnlineUsers, REFRESH_INTERVAL)
-    return () => clearInterval(interval)
+
+    const channel = supabase
+      .channel('active-sessions-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'active_sessions' },
+        () => fetchOnlineUsers()
+      )
+      .subscribe()
+
+    // Fallback polling in case realtime disconnects
+    const interval = setInterval(fetchOnlineUsers, FALLBACK_REFRESH)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
   }, [fetchOnlineUsers])
 
   // Re-render relative times every 15s
