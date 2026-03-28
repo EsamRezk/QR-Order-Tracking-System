@@ -9,6 +9,7 @@ import Admin from './pages/Admin'
 import Kitchen from './pages/Kitchen'
 import Login from './pages/Login'
 import AddUser from './pages/AddUser'
+import Logs from './pages/Logs'
 import AdminSidebar from './components/AdminSidebar'
 import UserSidebar from './components/UserSidebar'
 import AppLogo from './components/AppLogo'
@@ -63,7 +64,7 @@ function App() {
 
             {/* Protected routes */}
             <Route path="/display" element={
-              <ProtectedRoute allowedRoles={['screen', 'admin']}>
+              <ProtectedRoute allowedRoles={['screen', 'user', 'admin']}>
                 <DisplayDashboard />
               </ProtectedRoute>
             } />
@@ -78,7 +79,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['user', 'admin']}>
                 <Analytics />
               </ProtectedRoute>
             } />
@@ -90,6 +91,11 @@ function App() {
             <Route path="/add-user" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AddUser />
+              </ProtectedRoute>
+            } />
+            <Route path="/logs" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Logs />
               </ProtectedRoute>
             } />
 

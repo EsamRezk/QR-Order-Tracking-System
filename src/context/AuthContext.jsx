@@ -90,11 +90,21 @@ export function AuthProvider({ children }) {
     return { success: true }
   }, [navigate])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Remove presence before clearing session
+    if (session?.sessionId) {
+      try {
+        await supabase.rpc('rpc_remove_presence', {
+          p_session_id: session.sessionId,
+        })
+      } catch {
+        // Silent fail — don't block logout
+      }
+    }
     localStorage.removeItem(SESSION_KEY)
     setSession(null)
     navigate('/login')
-  }, [navigate])
+  }, [navigate, session])
 
   const updateActivity = useCallback(() => {
     if (!session || session.role === 'screen') return

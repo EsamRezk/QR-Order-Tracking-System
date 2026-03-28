@@ -10,16 +10,21 @@ const EMPTY_FORM = { username: '', password: '', branch_id: '', route: '/scan', 
 const ROLE_OPTIONS = [
   { value: 'user', label: 'مستخدم', icon: '👤' },
   { value: 'admin', label: 'مدير', icon: '🛡️' },
-  { value: 'screen', label: 'شاشة', icon: '🖥️' },
 ]
 
-const ROUTE_OPTIONS = [
-  { value: '/scan', label: '/scan — ماسح الطلبات' },
-  { value: '/kitchen', label: '/kitchen — شاشة المطبخ' },
-  { value: '/display', label: '/display — شاشة العرض' },
-  { value: '/analytics', label: '/analytics — التحليلات' },
-  { value: '/admin', label: '/admin — إدارة الفروع' },
-]
+const ROUTE_OPTIONS = {
+  user: [
+    { value: '/scan', label: '/scan — ماسح الطلبات' },
+    { value: '/kitchen', label: '/kitchen — شاشة المطبخ' },
+    { value: '/display', label: '/display — شاشة العرض' },
+    { value: '/analytics', label: '/analytics — التحليلات' },
+  ],
+  admin: [
+    { value: '/analytics', label: '/analytics — التحليلات' },
+    { value: '/admin', label: '/admin — إدارة الفروع' },
+    { value: '/scan', label: '/scan — ماسح الطلبات' },
+  ],
+}
 
 export default function AddUser() {
   const { session } = useAuth()
@@ -43,7 +48,6 @@ export default function AddUser() {
     if (!session?.sessionId) return
     try {
       const { data, error } = await supabase.rpc('rpc_list_users_secure', { p_session_id: session.sessionId })
-      console.log("fetchUsers RPC response:", { data, error })
       if (error) {
         setMessage({ type: 'error', text: `RPC Error: ${error.message}` })
         return
@@ -194,7 +198,6 @@ export default function AddUser() {
                       const newRole = e.target.value
                       const updates = { role: newRole }
                       if (newRole === 'admin') updates.route = '/analytics'
-                      else if (newRole === 'screen') updates.route = '/display'
                       else updates.route = '/scan'
                       setForm({ ...form, ...updates })
                     }}
@@ -216,7 +219,7 @@ export default function AddUser() {
                       className="adduser-select"
                       dir="ltr"
                     >
-                      {ROUTE_OPTIONS.map(r => (
+                      {(ROUTE_OPTIONS[form.role] || ROUTE_OPTIONS.user).map(r => (
                         <option key={r.value} value={r.value}>{r.label}</option>
                       ))}
                     </select>

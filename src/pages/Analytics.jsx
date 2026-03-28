@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatDuration } from '../utils/formatTime'
+import { useAuth } from '../context/AuthContext'
+import { exportOrdersToExcel } from '../utils/exportExcel'
 import BranchSelector from '../components/BranchSelector'
 import LogoutButton from '../components/LogoutButton'
 import LoadingScreen from '../components/LoadingScreen'
@@ -32,7 +34,7 @@ function AnimatedValue({ value, suffix = '' }) {
 }
 
 /* ── KPI Card ── */
-function KPICard({ icon, label, value, accent, trend, index }) {
+function KPICard({ icon, label, value, accent, index }) {
   return (
     <div
       className="kpi-card group"
@@ -67,6 +69,8 @@ function ChartTooltip({ active, payload, label, unit }) {
 
 /* ── Main Component ── */
 export default function Analytics() {
+  const { session } = useAuth()
+  const isUserRole = session?.role === 'user'
   const [orders, setOrders] = useState([])
   const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState(null)
@@ -80,9 +84,13 @@ export default function Analytics() {
     const fetchBranches = async () => {
       const { data } = await supabase.from('branches').select('*').eq('is_active', true)
       setBranches(data || [])
+      // If user role, auto-select their branch
+      if (isUserRole && session.branchId) {
+        setSelectedBranch(session.branchId)
+      }
     }
     fetchBranches()
-  }, [])
+  }, [isUserRole, session.branchId])
 
   const handleSearch = async (e) => {
     e.preventDefault()
@@ -92,12 +100,18 @@ export default function Analytics() {
       return
     }
     setSearching(true)
-    const { data } = await supabase
+    let query = supabase
       .from('orders')
       .select('*, branches(name_ar, name_en)')
       .ilike('order_id', `%${q}%`)
       .order('created_at', { ascending: false })
       .limit(50)
+
+    if (isUserRole && session.branchId) {
+      query = query.eq('branch_id', session.branchId)
+    }
+
+    const { data } = await query
     setSearchResult(data || [])
     setSearching(false)
   }
@@ -108,6 +122,9 @@ export default function Analytics() {
   }
 
   useEffect(() => {
+    // Wait for branch to be set before fetching for user role
+    if (isUserRole && !selectedBranch) return
+
     const fetchOrders = async () => {
       setLoading(true)
       let query = supabase
@@ -126,7 +143,7 @@ export default function Analytics() {
       setLoading(false)
     }
     fetchOrders()
-  }, [selectedBranch, dateRange])
+  }, [selectedBranch, dateRange, isUserRole, session.branchId])
 
   const stats = useMemo(() => {
     if (orders.length === 0) return { total: 0, avg: 0, fastest: 0, slowest: 0 }
@@ -162,19 +179,6 @@ export default function Analytics() {
     return hours
   }, [orders])
 
-  const exportCSV = () => {
-    const header = 'Order ID,Branch,Channel,Scanned At,Ready At,Duration (s)\n'
-    const rows = orders.map(o =>
-      `${o.order_id},${o.branches?.name_en || ''},${o.channel_link || ''},${o.scanned_at},${o.ready_at || ''},${o.prep_duration_seconds || ''}`
-    ).join('\n')
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `orders-report-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   const kpiCards = [
     { icon: '📦', label: 'إجمالي الطلبات', value: stats.total, accent: '#FF5100' },
@@ -200,12 +204,21 @@ export default function Analytics() {
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              {/*<button onClick={exportCSV} className="export-btn">
+              <button
+                onClick={() => {
+                  const branchName = isUserRole
+                    ? session.branch
+                    : branches.find(b => b.id === selectedBranch)?.name_ar || null
+                  exportOrdersToExcel(orders, branchName)
+                }}
+                className="export-btn"
+                disabled={orders.length === 0}
+              >
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                تصدير CSV
-              </button>*/}
+                تصدير Excel
+              </button>
               <LogoutButton />
             </div>
           </div>
@@ -236,7 +249,9 @@ export default function Analytics() {
 
           {/* Filters */}
           <div className="filters-bar">
-            <BranchSelector value={selectedBranch} onChange={setSelectedBranch} includeAll />
+            {!isUserRole && (
+              <BranchSelector value={selectedBranch} onChange={setSelectedBranch} includeAll />
+            )}
             <div className="date-range-group">
               {DATE_RANGES.map(r => (
                 <button

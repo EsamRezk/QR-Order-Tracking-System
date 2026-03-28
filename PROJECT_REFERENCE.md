@@ -1,6 +1,6 @@
 # 📋 مرجع المشروع الشامل — QR Order Tracking System (كبة زون)
 
-> **آخر تحديث:** 2026-03-24
+> **آخر تحديث:** 2026-03-28
 > **ملاحظة مهمة:** يجب تحديث هذا الملف بعد كل تعديل في المشروع.
 
 ---
@@ -62,6 +62,7 @@ e:\My Projects\QR Order Tracking System\
 │   ├── hooks/
 │   │   ├── useBranch.js        # جلب بيانات الفرع من URL param
 │   │   ├── useIdleTimer.js     # مراقبة نشاط المستخدم (12 ساعة timeout)
+│   │   ├── useHeartbeat.js    # تتبع الحضور (heartbeat كل 30 ثانية)
 │   │   ├── useOrders.js        # جلب الطلبات + Realtime subscription
 │   │   ├── useScanner.js       # منطق مسح QR + إنشاء/تحديث الطلبات
 │   │   └── useSound.js         # تشغيل صوت الإشعار (Web Audio API)
@@ -89,6 +90,8 @@ e:\My Projects\QR Order Tracking System\
 │   │   ├── DisplayDashboard.css
 │   │   ├── Login.jsx             # صفحة تسجيل الدخول + CSS
 │   │   ├── Login.css
+│   │   ├── Logs.jsx             # صفحة سجل النظام + CSS
+│   │   ├── Logs.css
 │   │   ├── Scanner.jsx           # صفحة الماسح + CSS
 │   │   ├── Scanner.css
 │   │   ├── Analytics.jsx         # صفحة التحليلات + CSS
@@ -113,7 +116,12 @@ e:\My Projects\QR Order Tracking System\
         ├── 005_seed_branches.sql
         ├── 006_create_users.sql
         ├── 007_users_rls_and_functions.sql
-        └── 008_seed_admin_user.sql
+        ├── 008_seed_admin_user.sql
+        ├── 009_secure_rls_sessions.sql
+        ├── 009_seed_laban_users.sql
+        ├── 010_session_auto_refresh.sql
+        ├── 011_allow_concurrent_sessions.sql
+        └── 012_active_sessions.sql
 ```
 
 ---
@@ -129,6 +137,7 @@ e:\My Projects\QR Order Tracking System\
 | `/admin` | `Admin` | admin | إدارة الفروع (CRUD) |
 | `/kitchen?branch=CODE` | `Kitchen` | user, admin | شاشة المطبخ — عرض الطلبات قيد التحضير + زر جاهز |
 | `/add-user` | `AddUser` | admin | إضافة وإدارة المستخدمين |
+| `/logs` | `Logs` | admin | سجل النظام — المتصلون الآن |
 | `/*` | Redirect → `/login` | — | أي مسار غير معروف |
 
 - إذا لم يتم تحديد `?branch=` في `/display` أو `/scan` أو `/kitchen`، يتم عرض صفحة اختيار الفرع `BranchSelect`.
@@ -189,6 +198,18 @@ created_at  TIMESTAMPTZ DEFAULT now()
 - **Trigger:** `trigger_hash_password` — يقوم بهاش الباسورد تلقائياً عند INSERT/UPDATE
 - **RLS:** مفعّل بدون policies (لا يمكن الوصول المباشر من العميل)
 
+### جدول `active_sessions` (الجلسات النشطة)
+```sql
+id              UUID (PK, auto)
+user_id         UUID FK→users(id) ON DELETE CASCADE
+current_page    TEXT NOT NULL DEFAULT '/'
+last_heartbeat  TIMESTAMPTZ DEFAULT now()
+started_at      TIMESTAMPTZ DEFAULT now()
+```
+- **Unique constraint:** user_id (جلسة واحدة لكل مستخدم)
+- **RLS:** مفعّل بدون policies (الوصول عبر RPC فقط)
+- **فهرسة:** idx_active_sessions_user, idx_active_sessions_heartbeat
+
 ### RPC Functions (دوال قاعدة البيانات)
 | الدالة | الوصف | الحماية |
 |--------|-------|---------|
@@ -196,6 +217,9 @@ created_at  TIMESTAMPTZ DEFAULT now()
 | `create_user(p_admin_id, ...)` | إنشاء مستخدم جديد | admin فقط |
 | `delete_user(p_admin_id, p_user_id)` | حذف مستخدم | admin فقط (لا يحذف نفسه) |
 | `list_users(p_admin_id)` | جلب قائمة المستخدمين (بدون باسورد) | admin فقط |
+| `rpc_upsert_heartbeat(p_session_id, p_current_page)` | تحديث حالة الحضور (heartbeat كل 30 ثانية) | SECURITY DEFINER |
+| `rpc_remove_presence(p_session_id)` | حذف الحضور عند الخروج | SECURITY DEFINER |
+| `rpc_get_online_users(p_session_id, p_timeout_seconds)` | جلب المتصلين (admin فقط) | SECURITY DEFINER |
 
 ### RLS Policies
 - `orders`: open access (all operations) for anon
@@ -311,6 +335,12 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - **12 ساعة** timeout للـ user/admin
 - يتجاهل role = screen (الجلسة لا تنتهي)
 
+#### `useHeartbeat.js`
+- يرسل heartbeat كل 30 ثانية لتتبع الحضور
+- يحدّث الصفحة الحالية في active_sessions table
+- يعمل تلقائياً في ProtectedRoute لجميع المستخدمين
+- يستخدم `rpc_upsert_heartbeat` RPC function
+
 #### `useSound.js`
 - يستخدم Web Audio API
 - يحمّل `/notification.mp3` lazily
@@ -324,7 +354,7 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - يدير الجلسة في `localStorage` بمفتاح `kz_session`
 - بنية الجلسة: `{ userId, username, branch, branchCode, branchId, route, role, lastActivity }`
 - `login(username, password)` → يستدعي `authenticate_user` RPC → يحفظ الجلسة → يعيد التوجيه حسب `route`
-- `logout()` → يمسح الجلسة → يوجه لـ `/login`
+- `logout()` → يحذف الحضور من active_sessions → يمسح الجلسة → يوجه لـ `/login`
 - `updateActivity()` → يحدّث `lastActivity` (للـ user/admin فقط)
 - `getDefaultRoute()` → يحسب المسار الافتراضي حسب `route` + `branchCode`
 - مزامنة بين التابات عبر `storage` event
@@ -362,6 +392,7 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - يتحقق من `isAuthenticated` → إذا لا → يوجه لـ `/login`
 - يتحقق من `allowedRoles` → إذا الدور غير مسموح → يوجه للمسار الافتراضي
 - يفعّل `useIdleTimer` لتتبع النشاط
+- يفعّل `useHeartbeat` لتتبع الحضور (heartbeat كل 30 ثانية)
 
 #### `LogoutButton.jsx`
 - زر تسجيل خروج بتصميم متوافق مع الثيم
@@ -441,6 +472,14 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - جدول المستخدمين الحاليين مع إمكانية الحذف
 - يستخدم RPC functions: `create_user`, `list_users`, `delete_user`
 - الأدمن لا يمكنه حذف حسابه
+
+#### `Logs.jsx` (سجل النظام)
+- **URL:** `/logs` (admin فقط)
+- يعرض المستخدمين المتصلين حالياً (online users)
+- يحدّث تلقائياً كل 30 ثانية
+- يعرض: اسم المستخدم، الدور، الفرع، الصفحة الحالية، آخر نشاط
+- يستخدم `rpc_get_online_users` RPC function
+- يعرض حالة فارغة عند عدم وجود مستخدمين متصلين
 
 #### `Kitchen.jsx` (شاشة المطبخ)
 - **URL:** `/kitchen?branch=CODE`
@@ -525,6 +564,7 @@ npm run lint      # فحص الكود
 | 2026-03-27 | إضافة تجديد تلقائي لجلسة DB — get_session_user يمدد expires_at 12 ساعة مع كل استدعاء RPC (010_session_auto_refresh.sql) |
 | 2026-03-27 | إضافة ميزة البحث برقم الطلب في صفحة التحليلات — بحث ilike في كل الطلبات مع عرض الحالة |
 | 2026-03-27 | إصلاح مشكلة عدم تحديث الشاشات تلقائياً (تعديل useOrders hook لدمج الـ payload) وإصلاح خطأ صامت في رسائل Kitchen.jsx عند الفشل |
+| 2026-03-28 | إضافة صفحة سجل النظام (Logs) — تتبع المتصلون الآن مع نظام heartbeat للحضور |
 
 ---
 
