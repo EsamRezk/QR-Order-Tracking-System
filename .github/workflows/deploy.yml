@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy to cPanel (orders.kebbazone.com)
 
 on:
   push:
@@ -6,8 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,40 +31,15 @@ jobs:
           VITE_READY_TIMEOUT_MINUTES: ${{ secrets.VITE_READY_TIMEOUT_MINUTES }}
           VITE_SCAN_COOLDOWN_MS: ${{ secrets.VITE_SCAN_COOLDOWN_MS }}
 
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Deploy to cPanel via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          name: dist
-          path: dist/
-          retention-days: 1
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-
-      - name: Deploy to VPS using SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USERNAME }}
-          key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          port: 22
-          source: "dist/*"
-          target: "/var/www/essamrezk.shop/QROrderTracking"
-          strip_components: 1
-
-      - name: Reload Nginx in Docker
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USERNAME }}
-          key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          port: 22
-          script: |
-            docker exec qrorders_app nginx -s reload
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          local-dir: ./dist/
+          server-dir: /
+          exclude: |
+            **/.git*
+            **/.git*/**
