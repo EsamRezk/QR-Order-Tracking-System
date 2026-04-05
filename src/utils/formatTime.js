@@ -43,7 +43,6 @@ export function formatTime(date) {
 
 export function formatClock() {
   const now = new Date()
-  const period = now.getHours() < 12 ? 'صباحاً' : 'مساءً'
   const timePart = now.toLocaleTimeString('ar-SA', {
     hour: '2-digit',
     minute: '2-digit',
@@ -51,7 +50,7 @@ export function formatClock() {
     hour12: true,
   })
   const timeOnly = timePart.replace(/[صم]/g, '').trim()
-  return `${timeOnly} ${period}`
+  return timeOnly
 }
 
 export function formatDate() {

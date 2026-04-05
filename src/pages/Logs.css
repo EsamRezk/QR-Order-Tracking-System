@@ -45,6 +45,11 @@
               linear-gradient(135deg, #5830C508 0%, transparent 50%);
   border-bottom: 1px solid var(--border);
   padding: 2rem 0 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .logs-header-inner {

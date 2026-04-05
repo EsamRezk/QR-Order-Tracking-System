@@ -100,21 +100,24 @@ export default function AdminSidebar() {
         onClick={() => setCollapsed(!collapsed)}
         style={{
           position: 'fixed',
-          top: 16,
-          right: 16,
+          top: 12,
+          right: 12,
           zIndex: 1001,
-          width: 44,
-          height: 44,
+          width: 42,
+          height: 42,
           borderRadius: 12,
-          background: '#ffffff',
-          border: '1px solid #e5e7eb',
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(229,231,235,0.8)',
           color: '#5830C5',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           transition: 'all 0.2s',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+          flexShrink: 0,
         }}
       >
         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">

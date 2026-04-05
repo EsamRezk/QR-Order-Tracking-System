@@ -44,6 +44,9 @@
 .kitchen-header {
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .kitchen-header-inner {
@@ -52,6 +55,7 @@
     justify-content: space-between;
     padding: 1rem 2rem;
     padding-right: 136px;
+    padding-left: 160px;
     gap: 1rem;
 }
 
@@ -507,6 +511,7 @@
     .kitchen-header-inner {
         padding: 1.25rem 3rem;
         padding-right: 136px;
+        padding-left: 160px;
     }
 
     .kitchen-main {
@@ -517,7 +522,7 @@
 @media (max-width: 768px) {
     .kitchen-header-inner {
         padding: 0.75rem 1rem;
-        padding-right: 1rem;
+        padding-right: 68px;
         gap: 0.5rem;
     }
 
