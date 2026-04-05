@@ -12,6 +12,9 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: 'مدير', icon: '🛡️' },
 ]
 
+// Edit mode: null = adding, { id, ... } = editing
+
+
 const ROUTE_OPTIONS = {
   user: [
     { value: '/scan', label: '/scan — ماسح الطلبات' },
@@ -34,6 +37,7 @@ export default function AddUser() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState(null) // { type: 'success'|'error', text }
+  const [editingUser, setEditingUser] = useState(null) // null = add mode, { id } = edit mode
 
   const fetchBranches = async () => {
     const { data } = await supabase
@@ -68,7 +72,7 @@ export default function AddUser() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.username || !form.password) {
+    if (!form.username || (!editingUser && !form.password)) {
       setMessage({ type: 'error', text: 'يرجى إدخال اسم المستخدم وكلمة المرور' })
       return
     }
@@ -76,24 +80,66 @@ export default function AddUser() {
     setSubmitting(true)
     setMessage(null)
 
-    const { data } = await supabase.rpc('rpc_create_user_secure', {
-      p_session_id: session.sessionId,
-      p_username: form.username,
-      p_password: form.password,
-      p_branch_id: form.branch_id || null,
-      p_route: form.route,
-      p_role: form.role,
-    })
+    if (editingUser) {
+      // Update existing user
+      const { data } = await supabase.rpc('rpc_update_user_secure', {
+        p_session_id: session.sessionId,
+        p_target_user_id: editingUser.id,
+        p_username: form.username,
+        p_password: form.password || '',
+        p_branch_id: form.branch_id || null,
+        p_route: form.route,
+        p_role: form.role,
+      })
 
-    if (data?.success) {
-      setMessage({ type: 'success', text: `تم إضافة المستخدم "${form.username}" بنجاح` })
-      setForm(EMPTY_FORM)
-      fetchUsers()
+      if (data?.success) {
+        setMessage({ type: 'success', text: `تم تعديل المستخدم "${form.username}" بنجاح` })
+        setForm(EMPTY_FORM)
+        setEditingUser(null)
+        fetchUsers()
+      } else {
+        setMessage({ type: 'error', text: data?.error || 'حدث خطأ' })
+      }
     } else {
-      setMessage({ type: 'error', text: data?.error || 'حدث خطأ' })
+      // Create new user
+      const { data } = await supabase.rpc('rpc_create_user_secure', {
+        p_session_id: session.sessionId,
+        p_username: form.username,
+        p_password: form.password,
+        p_branch_id: form.branch_id || null,
+        p_route: form.route,
+        p_role: form.role,
+      })
+
+      if (data?.success) {
+        setMessage({ type: 'success', text: `تم إضافة المستخدم "${form.username}" بنجاح` })
+        setForm(EMPTY_FORM)
+        fetchUsers()
+      } else {
+        setMessage({ type: 'error', text: data?.error || 'حدث خطأ' })
+      }
     }
 
     setSubmitting(false)
+  }
+
+  const handleEdit = (user) => {
+    setEditingUser(user)
+    setForm({
+      username: user.username,
+      password: '',
+      branch_id: user.branch_id || '',
+      route: user.route,
+      role: user.role,
+    })
+    setMessage(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const cancelEdit = () => {
+    setEditingUser(null)
+    setForm(EMPTY_FORM)
+    setMessage(null)
   }
 
   const handleDelete = async (userId, username) => {
@@ -140,8 +186,11 @@ export default function AddUser() {
           {/* ── Add User Form ── */}
           <form onSubmit={handleSubmit} className="adduser-form-card">
             <div className="adduser-form-header">
-              <div className="adduser-form-icon">➕</div>
-              <h2 className="adduser-form-title">إضافة مستخدم جديد</h2>
+              <div className="adduser-form-icon">{editingUser ? '✏️' : '➕'}</div>
+              <h2 className="adduser-form-title">{editingUser ? `تعديل المستخدم: ${editingUser.username}` : 'إضافة مستخدم جديد'}</h2>
+              {editingUser && (
+                <button type="button" onClick={cancelEdit} className="adduser-cancel-btn">إلغاء التعديل</button>
+              )}
             </div>
 
             <div className="adduser-form-body">
@@ -162,15 +211,15 @@ export default function AddUser() {
 
                 {/* Password */}
                 <div className="adduser-input-group">
-                  <label className="adduser-label">كلمة المرور</label>
+                  <label className="adduser-label">كلمة المرور {editingUser && <span style={{ fontSize: '0.7rem', color: '#9CA3AF' }}>(اتركها فارغة لعدم التغيير)</span>}</label>
                   <input
                     type="password"
-                    placeholder="كلمة مرور قوية"
+                    placeholder={editingUser ? 'اتركها فارغة لعدم التغيير' : 'كلمة مرور قوية'}
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                     className="adduser-input"
                     dir="ltr"
-                    required
+                    required={!editingUser}
                   />
                 </div>
 
@@ -230,13 +279,13 @@ export default function AddUser() {
               <div className="adduser-form-actions">
                 <button type="submit" className="adduser-btn-primary" disabled={submitting}>
                   {submitting ? (
-                    <><span className="adduser-spinner" /> جاري الإضافة...</>
+                    <><span className="adduser-spinner" /> {editingUser ? 'جاري التعديل...' : 'جاري الإضافة...'}</>
                   ) : (
                     <>
                       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d={editingUser ? "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" : "M12 4.5v15m7.5-7.5h-15"} />
                       </svg>
-                      إضافة المستخدم
+                      {editingUser ? 'حفظ التعديلات' : 'إضافة المستخدم'}
                     </>
                   )}
                 </button>
@@ -287,14 +336,22 @@ export default function AddUser() {
                             <code className="adduser-route-code">{u.route}</code>
                           </td>
                           <td>
-                            {u.id !== session.userId && (
+                            <div className="adduser-action-btns">
                               <button
-                                onClick={() => handleDelete(u.id, u.username)}
-                                className="adduser-delete-btn"
+                                onClick={() => handleEdit(u)}
+                                className="adduser-edit-btn"
                               >
-                                حذف
+                                تعديل
                               </button>
-                            )}
+                              {u.id !== session.userId && (
+                                <button
+                                  onClick={() => handleDelete(u.id, u.username)}
+                                  className="adduser-delete-btn"
+                                >
+                                  حذف
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

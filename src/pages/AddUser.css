@@ -339,6 +339,29 @@
   font-family: monospace;
 }
 
+.adduser-action-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.adduser-edit-btn {
+  padding: 0.3rem 0.75rem;
+  background: transparent;
+  border: 1px solid #5830C530;
+  color: #5830C5;
+  border-radius: 6px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.adduser-edit-btn:hover {
+  background: #5830C515;
+  border-color: #5830C550;
+}
+
 .adduser-delete-btn {
   padding: 0.3rem 0.75rem;
   background: transparent;
@@ -355,6 +378,24 @@
 .adduser-delete-btn:hover {
   background: #ce0b0b15;
   border-color: #ce0b0b50;
+}
+
+.adduser-cancel-btn {
+  margin-right: auto;
+  padding: 0.3rem 0.75rem;
+  background: transparent;
+  border: 1px solid #9CA3AF40;
+  color: #6B7280;
+  border-radius: 6px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.adduser-cancel-btn:hover {
+  background: #f3f4f6;
 }
 
 /* ── Empty & Loading ── */

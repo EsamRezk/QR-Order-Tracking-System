@@ -217,6 +217,7 @@ started_at      TIMESTAMPTZ DEFAULT now()
 | `create_user(p_admin_id, ...)` | إنشاء مستخدم جديد | admin فقط |
 | `delete_user(p_admin_id, p_user_id)` | حذف مستخدم | admin فقط (لا يحذف نفسه) |
 | `list_users(p_admin_id)` | جلب قائمة المستخدمين (بدون باسورد) | admin فقط |
+| `rpc_update_user_secure(p_session_id, p_target_user_id, p_username, p_password, p_branch_id, p_route, p_role)` | تعديل بيانات مستخدم (الباسورد اختياري) | admin فقط |
 | `rpc_upsert_heartbeat(p_session_id, p_current_page)` | تحديث حالة الحضور (heartbeat كل 30 ثانية) | SECURITY DEFINER |
 | `rpc_remove_presence(p_session_id)` | حذف الحضور عند الخروج | SECURITY DEFINER |
 | `rpc_get_online_users(p_session_id, p_timeout_seconds)` | جلب المتصلين (admin فقط) | SECURITY DEFINER |
@@ -468,10 +469,11 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 
 #### `AddUser.jsx` (إدارة المستخدمين)
 - **URL:** `/add-user` (admin فقط)
-- فورم إضافة: username, password, branch (dropdown), role, route
-- جدول المستخدمين الحاليين مع إمكانية الحذف
-- يستخدم RPC functions: `create_user`, `list_users`, `delete_user`
+- فورم إضافة/تعديل: username, password (اختياري عند التعديل), branch (dropdown), role, route
+- جدول المستخدمين الحاليين مع إمكانية التعديل والحذف
+- يستخدم RPC functions: `create_user`, `list_users`, `delete_user`, `update_user_secure`
 - الأدمن لا يمكنه حذف حسابه
+- زرار "تعديل" يملأ الفورم ببيانات المستخدم + زرار "إلغاء التعديل" للرجوع
 
 #### `Logs.jsx` (سجل النظام)
 - **URL:** `/logs` (admin فقط)
@@ -567,6 +569,7 @@ npm run lint      # فحص الكود
 | 2026-03-28 | إضافة صفحة سجل النظام (Logs) — تتبع المتصلون الآن مع نظام heartbeat للحضور |
 | 2026-04-05 | تغيير هوية الألوان بالكامل من KebbaZone (برتقالي #FF5100) إلى هوية Foodics (بنفسجي #440099) — شمل index.css + كل ملفات CSS و JSX |
 | 2026-04-05 | نقل AdminSidebar و UserSidebar من اليسار إلى اليمين (right: 0، translateX(100%) للإخفاء، borderLeft). نقل AppLogo من اليمين إلى اليسار لتفادي التعارض. تغيير formatClock() إلى نظام 12 ساعة مع صباحاً/مساءً. إضافة formatDate() وعرض التاريخ تحت الساعة في DisplayDashboard |
+| 2026-04-05 | إضافة خاصية تعديل المستخدمين في AddUser.jsx — زرار تعديل + فورم يتحول لوضع التعديل + RPC جديدة rpc_update_user_secure (013_rpc_update_user.sql) + تحديث rpc_list_users_secure لإرجاع branch_id |
 
 ---
 
