@@ -26,25 +26,25 @@ export default function OrderCard({ order, fading = false }) {
   return (
     <div style={{ padding: '1.25rem 1.5rem' }} className={`${fading ? 'animate-fade-out' : 'animate-slide-in'} rounded-lg border transition-all ${
       isReady
-        ? 'bg-gradient-to-l from-[#16a34a]/15 to-[#2f2520] border-[#22c55e]/25'
-        : 'bg-gradient-to-l from-[#FF5100]/10 to-[#2f2520] border-[#FF5100]/20'
+        ? 'bg-gradient-to-l from-[#16a34a]/15 to-[#ffffff] border-[#22c55e]/25'
+        : 'bg-gradient-to-l from-[#5830C5]/10 to-[#ffffff] border-[#5830C5]/20'
     }`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-lg flex items-center justify-center text-lg font-bold ${
-            isReady ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'bg-[#FF5100]/20 text-[#FF5100]'
+            isReady ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'bg-[#5830C5]/20 text-[#5830C5]'
           }`}>
             {isReady ? '✓' : '🔥'}
           </div>
-          <span className="text-2xl lg:text-4xl font-extrabold text-white">{order.order_id}</span>
+          <span className="text-2xl lg:text-4xl font-extrabold text-[#2E2D2C]">{order.order_id}</span>
         </div>
         <span className={`text-xs lg:text-sm font-bold ${
-          isReady ? 'text-[#22c55e]' : 'text-[#FF7A3D]'
+          isReady ? 'text-[#22c55e]' : 'text-[#7B5CD6]'
         }`}>
           {channelName}
         </span>
       </div>
-      <div className="mt-3 flex items-center gap-2 text-sm text-[#8a8280]">
+      <div className="mt-3 flex items-center gap-2 text-sm text-[#6B7280]">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>

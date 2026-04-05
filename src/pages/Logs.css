@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
 
 .logs-root {
-  --bg-deep: #1a140e;
-  --bg-base: #1E1810;
-  --bg-card: #2a2018;
-  --bg-elevated: #332a20;
-  --border: #3d302840;
-  --border-hover: #FF510030;
-  --text-primary: #F8F5F2;
-  --text-secondary: #a09890;
-  --text-muted: #706860;
-  --accent: #FF5100;
-  --accent-light: #FF7A3D;
-  --accent-glow: #FF510020;
+  --bg-deep: #f8f8fa;
+  --bg-base: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-elevated: #f3f4f6;
+  --border: #e5e7eb;
+  --border-hover: #5830C520;
+  --text-primary: #2E2D2C;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --accent: #5830C5;
+  --accent-light: #7B5CD6;
+  --accent-glow: #5830C510;
   --green: #22c55e;
   --red: #ef4444;
 
@@ -41,8 +41,8 @@
 
 /* ── Header ── */
 .logs-header {
-  background: linear-gradient(180deg, #2a201800 0%, var(--bg-deep) 100%),
-              linear-gradient(135deg, #FF510008 0%, transparent 50%);
+  background: linear-gradient(180deg, #1e1a3500 0%, var(--bg-deep) 100%),
+              linear-gradient(135deg, #5830C508 0%, transparent 50%);
   border-bottom: 1px solid var(--border);
   padding: 2rem 0 1.5rem;
 }
@@ -192,7 +192,7 @@
 }
 
 .online-table tbody tr {
-  border-bottom: 1px solid #3d302820;
+  border-bottom: 1px solid #35305a20;
   transition: background 0.15s;
 }
 
@@ -201,7 +201,7 @@
 }
 
 .online-table tbody tr:hover {
-  background: #FF510008;
+  background: #5830C508;
 }
 
 .online-table tbody td {
@@ -231,7 +231,7 @@
 }
 
 .user-avatar.admin {
-  background: #FF510018;
+  background: #5830C518;
   color: var(--accent);
 }
 
@@ -259,9 +259,9 @@
 }
 
 .role-badge.admin {
-  background: #FF510015;
+  background: #5830C515;
   color: var(--accent);
-  border: 1px solid #FF510025;
+  border: 1px solid #5830C525;
 }
 
 .role-badge.user {

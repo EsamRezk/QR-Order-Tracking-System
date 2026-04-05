@@ -2,18 +2,18 @@
 
 /* Root — matches DisplayDashboard.css variables */
 .kitchen-root {
-    --bg-deep: #1a140e;
-    --bg-base: #1E1810;
-    --bg-card: #2a2018;
-    --bg-elevated: #332a20;
-    --border: rgba(61, 48, 40, 0.25);
-    --border-solid: #3d3028;
-    --text-primary: #F8F5F2;
-    --text-secondary: #a09890;
-    --text-muted: #706860;
-    --text-dim: #575250;
-    --accent: #FF5100;
-    --accent-light: #FF7A3D;
+    --bg-deep: #f8f8fa;
+    --bg-base: #f3f4f6;
+    --bg-card: #ffffff;
+    --bg-elevated: #f3f4f6;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-solid: #e5e7eb;
+    --text-primary: #2E2D2C;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+    --text-dim: #9CA3AF;
+    --accent: #5830C5;
+    --accent-light: #7B5CD6;
     --green: #22c55e;
     --green-dark: #16a34a;
 
@@ -128,7 +128,7 @@
 
 .kitchen-count-dot--active {
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(255, 81, 0, 0.5);
+    box-shadow: 0 0 8px rgba(88, 48, 197, 0.5);
     animation: kitchen-blink 2s ease-in-out infinite;
 }
 
@@ -173,8 +173,8 @@
 
 /* Order card */
 .kitchen-card {
-    background: linear-gradient(135deg, #2f2520 0%, rgba(255, 81, 0, 0.06) 100%);
-    border: 1px solid rgba(255, 81, 0, 0.2);
+    background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.04) 100%);
+    border: 1px solid rgba(88, 48, 197, 0.2);
     border-radius: 16px;
     padding: 1.25rem;
     display: flex;
@@ -222,7 +222,7 @@
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: rgba(255, 81, 0, 0.2);
+    background: rgba(88, 48, 197, 0.2);
     color: var(--accent);
     display: flex;
     align-items: center;

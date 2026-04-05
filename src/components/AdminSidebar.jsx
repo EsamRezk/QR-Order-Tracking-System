@@ -106,15 +106,15 @@ export default function AdminSidebar() {
           width: 44,
           height: 44,
           borderRadius: 12,
-          background: '#2f2520',
-          border: '1px solid #3d3028',
-          color: '#FF5100',
+          background: '#ffffff',
+          border: '1px solid #e5e7eb',
+          color: '#5830C5',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           transition: 'all 0.2s',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
         }}
       >
         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -148,8 +148,8 @@ export default function AdminSidebar() {
           left: 0,
           bottom: 0,
           width: 280,
-          background: '#2a2018',
-          borderRight: '1px solid #3d3028',
+          background: '#ffffff',
+          borderRight: '1px solid #e5e7eb',
           zIndex: 1000,
           transform: collapsed ? 'translateX(-100%)' : 'translateX(0)',
           transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -161,14 +161,14 @@ export default function AdminSidebar() {
         {/* Header */}
         <div style={{
           padding: '1.5rem 1.25rem 1.25rem',
-          borderBottom: '1px solid #3d302840',
+          borderBottom: '1px solid #e5e7eb40',
         }}>
           <div style={{
             fontSize: '0.65rem',
             fontWeight: 700,
-            color: '#FF5100',
-            background: '#FF510012',
-            border: '1px solid #FF510020',
+            color: '#5830C5',
+            background: '#5830C512',
+            border: '1px solid #5830C520',
             padding: '0.15rem 0.6rem',
             borderRadius: 100,
             display: 'inline-block',
@@ -176,10 +176,10 @@ export default function AdminSidebar() {
           }}>
             لوحة التحكم
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2E2D2C' }}>
             كبة زون
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#8a8280', marginTop: 2 }}>
+          <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 2 }}>
             مرحباً، {session.username}
           </div>
         </div>
@@ -201,9 +201,9 @@ export default function AdminSidebar() {
                 fontSize: '0.9rem',
                 fontWeight: 600,
                 transition: 'all 0.15s',
-                background: isActive(item) ? '#FF510015' : 'transparent',
-                color: isActive(item) ? '#FF7A3D' : '#a09890',
-                border: isActive(item) ? '1px solid #FF510020' : '1px solid transparent',
+                background: isActive(item) ? '#5830C515' : 'transparent',
+                color: isActive(item) ? '#7B5CD6' : '#6B7280',
+                border: isActive(item) ? '1px solid #5830C520' : '1px solid transparent',
               }}
             >
               <span style={{
@@ -213,7 +213,7 @@ export default function AdminSidebar() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: isActive(item) ? '#FF510020' : '#1E181080',
+                background: isActive(item) ? '#5830C520' : '#f3f4f680',
                 flexShrink: 0,
               }}>
                 <span style={{ width: 18, height: 18, display: 'flex' }}>{item.icon}</span>
@@ -226,7 +226,7 @@ export default function AdminSidebar() {
         {/* Footer - Logout */}
         <div style={{
           padding: '1rem 1.25rem',
-          borderTop: '1px solid #3d302840',
+          borderTop: '1px solid #e5e7eb40',
         }}>
           <button
             onClick={() => { setCollapsed(true); logout() }}

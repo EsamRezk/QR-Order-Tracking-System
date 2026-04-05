@@ -181,7 +181,7 @@ export default function Analytics() {
 
 
   const kpiCards = [
-    { icon: '📦', label: 'إجمالي الطلبات', value: stats.total, accent: '#FF5100' },
+    { icon: '📦', label: 'إجمالي الطلبات', value: stats.total, accent: '#5830C5' },
     { icon: '⏱️', label: 'متوسط وقت التحضير', value: formatDuration(stats.avg), accent: '#f7941d' },
     { icon: '⚡', label: 'أسرع طلب', value: formatDuration(stats.fastest), accent: '#22c55e' },
     { icon: '🐢', label: 'أبطأ طلب', value: formatDuration(stats.slowest), accent: '#ef4444' },
@@ -362,23 +362,23 @@ export default function Analytics() {
                 {branchChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={branchChartData} barCategoryGap="25%">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff06" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                       <XAxis
                         dataKey="name"
-                        stroke="#706860"
+                        stroke="#9CA3AF"
                         fontSize={11}
                         fontWeight={500}
                         tickLine={false}
                         axisLine={{ stroke: '#ffffff08' }}
                       />
                       <YAxis
-                        stroke="#706860"
+                        stroke="#9CA3AF"
                         fontSize={11}
                         tickLine={false}
                         axisLine={false}
                         tickFormatter={v => `${v} د`}
                       />
-                      <Tooltip content={<ChartTooltip unit="دقيقة" />} cursor={{ fill: '#FF510008' }} />
+                      <Tooltip content={<ChartTooltip unit="دقيقة" />} cursor={{ fill: '#5830C508' }} />
                       <Bar
                         dataKey="avg"
                         fill="url(#barGradient)"
@@ -387,8 +387,8 @@ export default function Analytics() {
                       />
                       <defs>
                         <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#FF7A3D" />
-                          <stop offset="100%" stopColor="#FF5100" />
+                          <stop offset="0%" stopColor="#7B5CD6" />
+                          <stop offset="100%" stopColor="#5830C5" />
                         </linearGradient>
                       </defs>
                     </BarChart>
@@ -411,17 +411,17 @@ export default function Analytics() {
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
                   <AreaChart data={hourlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff06" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                     <XAxis
                       dataKey="hour"
-                      stroke="#706860"
+                      stroke="#9CA3AF"
                       fontSize={10}
                       tickLine={false}
                       axisLine={{ stroke: '#ffffff08' }}
                       interval={2}
                     />
                     <YAxis
-                      stroke="#706860"
+                      stroke="#9CA3AF"
                       fontSize={11}
                       tickLine={false}
                       axisLine={false}
@@ -429,18 +429,18 @@ export default function Analytics() {
                     <Tooltip content={<ChartTooltip unit="طلب" />} />
                     <defs>
                       <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#FF5100" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#FF5100" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#5830C5" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#5830C5" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <Area
                       type="monotone"
                       dataKey="count"
-                      stroke="#FF7A3D"
+                      stroke="#7B5CD6"
                       strokeWidth={2.5}
                       fill="url(#areaGradient)"
                       dot={false}
-                      activeDot={{ r: 5, fill: '#FF5100', stroke: '#1a140e', strokeWidth: 2 }}
+                      activeDot={{ r: 5, fill: '#5830C5', stroke: '#ffffff', strokeWidth: 2 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

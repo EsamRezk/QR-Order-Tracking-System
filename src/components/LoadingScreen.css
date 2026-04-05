@@ -12,7 +12,7 @@
 
 .loading-screen-container.fullscreen {
     min-height: 100vh;
-    background: var(--bg-deep, #1a140e);
+    background: var(--bg-deep, #f8f8fa);
 }
 
 .loading-bounce-wrapper {
@@ -32,7 +32,7 @@
     border-radius: 16px;
     /* Soft shadow on the logo itself to pop out from background */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    background-color: var(--bg-card, #2a2018); /* fallback if logo is transparent and needs contrast */
+    background-color: var(--bg-card, #ffffff); /* fallback if logo is transparent and needs contrast */
     animation: logo-bounce 0.7s cubic-bezier(0.28, 0.84, 0.42, 1) infinite alternate;
     position: relative;
     z-index: 2;
@@ -42,7 +42,7 @@
     width: 60px;
     height: 10px;
     /* Using an accent color or dark for the ground impact */
-    background: rgba(255, 81, 0, 0.15);
+    background: rgba(88, 48, 197, 0.15);
     border-radius: 50%;
     position: absolute;
     bottom: -10px;
@@ -80,7 +80,7 @@
 .loading-text {
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--accent, #FF5100);
+    color: var(--accent, #5830C5);
     letter-spacing: 0.5px;
     animation: pulse-op 1.4s ease-in-out infinite alternate;
 }

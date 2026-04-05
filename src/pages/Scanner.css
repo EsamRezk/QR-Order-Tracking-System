@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
 
 .scanner-root {
-    --bg-deep: #1a140e;
-    --bg-base: #1E1810;
-    --bg-card: #2a2018;
-    --bg-elevated: #332a20;
-    --border: rgba(61, 48, 40, 0.25);
-    --border-solid: #3d3028;
-    --text-primary: #F8F5F2;
-    --text-secondary: #a09890;
-    --text-muted: #706860;
-    --accent: #FF5100;
-    --accent-light: #FF7A3D;
-    --accent-glow: rgba(255, 81, 0, 0.12);
+    --bg-deep: #f8f8fa;
+    --bg-base: #f3f4f6;
+    --bg-card: #ffffff;
+    --bg-elevated: #f3f4f6;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-solid: #e5e7eb;
+    --text-primary: #2E2D2C;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+    --accent: #5830C5;
+    --accent-light: #7B5CD6;
+    --accent-glow: rgba(88, 48, 197, 0.08);
     --green: #22c55e;
     --red: #ce0b0b;
     --yellow: #f7941d;
@@ -62,7 +62,7 @@
 .scanner-spinner {
     width: 44px;
     height: 44px;
-    border: 3px solid rgba(255, 81, 0, 0.12);
+    border: 3px solid rgba(88, 48, 197, 0.12);
     border-top-color: var(--accent);
     border-radius: 50%;
     animation: scanner-spin 0.8s linear infinite;
@@ -144,7 +144,7 @@
     align-items: center;
     gap: 0.4rem;
     background: var(--accent-glow);
-    border: 1px solid rgba(255, 81, 0, 0.15);
+    border: 1px solid rgba(88, 48, 197, 0.15);
     padding: 0.3rem 0.85rem;
     border-radius: 100px;
     margin-bottom: 0.6rem;
@@ -270,8 +270,8 @@
 }
 
 .feedback-icon-wrap--created {
-    background: rgba(255, 81, 0, 0.12);
-    border: 1px solid rgba(255, 81, 0, 0.15);
+    background: rgba(88, 48, 197, 0.12);
+    border: 1px solid rgba(88, 48, 197, 0.15);
 }
 
 .feedback-icon-wrap--created svg {
@@ -353,7 +353,7 @@
     align-items: center;
     gap: 0.5rem;
     background: var(--accent-glow);
-    border: 1px solid rgba(255, 81, 0, 0.12);
+    border: 1px solid rgba(88, 48, 197, 0.12);
     padding: 0.5rem 1rem;
     border-radius: 100px;
     font-size: 0.8rem;
@@ -364,7 +364,7 @@
 .scanner-processing-spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(255, 81, 0, 0.2);
+    border: 2px solid rgba(88, 48, 197, 0.2);
     border-top-color: var(--accent);
     border-radius: 50%;
     animation: scanner-spin 0.7s linear infinite;
@@ -420,7 +420,7 @@
 }
 
 .history-item:hover {
-    border-color: rgba(255, 81, 0, 0.1);
+    border-color: rgba(88, 48, 197, 0.1);
 }
 
 .history-item-right {
@@ -438,9 +438,9 @@
 }
 
 .history-badge--created {
-    background: rgba(255, 81, 0, 0.1);
+    background: rgba(88, 48, 197, 0.1);
     color: var(--accent);
-    border: 1px solid rgba(255, 81, 0, 0.12);
+    border: 1px solid rgba(88, 48, 197, 0.12);
 }
 
 .history-badge--ready {

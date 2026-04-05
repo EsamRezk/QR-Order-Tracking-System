@@ -25,7 +25,7 @@
     height: 100%;
     overflow: hidden;
     border-radius: 16px;
-    border: 2px solid rgba(255, 81, 0, 0.15);
+    border: 2px solid rgba(88, 48, 197, 0.15);
 }
 
 /* ── Override html5-qrcode internal styles that break centering ── */
@@ -77,7 +77,7 @@
 .scanner-corner::after {
     content: '';
     position: absolute;
-    background: #FF5100;
+    background: #5830C5;
     border-radius: 2px;
 }
 
@@ -167,11 +167,11 @@
     left: 12px;
     right: 12px;
     height: 2px;
-    background: linear-gradient(90deg, transparent 0%, #FF5100 40%, #FF7A3D 50%, #FF5100 60%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, #5830C5 40%, #7B5CD6 50%, #5830C5 60%, transparent 100%);
     opacity: 0.85;
     border-radius: 1px;
     animation: scan-line-move 2.5s ease-in-out infinite;
-    box-shadow: 0 0 8px rgba(255, 81, 0, 0.4);
+    box-shadow: 0 0 8px rgba(88, 48, 197, 0.4);
 }
 
 @keyframes scan-line-move {

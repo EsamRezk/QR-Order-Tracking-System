@@ -35,16 +35,16 @@ export default function ProtectedRoute({ children, allowedRoles }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#1E1810',
+          background: '#f3f4f6',
           fontFamily: "'Tajawal', sans-serif",
           direction: 'rtl',
         }}>
           <div style={{
             textAlign: 'center',
-            background: '#2f2520',
+            background: '#ffffff',
             borderRadius: 16,
             padding: '3rem 2.5rem',
-            border: '1px solid #3d3028',
+            border: '1px solid #e5e7eb',
             maxWidth: 420,
           }}>
             <div style={{
@@ -53,10 +53,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
               alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 1.5rem', fontSize: '1.8rem',
             }}>🚫</div>
-            <h2 style={{ color: '#fff', fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+            <h2 style={{ color: '#2E2D2C', fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>
               ليس لديك صلاحية
             </h2>
-            <p style={{ color: '#8a8280', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+            <p style={{ color: '#6B7280', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
               لا يمكنك الوصول لهذا الفرع. يمكنك فقط الوصول لفرعك.
             </p>
             <a
@@ -64,7 +64,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
               style={{
                 display: 'inline-block',
                 padding: '0.75rem 2rem',
-                background: '#FF5100',
+                background: '#5830C5',
                 color: '#fff',
                 borderRadius: 10,
                 fontWeight: 700,

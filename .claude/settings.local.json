@@ -8,7 +8,11 @@
       "Bash(powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json)",
       "WebFetch(domain:kebbazone.com)",
       "WebFetch(domain:developers.foodics.com)",
-      "WebFetch(domain:apidocs.foodics.com)"
+      "WebFetch(domain:apidocs.foodics.com)",
+      "WebSearch",
+      "WebFetch(domain:brandfetch.com)",
+      "WebFetch(domain:logosandtypes.com)",
+      "WebFetch(domain:www.foodics.com)"
     ]
   },
   "mcpServers": {

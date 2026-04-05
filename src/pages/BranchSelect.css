@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1a140e;
+  background: #f8f8fa;
   font-family: 'Tajawal', sans-serif;
   direction: rtl;
   padding: 1.5rem;
@@ -22,8 +22,8 @@
 .branch-select-spinner {
   width: 52px;
   height: 52px;
-  border: 3px solid rgba(255, 81, 0, 0.12);
-  border-top-color: #FF5100;
+  border: 3px solid rgba(88, 48, 197, 0.12);
+  border-top-color: #5830C5;
   border-radius: 50%;
   animation: bs-spin 0.8s linear infinite;
 }
@@ -34,7 +34,7 @@
 
 .branch-select-loading-text {
   font-size: 1.1rem;
-  color: #706860;
+  color: #9CA3AF;
   font-weight: 500;
 }
 
@@ -66,12 +66,12 @@
   width: 72px;
   height: 72px;
   border-radius: 20px;
-  background: linear-gradient(135deg, #FF5100 0%, #FF7A3D 100%);
+  background: linear-gradient(135deg, #5830C5 0%, #7B5CD6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.25rem;
-  box-shadow: 0 8px 32px rgba(255, 81, 0, 0.25);
+  box-shadow: 0 8px 32px rgba(88, 48, 197, 0.25);
 }
 
 .branch-select-icon svg {
@@ -83,13 +83,13 @@
 .branch-select-title {
   font-size: 1.75rem;
   font-weight: 900;
-  color: #F8F5F2;
+  color: #2E2D2C;
   margin: 0 0 0.35rem;
 }
 
 .branch-select-subtitle {
   font-size: 1rem;
-  color: #706860;
+  color: #9CA3AF;
   font-weight: 500;
   margin: 0;
 }
@@ -107,8 +107,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #2a2018;
-  border: 1px solid rgba(61, 48, 40, 0.25);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 16px;
   padding: 1.25rem 1.5rem;
   cursor: pointer;
@@ -130,10 +130,10 @@
 }
 
 .branch-select-card:hover {
-  background: #332a20;
-  border-color: rgba(255, 81, 0, 0.3);
+  background: #f3f4f6;
+  border-color: rgba(88, 48, 197, 0.3);
   transform: translateX(-4px);
-  box-shadow: 0 4px 20px rgba(255, 81, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(88, 48, 197, 0.1);
 }
 
 .branch-select-card:active {
@@ -148,13 +148,13 @@
 .branch-select-card-name {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #F8F5F2;
+  color: #2E2D2C;
   line-height: 1.3;
 }
 
 .branch-select-card-name-en {
   font-size: 0.85rem;
-  color: #a09890;
+  color: #6B7280;
   font-weight: 400;
   margin-top: 0.15rem;
   direction: ltr;
@@ -163,7 +163,7 @@
 
 .branch-select-card-location {
   font-size: 0.8rem;
-  color: #FF7A3D;
+  color: #7B5CD6;
   font-weight: 500;
   margin-top: 0.35rem;
   display: flex;
@@ -176,7 +176,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #FF5100;
+  background: #5830C5;
   flex-shrink: 0;
 }
 
@@ -184,7 +184,7 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: rgba(255, 81, 0, 0.08);
+  background: rgba(88, 48, 197, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -194,25 +194,25 @@
 }
 
 .branch-select-card:hover .branch-select-card-arrow {
-  background: rgba(255, 81, 0, 0.15);
+  background: rgba(88, 48, 197, 0.15);
   transform: translateX(-4px);
 }
 
 .branch-select-card-arrow svg {
   width: 18px;
   height: 18px;
-  color: #FF5100;
+  color: #5830C5;
 }
 
 /* ── Empty ── */
 .branch-select-empty {
   text-align: center;
-  color: #706860;
+  color: #9CA3AF;
   font-size: 1.1rem;
   font-weight: 600;
   padding: 3rem 0;
-  background: #2a2018;
-  border: 1px solid rgba(61, 48, 40, 0.25);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 16px;
 }
 
