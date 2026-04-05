@@ -110,12 +110,12 @@ body {
   animation: glowPulse 2s ease-in-out infinite;
 }
 
-/* App logo - hide on mobile */
+/* App logo - responsive */
 .app-logo {
   display: block;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .app-logo {
     display: none !important;
   }

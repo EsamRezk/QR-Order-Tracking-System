@@ -505,10 +505,26 @@
     }
 }
 
+@media (max-width: 1024px) {
+    .dash-header-inner {
+        padding: 1rem 1.5rem;
+        padding-right: 68px;
+    }
+
+    .dash-controls-area {
+        padding-left: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .dash-header-inner {
         padding: 0.75rem 1rem;
         padding-right: 68px;
+        padding-left: 1rem;
+    }
+
+    .dash-controls-area {
+        padding-left: 0;
     }
 
     .dash-main {

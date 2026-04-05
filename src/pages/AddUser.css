@@ -5,14 +5,13 @@
 
 /* ── Header ── */
 .adduser-header {
-  background: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
-  border-bottom: 1px solid #e5e7eb30;
+  background-color: #f3f4f6;
+  background-image: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+  border-bottom: 1px solid #e5e7eb;
   padding: 1.5rem 2rem 1.25rem;
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .adduser-header-inner {
@@ -392,6 +391,13 @@
 
 .adduser-hide-mobile {
   display: table-cell;
+}
+
+@media (max-width: 1024px) {
+  .adduser-header {
+    padding: 1.25rem 1.5rem 1rem;
+    padding-right: 68px;
+  }
 }
 
 @media (max-width: 768px) {
