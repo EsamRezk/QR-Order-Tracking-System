@@ -317,6 +317,14 @@
     direction: ltr;
 }
 
+.dash-date {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 0.2rem;
+    direction: rtl;
+}
+
 .dash-active-status {
     display: flex;
     align-items: center;

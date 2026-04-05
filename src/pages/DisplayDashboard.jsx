@@ -4,7 +4,7 @@ import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
 import { useSound } from '../hooks/useSound'
 import { useAuth } from '../context/AuthContext'
-import { formatClock } from '../utils/formatTime'
+import { formatClock, formatDate } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
 import PreparingColumn from '../components/PreparingColumn'
 import ReadyColumn from '../components/ReadyColumn'
@@ -31,6 +31,7 @@ function DisplayDashboardInner() {
   const { preparing, ready, newOrderFlag } = useOrders(branch?.id)
   const { play, loadSound } = useSound()
   const [clock, setClock] = useState(formatClock())
+  const [date, setDate] = useState(formatDate())
   const prevOrderFlag = useRef(0)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [fadingOrders, setFadingOrders] = useState(new Set())
@@ -69,7 +70,10 @@ function DisplayDashboardInner() {
 
   // Live clock
   useEffect(() => {
-    const interval = setInterval(() => setClock(formatClock()), 1000)
+    const interval = setInterval(() => {
+      setClock(formatClock())
+      setDate(formatDate())
+    }, 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -144,6 +148,7 @@ function DisplayDashboardInner() {
             </button>
             <div className="dash-clock-info">
               <div className="dash-clock">{clock}</div>
+              <div className="dash-date">{date}</div>
               <div className="dash-active-status">
                 <div className={`dash-status-dot ${totalActive > 0 ? 'dash-status-dot--active' : 'dash-status-dot--idle'}`} />
                 <span className="dash-status-text">

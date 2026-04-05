@@ -99,9 +99,9 @@ export default function AdminSidebar() {
       <button
         onClick={() => setCollapsed(!collapsed)}
         style={{
-          position: 'absolute',
+          position: 'fixed',
           top: 16,
-          left: 16,
+          right: 16,
           zIndex: 1001,
           width: 44,
           height: 44,
@@ -145,13 +145,13 @@ export default function AdminSidebar() {
         style={{
           position: 'fixed',
           top: 0,
-          left: 0,
+          right: 0,
           bottom: 0,
           width: 280,
           background: '#ffffff',
-          borderRight: '1px solid #e5e7eb',
+          borderLeft: '1px solid #e5e7eb',
           zIndex: 1000,
-          transform: collapsed ? 'translateX(-100%)' : 'translateX(0)',
+          transform: collapsed ? 'translateX(100%)' : 'translateX(0)',
           transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           display: 'flex',
           flexDirection: 'column',

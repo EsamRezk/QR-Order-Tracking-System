@@ -42,10 +42,23 @@ export function formatTime(date) {
 }
 
 export function formatClock() {
-  return new Date().toLocaleTimeString('ar-SA', {
+  const now = new Date()
+  const period = now.getHours() < 12 ? 'صباحاً' : 'مساءً'
+  const timePart = now.toLocaleTimeString('ar-SA', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    hour12: true,
+  })
+  const timeOnly = timePart.replace(/[صم]/g, '').trim()
+  return `${timeOnly} ${period}`
+}
+
+export function formatDate() {
+  return new Date().toLocaleDateString('ar-SA', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   })
 }
