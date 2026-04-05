@@ -38,6 +38,7 @@ export default function AddUser() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState(null) // { type: 'success'|'error', text }
   const [editingUser, setEditingUser] = useState(null) // null = add mode, { id } = edit mode
+  const [deleteTarget, setDeleteTarget] = useState(null) // { id, username } for confirm modal
 
   const fetchBranches = async () => {
     const { data } = await supabase
@@ -142,12 +143,18 @@ export default function AddUser() {
     setMessage(null)
   }
 
-  const handleDelete = async (userId, username) => {
-    if (!confirm(`هل تريد حذف المستخدم "${username}"؟`)) return
+  const handleDelete = (userId, username) => {
+    setDeleteTarget({ id: userId, username })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    const { id, username } = deleteTarget
+    setDeleteTarget(null)
 
     const { data } = await supabase.rpc('rpc_delete_user_secure', {
       p_session_id: session.sessionId,
-      p_target_user_id: userId,
+      p_target_user_id: id,
     })
 
     if (data?.success) {
@@ -363,6 +370,33 @@ export default function AddUser() {
           )}
         </div>
       </main>
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className="adduser-modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="adduser-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="adduser-modal-icon">
+              <svg width="28" height="28" fill="none" stroke="#ce0b0b" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h3 className="adduser-modal-title">تأكيد الحذف</h3>
+            <p className="adduser-modal-text">
+              هل أنت متأكد من حذف المستخدم <strong>"{deleteTarget.username}"</strong>؟
+              <br />
+              <span className="adduser-modal-subtext">لا يمكن التراجع عن هذا الإجراء</span>
+            </p>
+            <div className="adduser-modal-actions">
+              <button onClick={() => setDeleteTarget(null)} className="adduser-modal-cancel">
+                إلغاء
+              </button>
+              <button onClick={confirmDelete} className="adduser-modal-confirm">
+                نعم، احذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
