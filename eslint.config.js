@@ -24,6 +24,10 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // قواعد React Compiler التجريبية (react-hooks v7) — تُنبّه على أنماط React
+      // قياسية صحيحة مثل setState داخل effect لجلب البيانات. مُعطّلة لتفادي الضوضاء.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
     },
   },
 ])

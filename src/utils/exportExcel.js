@@ -82,13 +82,13 @@ export async function exportOrdersToExcel(orders, branchName) {
     const cell = headerRow.getCell(i + 1)
     cell.value = h
     cell.font = { name: 'Tajawal', size: 12, bold: true, color: { argb: 'FFFFFFFF' } }
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF5100' } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF440099' } }
     cell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl' }
     cell.border = {
-      top: { style: 'thin', color: { argb: 'FFE04500' } },
-      bottom: { style: 'thin', color: { argb: 'FFE04500' } },
-      left: { style: 'thin', color: { argb: 'FFE04500' } },
-      right: { style: 'thin', color: { argb: 'FFE04500' } },
+      top: { style: 'thin', color: { argb: 'FF330077' } },
+      bottom: { style: 'thin', color: { argb: 'FF330077' } },
+      left: { style: 'thin', color: { argb: 'FF330077' } },
+      right: { style: 'thin', color: { argb: 'FF330077' } },
     }
   })
   headerRow.height = 32
@@ -98,7 +98,7 @@ export async function exportOrdersToExcel(orders, branchName) {
     const rowNum = index + 4
     const row = sheet.getRow(rowNum)
     const isEven = index % 2 === 0
-    const bgColor = isEven ? 'FFFFFFFF' : 'FFFFF5F0'
+    const bgColor = isEven ? 'FFFFFFFF' : 'FFF5F2FA'
 
     const values = [
       order.order_id,

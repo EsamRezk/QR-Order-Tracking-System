@@ -6,7 +6,7 @@ const IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000 // 12 hours
 
 export function useIdleTimer() {
   const { session, logout, updateActivity } = useAuth()
-  const lastUpdateRef = useRef(Date.now())
+  const lastUpdateRef = useRef(0)
 
   useEffect(() => {
     // Don't track for screen role or if not authenticated
