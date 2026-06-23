@@ -69,6 +69,7 @@ export default function AddUser() {
 
   useEffect(() => {
     Promise.all([fetchBranches(), fetchUsers()]).then(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (e) => {

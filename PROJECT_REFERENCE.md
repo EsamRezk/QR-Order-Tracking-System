@@ -28,6 +28,7 @@
 | React Router DOM | 7.13.2 | Routing |
 | Recharts | 3.8.0 | Charts (Analytics page) |
 | html5-qrcode | 2.3.8 | QR Code scanning |
+| ExcelJS | 4.4.0 | تصدير سجل الطلبات إلى ملف Excel (.xlsx) منسّق |
 
 ---
 
@@ -69,18 +70,25 @@ e:\My Projects\QR Order Tracking System\
 │   │
 │   ├── utils/
 │   │   ├── formatTime.js       # دوال تنسيق الوقت بالعربية
-│   │   └── parseQR.js          # تفسير بيانات QR → {order_id, channel_link, location}
+│   │   ├── parseQR.js          # تفسير بيانات QR → {order_id, channel_link, location}
+│   │   └── exportExcel.js      # تصدير سجل الطلبات إلى .xlsx منسّق (لوجو + ألوان)
 │   │
 │   ├── components/
+│   │   ├── AppLogo.jsx         # لوجو كبة زون ثابت أعلى يسار الشاشة (fixed)
+│   │   ├── AdminSidebar.jsx    # شريط جانبي للأدمن (كل الروابط) — يظهر لـ role: admin فقط
+│   │   ├── UserSidebar.jsx     # شريط جانبي للمستخدم العادي (kitchen + logout)
 │   │   ├── BranchSelector.jsx  # قائمة منسدلة لاختيار الفرع
 │   │   ├── LogoutButton.jsx    # زر تسجيل الخروج (يظهر في كل الصفحات)
+│   │   ├── LoadingScreen.jsx   # شاشة تحميل بلوجو متحرك (bounce) + CSS
+│   │   ├── LoadingScreen.css
 │   │   ├── OrderCard.jsx       # بطاقة الطلب (preparing / ready)
-│   │   ├── PreparingColumn.jsx # عمود "قيد التحضير"
-│   │   ├── UserSidebar.jsx     # شريط جانبي للمستخدم العادي (scan + kitchen + logout)
+│   │   ├── PreparingColumn.jsx # عمود "قيد التحضير" + CSS
+│   │   ├── PreparingColumn.css
 │   │   ├── ProtectedRoute.jsx  # حماية المسارات حسب الصلاحية
-│   │   ├── ReadyColumn.jsx     # عمود "جاهز"
-│   │   ├── ReadyColumn.css     # ستايل عمود جاهز
-│   │   ├── ScannerView.jsx     # كاميرا QR (html5-qrcode)
+│   │   ├── ReadyColumn.jsx     # عمود "جاهز" + CSS
+│   │   ├── ReadyColumn.css
+│   │   ├── ScannerView.jsx     # كاميرا QR (html5-qrcode) + CSS
+│   │   ├── ScannerView.css
 │   │   └── StatsCard.jsx       # بطاقة إحصائية بسيطة
 │   │
 │   ├── pages/
@@ -133,7 +141,7 @@ e:\My Projects\QR Order Tracking System\
 | `/login` | `Login` | عام | تسجيل الدخول |
 | `/display?branch=CODE` | `DisplayDashboard` | screen, admin | شاشة عرض الطلبات (للتلفاز/الشاشة) |
 | `/scan?branch=CODE` | `Scanner` | user, admin | ماسح QR للموظفين |
-| `/analytics` | `Analytics` | admin | تقارير وإحصائيات |
+| `/analytics` | `Analytics` | user, admin | تقارير وإحصائيات |
 | `/admin` | `Admin` | admin | إدارة الفروع (CRUD) |
 | `/kitchen?branch=CODE` | `Kitchen` | user, admin | شاشة المطبخ — عرض الطلبات قيد التحضير + زر جاهز |
 | `/add-user` | `AddUser` | admin | إضافة وإدارة المستخدمين |
@@ -404,6 +412,24 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - بطاقة إحصائية بسيطة
 - Props: `label`, `value`, `unit`, `color`
 
+#### `AppLogo.jsx`
+- لوجو كبة زون ثابت (`position: fixed`) أعلى يسار الشاشة
+- يظهر في كل الصفحات (مُركّب عالمياً في `App.jsx`)
+
+#### `AdminSidebar.jsx`
+- شريط جانبي منزلق من اليمين، يظهر فقط لـ `role: admin`
+- روابط: التحليلات، شاشة المطبخ، شاشة العرض، إدارة الفروع، إدارة المستخدمين، سجل النظام + زر خروج
+- (رابط "ماسح الطلبات" `/scan` معطّل/مُعلّق حالياً في الكود)
+- زر toggle ثابت أعلى اليمين + overlay عند الفتح
+- الروابط التي تحتاج فرع (`needsBranch`) تضيف `?branch=CODE` تلقائياً
+
+#### `UserSidebar.jsx`
+- شريط جانبي للمستخدم العادي (`role: user`) — يحتوي شاشة المطبخ + تسجيل الخروج
+
+#### `LoadingScreen.jsx` + `LoadingScreen.css`
+- شاشة تحميل بلوجو متحرك (bounce animation) + ظل
+- Props: `text` (افتراضي "جاري التحميل...")، `fullScreen`
+
 ---
 
 ### 8.7 Pages
@@ -438,7 +464,7 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
   - BarChart: متوسط وقت التحضير لكل فرع
   - AreaChart: الطلبات حسب الساعة
 - جدول بيانات لآخر 50 طلب
-- زر تصدير CSV
+- زر تصدير **Excel (.xlsx)** عبر `exportOrdersToExcel()` — ملف منسّق بلوجو وألوان واتجاه RTL
 
 #### `Admin.jsx` (إدارة الفروع)
 - **URL:** `/admin`
@@ -570,6 +596,8 @@ npm run lint      # فحص الكود
 | 2026-04-05 | تغيير هوية الألوان بالكامل من KebbaZone (برتقالي #FF5100) إلى هوية Foodics (بنفسجي #440099) — شمل index.css + كل ملفات CSS و JSX |
 | 2026-04-05 | نقل AdminSidebar و UserSidebar من اليسار إلى اليمين (right: 0، translateX(100%) للإخفاء، borderLeft). نقل AppLogo من اليمين إلى اليسار لتفادي التعارض. تغيير formatClock() إلى نظام 12 ساعة مع صباحاً/مساءً. إضافة formatDate() وعرض التاريخ تحت الساعة في DisplayDashboard |
 | 2026-04-05 | إضافة خاصية تعديل المستخدمين في AddUser.jsx — زرار تعديل + فورم يتحول لوضع التعديل + RPC جديدة rpc_update_user_secure (013_rpc_update_user.sql) + تحديث rpc_list_users_secure لإرجاع branch_id |
+| 2026-06-11 | مزامنة المرجع مع الكود الفعلي: توثيق AppLogo / AdminSidebar / LoadingScreen، تغيير تصدير التحليلات من CSV إلى Excel (exportExcel.js + ExcelJS)، تصحيح صلاحية `/analytics` إلى user+admin |
+| 2026-06-11 | تنظيف شامل — lint نظيف 100% + build ناجح: (1) حذف test-realtime.js؛ (2) إصلاح useIdleTimer (`useRef(0)` بدل `Date.now()`)؛ (3) تعطيل قاعدتي React Compiler التجريبيتين set-state-in-effect + preserve-manual-memoization في eslint.config.js؛ (4) eslint-disable موضعي في AuthContext (useAuth) و AddUser (effect لمرة واحدة)؛ (5) تحويل ألوان تصدير Excel من البرتقالي القديم إلى البنفسجي #440099 (هوية Foodics) |
 
 ---
 
