@@ -78,9 +78,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem(SESSION_KEY, JSON.stringify(newSession))
     setSession(newSession)
 
-    // Redirect based on user's configured route
-    const route = user.route || '/scan'
-    const needsBranch = ['/scan', '/display', '/kitchen'].includes(route)
+    // Redirect based on user's configured route (الماسح أُلغي — الافتراضي المطبخ)
+    const route = (user.route && user.route !== '/scan') ? user.route : '/kitchen'
+    const needsBranch = ['/display', '/kitchen'].includes(route)
     if (needsBranch && user.branchCode) {
       navigate(`${route}?branch=${user.branchCode}`)
     } else {
@@ -115,8 +115,8 @@ export function AuthProvider({ children }) {
 
   const getDefaultRoute = useCallback(() => {
     if (!session) return '/login'
-    const route = session.route || '/scan'
-    const needsBranch = ['/scan', '/display', '/kitchen'].includes(route)
+    const route = (session.route && session.route !== '/scan') ? session.route : '/kitchen'
+    const needsBranch = ['/display', '/kitchen'].includes(route)
     if (needsBranch && session.branchCode) {
       return `${route}?branch=${session.branchCode}`
     }

@@ -14,7 +14,7 @@
 ```
 Foodics POS (طلب جديد)
    ↓ webhook: order.created
-Supabase Edge Function (/foodics-webhook)
+Supabase Edge Function (/test-foodics-webhook)
    ↓ INSERT order (status = 'new', source = 'foodics')
    ↓ Realtime
 شاشة المطبخ → الطلب يظهر في قسم "طلبات جديدة" مع زر "استلام"
@@ -160,12 +160,12 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 5. Supabase Edge Function — `foodics-webhook`
-ملف: `supabase/functions/foodics-webhook/index.ts`
+## 5. Supabase Edge Function — `test-foodics-webhook`
+ملف: `supabase/functions/test-foodics-webhook/index.ts`
 
 المنطق (مع الرد دائماً بـ 200):
 ```
-POST /foodics-webhook
+POST /test-foodics-webhook
   → التحقق من التوقيع (webhook_secret من البند 3)   → فشل؟ 401
   → event != 'order.created'?                        → 200 ignored
   → استخراج: foodics_order_id, number, branch.id, type
@@ -174,7 +174,7 @@ POST /foodics-webhook
   → INSERT orders (status='new', source='foodics', accepted_at=NULL)
   → 200 created
 ```
-- نشر: `supabase functions deploy foodics-webhook --no-verify-jwt`
+- نشر: `supabase functions deploy test-foodics-webhook --no-verify-jwt`
 - يستخدم `SUPABASE_SERVICE_ROLE_KEY` (يتجاوز RLS تلقائياً).
 - ⚠️ التحقق من التوقيع لا يُكتب نهائياً إلا بعد معرفة آلية Foodics الفعلية (البند 3).
 
@@ -250,7 +250,7 @@ UNION ALL SELECT '<FOODICS_MALQA_ID>', id FROM branches WHERE code='AlMalqa-03';
 المهمة 2: DB — foodics_config + foodics_branch_mapping
 المهمة 3: DB — توسيع scan_logs
 المهمة 4: DB — rpc_kitchen_accept_order
-المهمة 5: Edge Function — foodics-webhook (+ التحقق من التوقيع)
+المهمة 5: Edge Function — test-foodics-webhook (+ التحقق من التوقيع)
 المهمة 6: Seed — ربط الفروع (يحتاج GET /branches)
 المهمة 7: Frontend — useOrders (دعم new)
 المهمة 8: Frontend — Kitchen (قسم جديد + زر استلام)
@@ -265,7 +265,7 @@ UNION ALL SELECT '<FOODICS_MALQA_ID>', id FROM branches WHERE code='AlMalqa-03';
 
 ```bash
 # طلب جديد
-curl -X POST https://<REF>.supabase.co/functions/v1/foodics-webhook \
+curl -X POST https://<REF>.supabase.co/functions/v1/test-foodics-webhook \
   -H "Content-Type: application/json" \
   -d '{"event":"order.created","data":{"id":"t-001","number":5001,"type":2,"branch":{"id":"<FOODICS_BRANCH_ID>"}}}'
 # متوقع: created → يظهر بالمطبخ كـ "جديد"

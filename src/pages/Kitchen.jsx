@@ -9,6 +9,12 @@ import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
 import './Kitchen.css'
 
+const ORDER_TYPE_LABELS = {
+  dine_in: 'محلي',
+  pickup: 'استلام',
+  delivery: 'توصيل',
+}
+
 export default function Kitchen() {
   const [searchParams] = useSearchParams()
   if (!searchParams.get('branch')) {
@@ -20,10 +26,11 @@ export default function Kitchen() {
 function KitchenInner() {
   const { session } = useAuth()
   const { branch, loading, error } = useBranch()
-  const { preparing } = useOrders(branch?.id)
+  const { incoming, preparing } = useOrders(branch?.id)
   const [clock, setClock] = useState(formatClock())
-  const [confirmOrder, setConfirmOrder] = useState(null)
-  const [marking, setMarking] = useState(false)
+  // confirm = { order, action: 'accept' | 'ready' }
+  const [confirm, setConfirm] = useState(null)
+  const [working, setWorking] = useState(false)
   const [fadingOrders, setFadingOrders] = useState(new Set())
 
   // Live clock
@@ -32,38 +39,40 @@ function KitchenInner() {
     return () => clearInterval(interval)
   }, [])
 
-  const handleMarkReady = useCallback(async () => {
-    if (!confirmOrder || !session?.sessionId) return
-    setMarking(true)
+  const handleConfirm = useCallback(async () => {
+    if (!confirm || !session?.sessionId) return
+    const { order, action } = confirm
+    setWorking(true)
     try {
-      // Call same RPC used by scanner
-      const { data, error } = await supabase.rpc('rpc_scanner_mark_ready', {
+      const rpcName = action === 'accept' ? 'rpc_kitchen_accept_order' : 'rpc_scanner_mark_ready'
+      const { data, error } = await supabase.rpc(rpcName, {
         p_session_id: session.sessionId,
-        p_order_internal_id: confirmOrder.id,
-        p_device_info: navigator.userAgent
+        p_order_internal_id: order.id,
+        p_device_info: navigator.userAgent,
       })
 
       if (error) throw error
       if (data && !data.success) {
-        throw new Error(data.error || 'فشل تحويل الطلب')
+        throw new Error(data.error || 'فشلت العملية')
       }
 
-      // Add to fading set only strictly after SUCCESS
-      setFadingOrders(prev => new Set([...prev, confirmOrder.id]))
-      setConfirmOrder(null)
-
+      // عند "جاهز" نُظهر أنيميشن الخروج (الطلب يغادر شاشة المطبخ).
+      // عند "استلام" ينتقل الطلب لقسم "قيد التحضير" تلقائياً عبر Realtime — بدون fade.
+      if (action === 'ready') {
+        setFadingOrders(prev => new Set([...prev, order.id]))
+      }
+      setConfirm(null)
     } catch (err) {
-      console.error('Error marking order ready:', err)
+      console.error('Kitchen action error:', err)
       alert('حدث خطأ: ' + (err.message || 'فشل الاتصال'))
-      // Notice we do NOT fade if it errors, so the order stays visible
-      setConfirmOrder(null)
+      setConfirm(null)
     } finally {
-      setMarking(false)
+      setWorking(false)
     }
-  }, [confirmOrder, session?.sessionId])
+  }, [confirm, session?.sessionId])
 
-  // Filter out fading orders after animation
-  const visibleOrders = preparing.filter(o => !fadingOrders.has(o.id))
+  const visiblePreparing = preparing.filter(o => !fadingOrders.has(o.id))
+  const totalActive = incoming.length + visiblePreparing.length
 
   if (loading) return <LoadingScreen fullScreen />
 
@@ -101,9 +110,11 @@ function KitchenInner() {
             <div>
               <div className="kitchen-clock">{clock}</div>
               <div className="kitchen-count">
-                <div className={`kitchen-count-dot ${visibleOrders.length > 0 ? 'kitchen-count-dot--active' : 'kitchen-count-dot--idle'}`} />
+                <div className={`kitchen-count-dot ${totalActive > 0 ? 'kitchen-count-dot--active' : 'kitchen-count-dot--idle'}`} />
                 <span className="kitchen-count-text">
-                  قيد التحضير: <span className="kitchen-count-number">{visibleOrders.length}</span>
+                  جديد: <span className="kitchen-count-number">{incoming.length}</span>
+                  {' · '}
+                  قيد التحضير: <span className="kitchen-count-number">{visiblePreparing.length}</span>
                 </span>
               </div>
             </div>
@@ -113,7 +124,7 @@ function KitchenInner() {
 
       {/* Content */}
       <main className="kitchen-main">
-        {visibleOrders.length === 0 ? (
+        {totalActive === 0 ? (
           <div className="kitchen-empty-wrap">
             <div className="kitchen-empty">
               <div className="kitchen-empty-icon">
@@ -121,48 +132,90 @@ function KitchenInner() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div className="kitchen-empty-title">لا توجد طلبات قيد التحضير</div>
+              <div className="kitchen-empty-title">لا توجد طلبات حالياً</div>
               <div className="kitchen-empty-subtitle">
                 <span className="kitchen-empty-dot" />
-                في انتظار طلبات جديدة...
+                في انتظار طلبات جديدة من فوديكس...
               </div>
             </div>
           </div>
         ) : (
-          <div className="kitchen-grid">
-            {visibleOrders.map(order => (
-              <KitchenCard
-                key={order.id}
-                order={order}
-                fading={fadingOrders.has(order.id)}
-                onReady={() => setConfirmOrder(order)}
-              />
-            ))}
-          </div>
+          <>
+            {/* قسم الطلبات الجديدة */}
+            {incoming.length > 0 && (
+              <section className="kitchen-section">
+                <div className="kitchen-section-header kitchen-section-header--new">
+                  <span className="kitchen-section-dot" />
+                  <h2 className="kitchen-section-title">طلبات جديدة</h2>
+                  <span className="kitchen-section-count">{incoming.length}</span>
+                </div>
+                <div className="kitchen-grid">
+                  {incoming.map(order => (
+                    <KitchenCard
+                      key={order.id}
+                      order={order}
+                      mode="new"
+                      onAction={() => setConfirm({ order, action: 'accept' })}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* قسم قيد التحضير */}
+            {visiblePreparing.length > 0 && (
+              <section className="kitchen-section">
+                <div className="kitchen-section-header kitchen-section-header--prep">
+                  <span className="kitchen-section-dot" />
+                  <h2 className="kitchen-section-title">قيد التحضير</h2>
+                  <span className="kitchen-section-count">{visiblePreparing.length}</span>
+                </div>
+                <div className="kitchen-grid">
+                  {visiblePreparing.map(order => (
+                    <KitchenCard
+                      key={order.id}
+                      order={order}
+                      mode="preparing"
+                      fading={fadingOrders.has(order.id)}
+                      onAction={() => setConfirm({ order, action: 'ready' })}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </main>
 
       {/* Confirmation Modal */}
-      {confirmOrder && (
-        <div className="kitchen-modal-overlay" onClick={() => !marking && setConfirmOrder(null)}>
+      {confirm && (
+        <div className="kitchen-modal-overlay" onClick={() => !working && setConfirm(null)}>
           <div className="kitchen-modal" onClick={e => e.stopPropagation()}>
-            <div className="kitchen-modal-icon">✓</div>
+            <div className="kitchen-modal-icon">{confirm.action === 'accept' ? '🔔' : '✓'}</div>
             <div className="kitchen-modal-title">
-              هل تريد تحويل الطلب <span className="kitchen-modal-order-id">{confirmOrder.order_id}</span> إلى جاهز؟
+              {confirm.action === 'accept' ? (
+                <>هل تريد استلام الطلب <span className="kitchen-modal-order-id">{confirm.order.order_id}</span>؟</>
+              ) : (
+                <>هل تريد تحويل الطلب <span className="kitchen-modal-order-id">{confirm.order.order_id}</span> إلى جاهز؟</>
+              )}
             </div>
-            <div className="kitchen-modal-subtitle">سيتم نقل الطلب إلى قائمة الطلبات الجاهزة</div>
+            <div className="kitchen-modal-subtitle">
+              {confirm.action === 'accept'
+                ? 'سيبدأ التجهيز ويظهر للعميل "قيد التجهيز"'
+                : 'سيتم نقل الطلب إلى قائمة الطلبات الجاهزة'}
+            </div>
             <div className="kitchen-modal-actions">
               <button
-                className="kitchen-modal-confirm"
-                onClick={handleMarkReady}
-                disabled={marking}
+                className={confirm.action === 'accept' ? 'kitchen-modal-confirm kitchen-modal-confirm--accept' : 'kitchen-modal-confirm'}
+                onClick={handleConfirm}
+                disabled={working}
               >
-                {marking ? 'جاري التحويل...' : 'تأكيد'}
+                {working ? 'جاري التنفيذ...' : 'تأكيد'}
               </button>
               <button
                 className="kitchen-modal-cancel"
-                onClick={() => setConfirmOrder(null)}
-                disabled={marking}
+                onClick={() => setConfirm(null)}
+                disabled={working}
               >
                 إلغاء
               </button>
@@ -174,16 +227,16 @@ function KitchenInner() {
   )
 }
 
-function KitchenCard({ order, fading, onReady }) {
-  const [elapsed, setElapsed] = useState(() => formatElapsed(order.scanned_at))
+function KitchenCard({ order, mode, fading = false, onAction }) {
+  // طلب جديد: العداد منذ الوصول (created_at). قيد التحضير: منذ بدء التجهيز (scanned_at).
+  const timeField = mode === 'new' ? order.created_at : order.scanned_at
+  const [elapsed, setElapsed] = useState(() => formatElapsed(timeField))
 
   useEffect(() => {
-    setElapsed(formatElapsed(order.scanned_at))
-    const interval = setInterval(() => {
-      setElapsed(formatElapsed(order.scanned_at))
-    }, 1000)
+    setElapsed(formatElapsed(timeField))
+    const interval = setInterval(() => setElapsed(formatElapsed(timeField)), 1000)
     return () => clearInterval(interval)
-  }, [order.scanned_at])
+  }, [timeField])
 
   const channelName = order.channel_link
     ? order.channel_link.includes('jahez') ? 'جاهز'
@@ -191,14 +244,23 @@ function KitchenCard({ order, fading, onReady }) {
     : 'مباشر'
     : 'مباشر'
 
+  const isNew = mode === 'new'
+
   return (
-    <div className={`kitchen-card ${fading ? 'kitchen-card--fading' : ''}`}>
+    <div className={`kitchen-card ${isNew ? 'kitchen-card--new' : ''} ${fading ? 'kitchen-card--fading' : ''}`}>
       <div className="kitchen-card-header">
         <div className="kitchen-card-order">
-          <div className="kitchen-card-icon">🔥</div>
+          <div className={`kitchen-card-icon ${isNew ? 'kitchen-card-icon--new' : ''}`}>
+            {isNew ? '🔔' : '🔥'}
+          </div>
           <span className="kitchen-card-id">{order.order_id}</span>
         </div>
-        <span className="kitchen-card-channel">{channelName}</span>
+        <div className="kitchen-card-tags">
+          {order.order_type && (
+            <span className="kitchen-card-type">{ORDER_TYPE_LABELS[order.order_type] || order.order_type}</span>
+          )}
+          <span className="kitchen-card-channel">{channelName}</span>
+        </div>
       </div>
       <div className="kitchen-card-time">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -206,9 +268,15 @@ function KitchenCard({ order, fading, onReady }) {
         </svg>
         {elapsed}
       </div>
-      <button className="kitchen-ready-btn" onClick={onReady}>
-        ✓ جاهز
-      </button>
+      {isNew ? (
+        <button className="kitchen-accept-btn" onClick={onAction}>
+          🔔 استلام الطلب
+        </button>
+      ) : (
+        <button className="kitchen-ready-btn" onClick={onAction}>
+          ✓ جاهز
+        </button>
+      )}
     </div>
   )
 }

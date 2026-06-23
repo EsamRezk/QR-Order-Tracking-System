@@ -25,7 +25,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // Branch protection for user role
   if (session.role === 'user') {
     const branchParam = searchParams.get('branch')
-    const branchPages = ['/display', '/scan', '/kitchen']
+    const branchPages = ['/display', '/kitchen']
     const currentPath = location.pathname
 
     if (branchPages.includes(currentPath) && branchParam && session.branchCode && branchParam !== session.branchCode) {

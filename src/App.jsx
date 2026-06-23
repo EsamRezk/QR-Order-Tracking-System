@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import DisplayDashboard from './pages/DisplayDashboard'
-import Scanner from './pages/Scanner'
 import Analytics from './pages/Analytics'
 import Admin from './pages/Admin'
 import Kitchen from './pages/Kitchen'
@@ -66,11 +65,6 @@ function App() {
             <Route path="/display" element={
               <ProtectedRoute allowedRoles={['screen', 'user', 'admin']}>
                 <DisplayDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/scan" element={
-              <ProtectedRoute allowedRoles={['user', 'admin']}>
-                <Scanner />
               </ProtectedRoute>
             } />
             <Route path="/kitchen" element={

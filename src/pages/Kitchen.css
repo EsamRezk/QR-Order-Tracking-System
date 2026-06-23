@@ -168,6 +168,51 @@
     padding: 1.5rem 2rem 2rem;
 }
 
+/* Sections (طلبات جديدة / قيد التحضير) */
+.kitchen-section {
+    margin-bottom: 2rem;
+}
+
+.kitchen-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.kitchen-section-title {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.kitchen-section-count {
+    font-size: 0.8rem;
+    font-weight: 800;
+    padding: 0.1rem 0.6rem;
+    border-radius: 100px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+}
+
+.kitchen-section-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.kitchen-section-header--new .kitchen-section-dot {
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(88, 48, 197, 0.6);
+    animation: kitchen-blink 1.5s ease-in-out infinite;
+}
+
+.kitchen-section-header--prep .kitchen-section-dot {
+    background: var(--green);
+}
+
 /* Grid layout */
 .kitchen-grid {
     display: grid;
@@ -235,6 +280,27 @@
     font-weight: bold;
 }
 
+/* بطاقة الطلب الجديد — حدود بنفسجية أبرز */
+.kitchen-card--new {
+    border-color: rgba(88, 48, 197, 0.45);
+    background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.08) 100%);
+}
+
+.kitchen-card-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.kitchen-card-type {
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.1rem 0.5rem;
+    border-radius: 100px;
+    background: rgba(88, 48, 197, 0.12);
+    color: var(--accent);
+}
+
 .kitchen-card-id {
     font-size: 1.5rem;
     font-weight: 900;
@@ -258,6 +324,34 @@
 .kitchen-card-time svg {
     width: 16px;
     height: 16px;
+}
+
+/* Accept button (استلام) — بنفسجي */
+.kitchen-accept-btn {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+    color: white;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.kitchen-accept-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(88, 48, 197, 0.3);
+}
+
+.kitchen-accept-btn:active {
+    transform: translateY(0);
 }
 
 /* Ready button */
@@ -391,6 +485,14 @@
 
 .kitchen-modal-confirm:hover {
     box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
+}
+
+.kitchen-modal-confirm--accept {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+}
+
+.kitchen-modal-confirm--accept:hover {
+    box-shadow: 0 4px 16px rgba(88, 48, 197, 0.3);
 }
 
 .kitchen-modal-confirm:disabled {

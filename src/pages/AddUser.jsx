@@ -5,7 +5,7 @@ import LogoutButton from '../components/LogoutButton'
 import LoadingScreen from '../components/LoadingScreen'
 import './AddUser.css'
 
-const EMPTY_FORM = { username: '', password: '', branch_id: '', route: '/scan', role: 'user' }
+const EMPTY_FORM = { username: '', password: '', branch_id: '', route: '/kitchen', role: 'user' }
 
 const ROLE_OPTIONS = [
   { value: 'user', label: 'مستخدم', icon: '👤' },
@@ -17,7 +17,6 @@ const ROLE_OPTIONS = [
 
 const ROUTE_OPTIONS = {
   user: [
-    { value: '/scan', label: '/scan — ماسح الطلبات' },
     { value: '/kitchen', label: '/kitchen — شاشة المطبخ' },
     { value: '/display', label: '/display — شاشة العرض' },
     { value: '/analytics', label: '/analytics — التحليلات' },
@@ -25,7 +24,7 @@ const ROUTE_OPTIONS = {
   admin: [
     { value: '/analytics', label: '/analytics — التحليلات' },
     { value: '/admin', label: '/admin — إدارة الفروع' },
-    { value: '/scan', label: '/scan — ماسح الطلبات' },
+    { value: '/kitchen', label: '/kitchen — شاشة المطبخ' },
   ],
 }
 
@@ -254,7 +253,7 @@ export default function AddUser() {
                       const newRole = e.target.value
                       const updates = { role: newRole }
                       if (newRole === 'admin') updates.route = '/analytics'
-                      else updates.route = '/scan'
+                      else updates.route = '/kitchen'
                       setForm({ ...form, ...updates })
                     }}
                     className="adduser-select"

@@ -12,7 +12,6 @@ const ROLE_LABELS = {
 }
 
 const PAGE_MAP = {
-  '/scan': { label: 'ماسح الطلبات', icon: '📷' },
   '/display': { label: 'شاشة العرض', icon: '🖥️' },
   '/kitchen': { label: 'شاشة المطبخ', icon: '🔥' },
   '/analytics': { label: 'التحليلات', icon: '📊' },

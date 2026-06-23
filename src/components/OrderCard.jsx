@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { formatElapsed } from '../utils/formatTime'
 
+const ORDER_TYPE_LABELS = {
+  dine_in: 'محلي',
+  pickup: 'استلام',
+  delivery: 'توصيل',
+}
+
 export default function OrderCard({ order, fading = false }) {
   const [elapsed, setElapsed] = useState('')
 
@@ -38,11 +44,18 @@ export default function OrderCard({ order, fading = false }) {
           </div>
           <span className="text-2xl lg:text-4xl font-extrabold text-[#2E2D2C]">{order.order_id}</span>
         </div>
-        <span className={`text-xs lg:text-sm font-bold ${
-          isReady ? 'text-[#22c55e]' : 'text-[#7B5CD6]'
-        }`}>
-          {channelName}
-        </span>
+        <div className="flex items-center gap-2">
+          {order.order_type && (
+            <span className="text-[0.65rem] lg:text-xs font-bold px-2 py-0.5 rounded-full bg-[#5830C5]/10 text-[#5830C5]">
+              {ORDER_TYPE_LABELS[order.order_type] || order.order_type}
+            </span>
+          )}
+          <span className={`text-xs lg:text-sm font-bold ${
+            isReady ? 'text-[#22c55e]' : 'text-[#7B5CD6]'
+          }`}>
+            {channelName}
+          </span>
+        </div>
       </div>
       <div className="mt-3 flex items-center gap-2 text-sm text-[#6B7280]">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">

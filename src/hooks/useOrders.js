@@ -11,7 +11,7 @@ export function useOrders(branchId) {
       .from('orders')
       .select('*')
       .eq('branch_id', branchId)
-      .in('status', ['preparing', 'ready'])
+      .in('status', ['new', 'preparing', 'ready'])
       .order('created_at', { ascending: false })
     setOrders(data || [])
   }, [branchId])
@@ -50,8 +50,9 @@ export function useOrders(branchId) {
     return () => supabase.removeChannel(channel)
   }, [branchId, fetchOrders])
 
+  const incoming = orders.filter(o => o.status === 'new')
   const preparing = orders.filter(o => o.status === 'preparing')
   const ready = orders.filter(o => o.status === 'ready')
 
-  return { orders, preparing, ready, newOrderFlag, refetch: fetchOrders }
+  return { orders, incoming, preparing, ready, newOrderFlag, refetch: fetchOrders }
 }

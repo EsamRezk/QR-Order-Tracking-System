@@ -132,7 +132,6 @@ e:\My Projects\QR Order Tracking System\
 |--------|--------|-----------------|-------|
 | `/login` | `Login` | عام | تسجيل الدخول |
 | `/display?branch=CODE` | `DisplayDashboard` | screen, admin | شاشة عرض الطلبات (للتلفاز/الشاشة) |
-| `/scan?branch=CODE` | `Scanner` | user, admin | ماسح QR للموظفين |
 | `/analytics` | `Analytics` | admin | تقارير وإحصائيات |
 | `/admin` | `Admin` | admin | إدارة الفروع (CRUD) |
 | `/kitchen?branch=CODE` | `Kitchen` | user, admin | شاشة المطبخ — عرض الطلبات قيد التحضير + زر جاهز |
@@ -240,17 +239,18 @@ started_at      TIMESTAMPTZ DEFAULT now()
 
 ## 6. المنطق التشغيلي (Business Logic)
 
-### دورة حياة الطلب
+### دورة حياة الطلب (بعد إلغاء QR — التدفق الحالي)
 ```
-[QR Scan #1] → INSERT order (status: preparing) + INSERT scan_log (first_scan)
+[Foodics webhook: order.created] → INSERT order (status: new, source: foodics)
        ↓
-[QR Scan #2] → UPDATE order (status: ready, ready_at) + INSERT scan_log (second_scan)
-       ↓  (أو)
-[زر جاهز في المطبخ] → UPDATE order (status: ready, ready_at) + INSERT scan_log (second_scan)
+[زر "استلام" في المطبخ] → UPDATE order (status: preparing, scanned_at=now, accepted_at) + scan_log (accept)
+       ↓  (يظهر الآن في شاشة العميل "قيد التحضير")
+[زر "جاهز" في المطبخ] → UPDATE order (status: ready, ready_at) + scan_log (second_scan)
        ↓
 [Auto Timeout] → UPDATE order (status: completed, completed_at)
    (بعد 5 دقائق من ready_at، قابل للتغيير عبر VITE_READY_TIMEOUT_MINUTES)
 ```
+> ملاحظة: مسح QR أُلغي نهائياً (2026-06-22). مصدر الطلبات الوحيد هو Foodics. التفعيل متوقف على بيانات Foodics — راجع docs/FOODICS_HANDOFF.md.
 
 ### تحديد قناة الطلب
 ```javascript
@@ -570,6 +570,9 @@ npm run lint      # فحص الكود
 | 2026-04-05 | تغيير هوية الألوان بالكامل من KebbaZone (برتقالي #FF5100) إلى هوية Foodics (بنفسجي #440099) — شمل index.css + كل ملفات CSS و JSX |
 | 2026-04-05 | نقل AdminSidebar و UserSidebar من اليسار إلى اليمين (right: 0، translateX(100%) للإخفاء، borderLeft). نقل AppLogo من اليمين إلى اليسار لتفادي التعارض. تغيير formatClock() إلى نظام 12 ساعة مع صباحاً/مساءً. إضافة formatDate() وعرض التاريخ تحت الساعة في DisplayDashboard |
 | 2026-04-05 | إضافة خاصية تعديل المستخدمين في AddUser.jsx — زرار تعديل + فورم يتحول لوضع التعديل + RPC جديدة rpc_update_user_secure (013_rpc_update_user.sql) + تحديث rpc_list_users_secure لإرجاع branch_id |
+| 2026-06-21 | تجهيز تكامل Foodics (غير مفعّل بعد — ينتظر بيانات Foodics): migrations 014-018 (حالة طلب جديدة `new` + أعمدة source/foodics_order_id/order_type/accepted_at + جداول foodics_config و foodics_branch_mapping + توسيع scan_logs + RPC جديد rpc_kitchen_accept_order) + هيكل Edge Function `supabase/functions/test-foodics-webhook`. الخطة الكاملة: docs/plans/2026-06-21-foodics-realtime-flow-plan.md. **متوقف على:** access_token + webhook secret/توقيع + عيّنة payload + Foodics branch IDs. التغييرات الأمامية (useOrders/Kitchen/Display) لم تُنفّذ بعد. |
+| 2026-06-22 | **مراجعة بعد دليل Foodics الرسمي:** اكتُشف أن webhook فوديكس يرسل `entity.id` فقط (لا تفاصيل) ولا يرسل توقيعاً. أُعيدت كتابة Edge Function `test-foodics-webhook` لتجلب الطلب عبر `GET /orders/{id}` بالـ access_token ثم تنشئه بحالة `new`. أُضيف عمود `api_base_url` لـ foodics_config (Sandbox افتراضياً). أُضيف سكربت `scripts/foodics-list-branches.mjs` لجلب الفروع. حُذفت فكرة HMAC. الناقص: التوكن (إيميل المالك) + تسجيل الـ webhook + تأكيد order.created للكاشير. التفاصيل: docs/FOODICS_HANDOFF.md. |
+| 2026-06-22 | **إلغاء QR نهائياً + تحويل الواجهة لتدفق Foodics.** حُذف: Scanner.jsx/.css, ScannerView.jsx/.css, useScanner.js, parseQR.js, generate-qrcodes.html, مكتبة html5-qrcode, مسار /scan وكل مراجعه. **التدفق الجديد:** Foodics webhook → `new` → (زر استلام) → `preparing` → (زر جاهز) → `ready` → مكتمل. **الواجهة:** useOrders يدعم `new` ويُصدّر `incoming`؛ Kitchen.jsx قسمان (طلبات جديدة بزر استلام + قيد التحضير بزر جاهز) عبر rpc_kitchen_accept_order و rpc_scanner_mark_ready؛ OrderCard يعرض شارة نوع الطلب؛ DisplayDashboard يصدر الصوت عند الاستلام لا الإنشاء. المسار الافتراضي للموظف صار /kitchen. ✅ build ناجح. وثيقة التسليم: docs/FOODICS_HANDOFF.md. **لا تظهر طلبات حتى يُفعّل webhook فوديكس (مقصود).** |
 
 ---
 

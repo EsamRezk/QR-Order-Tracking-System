@@ -28,11 +28,11 @@ export default function DisplayDashboard() {
 function DisplayDashboardInner() {
   const { session } = useAuth()
   const { branch, loading, error } = useBranch()
-  const { preparing, ready, newOrderFlag } = useOrders(branch?.id)
+  const { preparing, ready } = useOrders(branch?.id)
   const { play, loadSound } = useSound()
   const [clock, setClock] = useState(formatClock())
   const [date, setDate] = useState(formatDate())
-  const prevOrderFlag = useRef(0)
+  const knownPreparingIds = useRef(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [fadingOrders, setFadingOrders] = useState(new Set())
 
@@ -77,13 +77,21 @@ function DisplayDashboardInner() {
     return () => clearInterval(interval)
   }, [])
 
-  // Play sound on new order
+  // Play sound when an order enters the customer's view (تم استلامه → قيد التجهيز)
   useEffect(() => {
-    if (newOrderFlag > 0 && newOrderFlag !== prevOrderFlag.current && soundEnabled) {
-      play()
+    const ids = new Set(preparing.map(o => o.id))
+    // أول تحميل: نسجّل الموجود بدون صوت
+    if (knownPreparingIds.current === null) {
+      knownPreparingIds.current = ids
+      return
     }
-    prevOrderFlag.current = newOrderFlag
-  }, [newOrderFlag, play, soundEnabled])
+    let hasNew = false
+    for (const id of ids) {
+      if (!knownPreparingIds.current.has(id)) { hasNew = true; break }
+    }
+    knownPreparingIds.current = ids
+    if (hasNew && soundEnabled) play()
+  }, [preparing, play, soundEnabled])
 
   const toggleSound = () => {
     if (!soundEnabled) {

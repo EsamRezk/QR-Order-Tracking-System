@@ -256,7 +256,7 @@ export default function Admin() {
                       /display?branch={b.code}
                     </span>
                     <span className="link-url link-url--scan" dir="ltr">
-                      /scan?branch={b.code}
+                      /kitchen?branch={b.code}
                     </span>
                   </div>
                 ))}

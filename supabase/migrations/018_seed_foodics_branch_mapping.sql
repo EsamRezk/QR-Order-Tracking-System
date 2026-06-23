@@ -1,0 +1,15 @@
+-- ═══════════════════════════════════════════════════
+-- 018: Seed Foodics branch mapping  ⚠️ قالب — لا تُشغّله إلا بعد ملء القيم
+-- ═══════════════════════════════════════════════════
+-- استبدل <FOODICS_*_ID> بالـ branch IDs الحقيقية من Foodics:
+--   GET https://api.foodics.com/v5/branches
+--   Authorization: Bearer <ACCESS_TOKEN>
+--
+-- فروعنا (من 005_seed_branches): Erqaa-01 | Laban-02 | AlMalqa-03
+
+-- INSERT INTO foodics_branch_mapping (foodics_branch_id, branch_id)
+-- SELECT '<FOODICS_ERQAA_ID>',  id FROM branches WHERE code = 'Erqaa-01'
+-- UNION ALL
+-- SELECT '<FOODICS_LABAN_ID>',  id FROM branches WHERE code = 'Laban-02'
+-- UNION ALL
+-- SELECT '<FOODICS_MALQA_ID>',  id FROM branches WHERE code = 'AlMalqa-03';
