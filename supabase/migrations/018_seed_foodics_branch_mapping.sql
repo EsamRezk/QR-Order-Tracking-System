@@ -1,15 +1,13 @@
 -- ═══════════════════════════════════════════════════
--- 018: Seed Foodics branch mapping  ⚠️ قالب — لا تُشغّله إلا بعد ملء القيم
+-- 018: Seed Foodics branch mapping
 -- ═══════════════════════════════════════════════════
--- استبدل <FOODICS_*_ID> بالـ branch IDs الحقيقية من Foodics:
---   GET https://api.foodics.com/v5/branches
---   Authorization: Bearer <ACCESS_TOKEN>
+-- بيئة Sandbox (حساب 922240): يوجد فرع واحد فقط:
+--   Foodics "Branch 1"  id=a217671a-c2dd-482a-8b9c-eced99466fe1  reference=B01
+-- نربطه بفرعنا B01 (عرقه/Irqa).
 --
--- فروعنا (من 005_seed_branches): Erqaa-01 | Laban-02 | AlMalqa-03
+-- ⚠️ Production: عند الانتقال للإنتاج، استبدل الـ id بمعرّفات فروع Foodics الحقيقية
+-- (اجلبها عبر scripts/foodics-list-branches.mjs) وأضف صفاً لكل فرع.
 
--- INSERT INTO foodics_branch_mapping (foodics_branch_id, branch_id)
--- SELECT '<FOODICS_ERQAA_ID>',  id FROM branches WHERE code = 'Erqaa-01'
--- UNION ALL
--- SELECT '<FOODICS_LABAN_ID>',  id FROM branches WHERE code = 'Laban-02'
--- UNION ALL
--- SELECT '<FOODICS_MALQA_ID>',  id FROM branches WHERE code = 'AlMalqa-03';
+INSERT INTO foodics_branch_mapping (foodics_branch_id, branch_id)
+SELECT 'a217671a-c2dd-482a-8b9c-eced99466fe1', id FROM branches WHERE code = 'B01'
+ON CONFLICT (foodics_branch_id) DO NOTHING;
