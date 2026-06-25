@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════
-// Edge Function: test-foodics-webhook
+// Edge Function: foodics-webhook  (الإنتاج)
 //
 // يستقبل webhook من Foodics عند order.created.
 //
-// حسب توثيق Foodics، الـ Order Webhook يحمل **الطلب الكامل** داخل payload.order
-// (الفرع/الرقم/النوع/المنتجات). لذلك المسار الأساسي:
+// الـ Order Webhook يحمل **الطلب الكامل** داخل payload.order (الفرع/الرقم/النوع).
+// لذلك المسار الأساسي:
 //   1) نقرأ الطلب مباشرة من payload.order (بدون أي نداء API)
 //   2) نربط الفرع ثم ننشئ الطلب بحالة 'new'
 // هذا يتجنّب: مشكلة الصلاحيات (403)، حدّ المعدّل (90/دقيقة)، وزمن النداء الإضافي،
@@ -13,10 +13,11 @@
 // مسار احتياطي (fallback): لو لم يحمل الـ webhook الطلب كاملاً، نجلبه عبر
 // GET /orders?filter[id]={id} (scope: orders.list).
 //
-// نطبع الـ payload الخام مرة للتحقق من شكله الفعلي.
+// إعداد البيئة في قاعدة هذا المشروع (الإنتاج):
+//   foodics_config.api_base_url = https://api.foodics.com/v5
 //
-// النشر: supabase functions deploy test-foodics-webhook --no-verify-jwt
-// الرابط: https://<PROJECT_REF>.supabase.co/functions/v1/test-foodics-webhook
+// النشر: npx supabase functions deploy foodics-webhook --no-verify-jwt
+// الرابط: https://<PROD_PROJECT_REF>.supabase.co/functions/v1/foodics-webhook
 // الحدث في Foodics: order.created
 // ═══════════════════════════════════════════════════════════════════
 
@@ -51,9 +52,9 @@ async function getConfig() {
   return data
 }
 
-// جلب تفاصيل الطلب الكاملة من Foodics
-// نستخدم endpoint الليستة بفلتر id (scope: orders.list) لأنه يرجع نفس
-// تفاصيل GET /orders/{id} الذي يتطلب orders.limited.read غير المتاح لتوكننا.
+// جلب تفاصيل الطلب الكاملة من Foodics (مسار احتياطي فقط)
+// نستخدم endpoint الليستة بفلتر id (scope: orders.list). فوديكس تتجاهل filter[id]
+// وترجع القائمة، لذا نبحث عن الطلب بمعرّفه بـ find لا data[0].
 async function fetchOrder(baseUrl: string, token: string, orderId: string) {
   const url = `${baseUrl.replace(/\/$/, '')}/orders?filter[id]=${encodeURIComponent(orderId)}&include=branch`
   const res = await fetch(url, {
@@ -66,12 +67,9 @@ async function fetchOrder(baseUrl: string, token: string, orderId: string) {
     return { ok: false, status: res.status, order: null as Record<string, any> | null }
   }
   const body = await res.json()
-  // ⚠️ مهم: فوديكس تتجاهل filter[id] وترجع كل الطلبات. لذلك لا نأخذ data[0]
-  // (قد يكون طلباً آخر)، بل نبحث عن الطلب بمعرّفه بالضبط داخل القائمة.
   const list = Array.isArray(body?.data) ? body.data : (body?.data ? [body.data] : [])
   const order = list.find((o: Record<string, any>) => o?.id === orderId) ?? null
   if (!order) {
-    // الطلب غير موجود ضمن أحدث الطلبات (الصفحة الأولى) — نادر؛ نتعامل معه كـ 404
     return { ok: false, status: 404, order: null as Record<string, any> | null }
   }
   return { ok: true, status: 200, order: order as Record<string, any> }
@@ -85,16 +83,13 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json()
 
-    // 🔎 طباعة الـ payload الخام مرة للتحقق من شكله الفعلي (entity.id أم order كامل؟)
-    console.log('RAW WEBHOOK PAYLOAD:', JSON.stringify(payload))
-
     // نهتم فقط بـ order.created
     const event = payload?.event
     if (event !== 'order.created') {
       return json({ status: 'ignored', event })
     }
 
-    // هل الـ webhook يحمل الطلب كاملاً؟ (المتوقع حسب التوثيق)
+    // هل الـ webhook يحمل الطلب كاملاً؟
     const embeddedOrder =
       payload?.order && typeof payload.order === 'object' ? payload.order : null
 
@@ -102,7 +97,7 @@ Deno.serve(async (req) => {
     const orderId =
       embeddedOrder?.id ?? payload?.entity?.id ?? payload?.data?.id ?? payload?.id
     if (!orderId) {
-      console.error('No order id in webhook payload', payload)
+      console.error('No order id in webhook payload', JSON.stringify(payload))
       return json({ status: 'no_order_id' })
     }
 
@@ -139,7 +134,6 @@ Deno.serve(async (req) => {
       }
       order = fetched.order
     }
-    console.log('Order source:', usedSource, '| order id:', orderId)
 
     if (!order) {
       return json({ status: 'no_order_data', foodics_order_id: orderId })
@@ -151,7 +145,7 @@ Deno.serve(async (req) => {
     const orderType = ORDER_TYPES[order.type] ?? 'dine_in'
 
     if (!foodicsBranchId) {
-      console.error('Order has no branch id', orderId, order)
+      console.error('Order has no branch id', orderId)
       return json({ status: 'missing_branch', foodics_order_id: orderId })
     }
 
@@ -188,7 +182,7 @@ Deno.serve(async (req) => {
       return json({ status: 'insert_error', message: insErr.message })
     }
 
-    console.log('Order created:', newOrder.id, 'foodics:', orderId)
+    console.log('Order created:', newOrder.id, '| source:', usedSource, '| foodics:', orderId, '| branch:', foodicsBranchId, '| #', foodicsOrderNumber)
     return json({ status: 'created', order_id: newOrder.id })
   } catch (err) {
     console.error('Webhook error:', err)

@@ -1,0 +1,135 @@
+{
+  "info": {
+    "name": "KebbaZone × Foodics — Integration Tests",
+    "_postman_id": "kebbazone-foodics-tests",
+    "description": "مجموعة اختبار تكامل فوديكس لنظام كبة زون.\n\nالاستخدام:\n1) افتح تبويب Variables بالأعلى واملأ: foodics_token, foodics_order_id (المعرّف اللي فشل من اللوج).\n2) base_url مضبوط على Sandbox؛ غيّره للإنتاج عند الحاجة.\n3) ابدأ بـ '3. Get Order by ID' — لو رجّع 403 يبقى التوكن ناقصه orders.limited.read.\n\nالـ Authorization (Bearer foodics_token) مضبوط على مستوى المجموعة ويرث لكل الطلبات عدا نداء الـ Edge Function.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{foodics_token}}", "type": "string" }]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api-sandbox.foodics.com/v5",
+      "type": "string",
+      "description": "Sandbox. للإنتاج: https://api.foodics.com/v5"
+    },
+    {
+      "key": "foodics_token",
+      "value": "",
+      "type": "string",
+      "description": "Access token من foodics_config / إيميل فوديكس"
+    },
+    {
+      "key": "foodics_order_id",
+      "value": "cd48a441-2f48-4a51-b2f7-75973e242a1d",
+      "type": "string",
+      "description": "معرّف طلب حقيقي للاختبار (الافتراضي = اللي فشل في اللوج)"
+    },
+    {
+      "key": "webhook_url",
+      "value": "https://ucpudjjahbctzluseipo.supabase.co/functions/v1/test-foodics-webhook",
+      "type": "string",
+      "description": "رابط الـ Edge Function بتاعنا"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Get Branches",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/branches?include=tags",
+          "host": ["{{base_url}}"],
+          "path": ["branches"],
+          "query": [{ "key": "include", "value": "tags" }]
+        },
+        "description": "يتأكد إن التوكن شغّال (general.read). المفروض 200 + قائمة الفروع.\nانسخ id الفرع لملء foodics_branch_mapping."
+      }
+    },
+    {
+      "name": "2. List Orders",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/orders?include=branch&page=1",
+          "host": ["{{base_url}}"],
+          "path": ["orders"],
+          "query": [
+            { "key": "include", "value": "branch" },
+            { "key": "page", "value": "1" }
+          ]
+        },
+        "description": "يستخدم صلاحية orders.list. لو 200 → ناخد id أي طلب ونحطه في foodics_order_id.\nلو 403 → حتى الليستة ممنوعة."
+      }
+    },
+    {
+      "name": "3. Get Order by ID  ⭐ (نقطة الفشل)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 403) {",
+              "  pm.test('403 → التوكن ناقصه orders.limited.read', () => {});",
+              "  console.log('❌ التوكن محتاج صلاحية orders.limited.read');",
+              "} else if (pm.response.code === 200) {",
+              "  pm.test('200 → التوكن سليم، القراءة شغّالة', () => {});",
+              "  const o = pm.response.json().data || {};",
+              "  console.log('✅ branch:', o.branch && o.branch.id, '| number:', o.number, '| type:', o.type);",
+              "} else {",
+              "  console.log('HTTP', pm.response.code, pm.response.text());",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/orders/{{foodics_order_id}}?include=branch",
+          "host": ["{{base_url}}"],
+          "path": ["orders", "{{foodics_order_id}}"],
+          "query": [{ "key": "include", "value": "branch" }]
+        },
+        "description": "نفس النداء اللي بتعمله الـ Edge Function.\n200 = جاهز. 403 = ضيف صلاحية orders.limited.read واطلع توكن جديد."
+      }
+    },
+    {
+      "name": "4. List Webhooks",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/webhooks",
+          "host": ["{{base_url}}"],
+          "path": ["webhooks"]
+        },
+        "description": "يعرض الـ webhooks المسجّلة. قد يرجّع 403 لو التوكن مالوش صلاحية webhooks.\nدوّر على url بتاعنا + event = order.created."
+      }
+    },
+    {
+      "name": "5. Simulate Foodics → Our Edge Function",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event\": \"order.created\",\n  \"business\": { \"name\": \"KebbaZone\", \"reference\": \"922240\" },\n  \"entity\": { \"type\": \"order\", \"id\": \"{{foodics_order_id}}\" }\n}"
+        },
+        "url": {
+          "raw": "{{webhook_url}}",
+          "host": ["{{webhook_url}}"]
+        },
+        "description": "يحاكي بالظبط الـ payload اللي بتبعته فوديكس لرابطنا.\nمتوقع: {\"status\":\"created\",...} لو كله تمام.\nلو {\"status\":\"fetch_failed\",\"http_status\":403} → نفس مشكلة الصلاحية.\nتنظيف بعد الاختبار: DELETE FROM orders WHERE source='foodics';"
+      }
+    }
+  ]
+}

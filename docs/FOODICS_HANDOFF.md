@@ -1,8 +1,10 @@
 # 🔌 وثيقة التسليم والتكامل مع Foodics — كبة زون
 
-> **التاريخ:** 2026-06-22
+> **التاريخ:** 2026-06-24 (محدّث)
 > **الغرض:** توثيق كل ما تم تنفيذه في النظام للتحوّل الكامل إلى Foodics، وتحديد البيانات المطلوبة من Foodics بدقة لإكمال التشغيل.
-> **الحالة:** ✅ تم إلغاء الـ QR بالكامل والكود جاهز — ⏳ التشغيل الفعلي متوقف على بيانات Foodics (القسم 3).
+> **الحالة:** ✅ التكامل يعمل end-to-end على Sandbox (طلب حقيقي من iPad Cashier يظهر في المطبخ). ⏳ المتبقي للإنتاج: تقليل زمن تسليم فوديكس (القسم 6) + ضمان بقاء الـ webhook مفعّلاً.
+>
+> **🔑 أهم اكتشاف (2026-06-24):** webhook `order.created` يحمل **الطلب كاملاً داخل `payload.order`** (الفرع/الرقم/النوع)، وليس `entity.id` فقط. لذلك الـ Edge Function تقرأ الطلب **مباشرة من الـ webhook بدون أي نداء API** — ما ألغى مشكلة الصلاحيات (403) والحاجة لـ `orders.limited.read` و حدّ المعدّل نهائياً.
 
 ---
 
@@ -51,15 +53,16 @@ Foodics (طلب جديد)
 
 ### 2.3 Edge Function (الـ Endpoint)
 - المسار: `supabase/functions/test-foodics-webhook/index.ts`
-- **المنطق (مُحدّث بعد قراءة دليل فوديكس):** الـ webhook يرسل **معرّف الطلب فقط** (`entity.id`) ولا يرسل توقيعاً. لذلك الـ function:
-  1. تأخذ `entity.id`، 2. تجلب الطلب الكامل عبر `GET /orders/{id}` بالـ access_token، 3. تربط الفرع، 4. تنشئ الطلب بحالة `new`. (منع التكرار + الرد دائماً 200.)
-- **الأمان:** المعرّف وحده غير حساس، والبيانات تُجلب بتوكننا الخاص (معرّف مزيّف → 404 → يُتجاهَل). لا حاجة لـ HMAC.
-- **الرابط الذي سيُسجَّل في Foodics:**
+- **المنطق (مُحدّث 2026-06-24 بعد فحص الـ payload الحقيقي):** webhook `order.created` يحمل الطلب كاملاً في `payload.order`. لذلك الـ function:
+  1. تقرأ الطلب **مباشرة من `payload.order`** (بدون أي نداء API)، 2. تربط الفرع عبر `foodics_branch_mapping`، 3. تنشئ الطلب بحالة `new`. (منع التكرار عبر فهرس فريد + الرد دائماً 200.)
+  - **مسار احتياطي:** لو لم يحمل الـ webhook الطلب كاملاً → يُجلب عبر `GET /orders?filter[id]={id}` (scope: `orders.list`). ⚠️ فوديكس تتجاهل `filter[id]` وترجع القائمة، لذا نبحث عن الطلب بمعرّفه بـ `.find()` لا `data[0]`.
+- **لا حاجة لـ `orders.limited.read`** ولا لأي scope إضافي طالما الـ webhook يحمل الطلب (المسار الأساسي).
+- **الرابط المسجَّل في Foodics:**
   ```
   https://ucpudjjahbctzluseipo.supabase.co/functions/v1/test-foodics-webhook
   ```
-- النشر: `supabase functions deploy test-foodics-webhook --no-verify-jwt`
-- سكربت مساعد لجلب الفروع: `scripts/foodics-list-branches.mjs`
+- النشر: `npx supabase functions deploy test-foodics-webhook --no-verify-jwt`
+- سكربتات مساعدة: `scripts/foodics-list-branches.mjs` (الفروع)، `scripts/foodics-check-webhook.mjs` (فحص تسجيل الـ webhook)، `scripts/foodics-postman-collection.json` (اختبار).
 
 ### 2.4 الواجهة (Frontend)
 | الملف | التغيير |
@@ -129,6 +132,26 @@ curl -X POST https://ucpudjjahbctzluseipo.supabase.co/functions/v1/test-foodics-
 # متوقع: {"status":"created","order_id":"..."}
 # تنظيف بعد الاختبار: DELETE FROM orders WHERE source = 'foodics';
 ```
+
+---
+
+## 6. زمن التسليم (Latency) — رصد فعلي 2026-06-24
+
+قياسات من طلبات حقيقية على Sandbox:
+
+| الحدث | طلب #7 | طلب #8 |
+|-------|--------|--------|
+| `opened_at` | 10:56:22 | 11:05:03 |
+| `closed_at` | 10:56:26 | 11:05:11 |
+| `created_at` (فوديكس) | 10:57:26 | 11:06:00 |
+| وصل الـ webhook عندنا | 10:57:28 | 11:06:02 |
+
+**التقسيم:**
+- `closed_at` → `created_at` = **49–60 ثانية** ← تأخير **فوديكس** (مزامنة الجهاز بالسحابة، وغالباً batching؛ في Sandbox كانت طلبات متعددة تُنشأ دفعة واحدة).
+- `created_at` → وصول عندنا = **~2 ثانية** (تسليم الـ webhook).
+- معالجتنا + بثّ Realtime للمطبخ = أجزاء من الثانية.
+
+**الخلاصة:** الجزء الذي نتحكم فيه (~2–3 ثوانٍ) ممتاز وثابت. التأخير الكبير (~1 دقيقة) **كله من فوديكس** ولا يُحسّن من جهتنا — وهو موضوع الضغط على فوديكس للإنتاج (مستهدف ≤5 ثوانٍ من لحظة الطلب). الحدّ الأدنى النظري end-to-end محكوم بـ (تسليم webhook ~2ث + معالجتنا ~1ث) ≈ **3–4 ثوانٍ**، بشرط أن تُنشئ فوديكس السجل فوراً (جهاز متصل، بلا batching).
 
 ---
 
