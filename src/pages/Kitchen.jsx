@@ -5,8 +5,10 @@ import { useOrders } from '../hooks/useOrders'
 import { useAuth } from '../context/AuthContext'
 import { formatClock, formatElapsed } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
+import { resolveDeliveryApp, hexToRgba } from '../config/deliveryApps'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
+import { DeliveryAppLogo, DeliveryAppPill } from '../components/DeliveryAppBadge'
 import './Kitchen.css'
 
 const ORDER_TYPE_LABELS = {
@@ -238,30 +240,35 @@ function KitchenCard({ order, mode, fading = false, onAction }) {
     return () => clearInterval(interval)
   }, [timeField])
 
-  const channelName = order.channel_link
-    ? order.channel_link.includes('jahez') ? 'جاهز'
-    : order.channel_link.includes('hungerstation') ? 'هنقرستيشن'
-    : 'مباشر'
-    : 'مباشر'
-
+  const app = resolveDeliveryApp(order)
   const isNew = mode === 'new'
 
+  const cardStyle = {
+    borderColor: app.color,
+    background: `linear-gradient(150deg, ${hexToRgba(app.color, 0.16)} 0%, #ffffff 55%)`,
+  }
+
   return (
-    <div className={`kitchen-card ${isNew ? 'kitchen-card--new' : ''} ${fading ? 'kitchen-card--fading' : ''}`}>
+    <div
+      className={`kitchen-card ${isNew ? 'kitchen-card--new' : ''} ${fading ? 'kitchen-card--fading' : ''}`}
+      style={cardStyle}
+    >
       <div className="kitchen-card-header">
-        <div className="kitchen-card-order">
-          <div className={`kitchen-card-icon ${isNew ? 'kitchen-card-icon--new' : ''}`}>
-            {isNew ? '🔔' : '🔥'}
-          </div>
-          <span className="kitchen-card-id">{order.order_id}</span>
-        </div>
-        <div className="kitchen-card-tags">
-          {order.order_type && (
-            <span className="kitchen-card-type">{ORDER_TYPE_LABELS[order.order_type] || order.order_type}</span>
-          )}
-          <span className="kitchen-card-channel">{channelName}</span>
-        </div>
+        {order.order_type && (
+          <span className="kitchen-card-type" style={{ background: hexToRgba(app.color, 0.14), color: app.ink }}>
+            {ORDER_TYPE_LABELS[order.order_type] || order.order_type}
+          </span>
+        )}
+        <DeliveryAppLogo app={app} size="xl" />
       </div>
+
+      <DeliveryAppPill app={app} size="lg" />
+
+      <div className="kitchen-card-order">
+        <span className="kitchen-card-order-lbl">طلب</span>
+        <span className="kitchen-card-id" style={{ color: app.ink }}>#{order.order_id}</span>
+      </div>
+
       <div className="kitchen-card-time">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />

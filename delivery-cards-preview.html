@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>معاينة هوية الكروت — المطبخ والعميل</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Tajawal', sans-serif; background: #eef0f5; padding: 28px; }
+  h1 { font-family:'Cairo'; color:#2E2D2C; font-size: 1.4rem; }
+  .tabs { display:flex; gap:10px; margin: 16px 0 26px; }
+  .tab { font-family:'Cairo'; font-weight:800; font-size:0.95rem; padding:0.6rem 1.4rem; border-radius:999px; border:none; cursor:pointer; background:#fff; color:#55536a; box-shadow:0 4px 12px rgba(0,0,0,.06); }
+  .tab.active { background:#5830C5; color:#fff; }
+  .screen { display:none; }
+  .screen.active { display:block; }
+
+  /* ===== خلفية شاشة العميل الداكنة ===== */
+  #customer.screen.active { display:block; background:#13102a; padding:26px; border-radius:20px; }
+  #customer h2 { color:#fff; }
+
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(330px,1fr)); gap:20px; margin-top:14px; }
+
+  /* ===== الكارت ===== */
+  .card {
+    border:2.5px solid; border-radius:20px; padding:1.25rem;
+    display:flex; flex-direction:column; gap:0.7rem;
+    box-shadow:0 10px 26px rgba(17,24,39,.08);
+  }
+  .c-head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.85rem; }
+  .c-logo {
+    background:#fff; border:4px solid; border-radius:22px; overflow:hidden;
+    width:104px; height:104px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 16px rgba(17,24,39,.12);
+  }
+  .c-logo img { width:100%; height:100%; object-fit:contain; padding:6px; }
+  .c-type { font-size:0.8rem; font-weight:800; padding:0.25rem 0.75rem; border-radius:999px; white-space:nowrap; }
+  .c-pill {
+    align-self:flex-start; font-family:'Cairo'; font-weight:800; font-size:1.05rem;
+    padding:0.5rem 1.1rem; border-radius:999px; line-height:1;
+    box-shadow:0 4px 12px rgba(17,24,39,.12);
+  }
+  .c-num-wrap { display:flex; align-items:baseline; gap:0.5rem; }
+  .c-num-lbl { font-size:1rem; font-weight:600; color:#9ca3af; }
+  .c-num { font-family:'Cairo'; font-weight:900; font-size:3.4rem; line-height:1; }
+  .c-time { display:flex; align-items:center; gap:0.4rem; font-size:0.9rem; color:#8886a0; font-weight:600; }
+  .c-btn {
+    width:100%; border:none; cursor:pointer; margin-top:0.3rem;
+    font-family:'Cairo'; font-weight:800; font-size:1.1rem;
+    padding:0.85rem; border-radius:14px; color:#fff;
+  }
+  .c-btn.ready { background:#18b85a; box-shadow:0 8px 18px rgba(24,184,90,.32); }
+  .c-btn.accept { background:#5830C5; box-shadow:0 8px 18px rgba(88,48,197,.32); }
+</style>
+</head>
+<body>
+  <h1>معاينة هوية الكروت</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('kitchen', this)">🍳 شاشة المطبخ (بأزرار)</button>
+    <button class="tab" onclick="showTab('customer', this)">📺 شاشة العميل (بدون أزرار)</button>
+  </div>
+
+  <div id="kitchen" class="screen active">
+    <div class="grid" id="kgrid"></div>
+  </div>
+
+  <div id="customer" class="screen">
+    <h2 style="font-family:'Cairo'; margin-bottom:6px;">شاشة عرض العميل</h2>
+    <div class="grid" id="cgrid"></div>
+  </div>
+
+<script>
+  const FOLDER = "Deleviry apps logo and brand/";
+  const APPS = [
+    { name:'كيتا',      logo:'Keeta.png',   color:'#1AA67D', ink:'#0E8F66', on:'#fff'    },
+    { name:'هنقرستيشن', logo:'Hunger.png',  color:'#FFC400', ink:'#9C6400', on:'#3A2A00' },
+    { name:'جاهز',      logo:'jahez.png',   color:'#E2231A', ink:'#C41E15', on:'#fff'    },
+    { name:'ذا شيفز',   logo:'chefz.png',   color:'#EF6B2F', ink:'#C9531F', on:'#fff'    },
+    { name:'نينجا',     logo:'Ninja.png',   color:'#00ABB9', ink:'#008794', on:'#fff'    },
+    { name:'مرسول',     logo:'Marsool.png', color:'#00A65A', ink:'#008A4A', on:'#fff'    },
+    { name:'تويو',      logo:'Toyou.png',   color:'#013A6B', ink:'#013A6B', on:'#fff'    },
+  ];
+  const types = ['توصيل','توصيل','استلام','توصيل','محلي','توصيل','توصيل'];
+
+  function rgba(hex,a){const h=hex.replace('#','');return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;}
+
+  function cardHTML(a, i, withButton, btnType){
+    const btn = withButton
+      ? `<button class="c-btn ${btnType}">${btnType==='ready'?'✓ جاهز':'🔔 استلام الطلب'}</button>` : '';
+    return `<div class="card" style="border-color:${a.color}; background:linear-gradient(150deg, ${rgba(a.color,0.16)} 0%, #fff 55%)">
+      <div class="c-head">
+        <span class="c-type" style="background:${rgba(a.color,0.14)}; color:${a.ink}">${types[i]}</span>
+        <div class="c-logo" style="border-color:${a.color}"><img src="${FOLDER+a.logo}" alt="${a.name}"></div>
+      </div>
+      <span class="c-pill" style="background:${a.color}; color:${a.on}">${a.name}</span>
+      <div class="c-num-wrap"><span class="c-num-lbl">طلب</span><span class="c-num" style="color:${a.ink}">#${101+i}</span></div>
+      <div class="c-time"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>منذ ٣ دقائق</div>
+      ${btn}
+    </div>`;
+  }
+
+  const kg = document.getElementById('kgrid');
+  const cg = document.getElementById('cgrid');
+  APPS.forEach((a,i)=>{
+    kg.insertAdjacentHTML('beforeend', cardHTML(a,i,true, i%3===0?'accept':'ready'));
+    cg.insertAdjacentHTML('beforeend', cardHTML(a,i,false));
+  });
+
+  function showTab(id, btn){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>
