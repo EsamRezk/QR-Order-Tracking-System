@@ -12,7 +12,8 @@
       "WebSearch",
       "WebFetch(domain:brandfetch.com)",
       "WebFetch(domain:logosandtypes.com)",
-      "WebFetch(domain:www.foodics.com)"
+      "WebFetch(domain:www.foodics.com)",
+      "Bash(git fetch *)"
     ]
   },
   "mcpServers": {
