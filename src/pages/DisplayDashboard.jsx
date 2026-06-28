@@ -8,6 +8,7 @@ import { formatClock, formatDate } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
 import PreparingColumn from '../components/PreparingColumn'
 import ReadyColumn from '../components/ReadyColumn'
+import DeliveredColumn from '../components/DeliveredColumn'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
 import './DisplayDashboard.css'
@@ -28,7 +29,7 @@ export default function DisplayDashboard() {
 function DisplayDashboardInner() {
   const { session } = useAuth()
   const { branch, loading, error } = useBranch()
-  const { preparing, ready } = useOrders(branch?.id)
+  const { preparing, ready, delivered } = useOrders(branch?.id)
   const { play, loadSound } = useSound()
   const [clock, setClock] = useState(formatClock())
   const [date, setDate] = useState(formatDate())
@@ -173,7 +174,7 @@ function DisplayDashboardInner() {
 
       {/* ── Content ── */}
       <main className="dash-main">
-        {totalActive === 0 ? (
+        {totalActive === 0 && delivered.length === 0 ? (
           <div className="dash-empty-wrap">
             <div className="dash-empty">
               <div className="dash-empty-icon">
@@ -189,10 +190,16 @@ function DisplayDashboardInner() {
             </div>
           </div>
         ) : (
-          <div className="dash-columns">
-            <PreparingColumn orders={preparing} />
-            <ReadyColumn orders={ready} fadingOrders={fadingOrders} />
-          </div>
+          <>
+            {totalActive > 0 && (
+              <div className="dash-columns">
+                <PreparingColumn orders={preparing} />
+                <ReadyColumn orders={ready} fadingOrders={fadingOrders} />
+              </div>
+            )}
+            {/* قسم "تم تسليمها" — مطوي افتراضياً */}
+            <DeliveredColumn orders={delivered} />
+          </>
         )}
       </main>
     </div>

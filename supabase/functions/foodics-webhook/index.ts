@@ -23,36 +23,18 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// 🔑 كل افتراضات حالات فوديكس في ملف واحد — عدّلها هناك فقط بعد تأكيد فوديكس.
+import {
+  ORDER_TYPES,
+  HANDLED_EVENTS,
+  STATUS_RANK,
+  isCancelledOrderStatus,
+  deliveryStatusToLocal,
+} from '../_shared/foodics-status.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-// Foodics order type → التسمية الداخلية
-const ORDER_TYPES: Record<number, string> = {
-  1: 'dine_in',
-  2: 'pickup',
-  3: 'delivery',
-  4: 'drive_thru',
-}
-
-// الأحداث التي نعالجها (الورك فلو الجديد). نقبل أيضاً order.created/updated دفاعياً
-// طالما الـ payload يحمل طلباً بـ delivery_status.
-const HANDLED_EVENTS = new Set([
-  'order.delivery.created',
-  'order.delivery.updated',
-  'order.created',
-  'order.updated',
-])
-
-// ترتيب الحالات لمنع التراجع (forward-only)
-const STATUS_RANK: Record<string, number> = {
-  new: 0,
-  preparing: 1,
-  ready: 2,
-  completed: 3,
-  cancelled: 3,
-}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -152,8 +134,8 @@ Deno.serve(async (req) => {
       .eq('foodics_order_id', orderId)
       .maybeSingle()
 
-    // 1) إلغاء: declined (3) أو void (7) → cancelled
-    if (orderStatus === 3 || orderStatus === 7) {
+    // 1) إلغاء: declined / void → cancelled  (الأرقام في foodics-status.ts)
+    if (isCancelledOrderStatus(orderStatus)) {
       if (existing) {
         await supabase.from('orders')
           .update({ status: 'cancelled', foodics_delivery_status: deliveryStatus })
@@ -163,14 +145,9 @@ Deno.serve(async (req) => {
       return json({ status: 'ignored_cancelled_unknown', foodics_order_id: orderId })
     }
 
-    // تحديد الحالة المحلية المستهدفة من delivery_status
-    let targetStatus: string | null = null
-    if (deliveryStatus === 1) targetStatus = 'preparing'      // Sent to Kitchen → قيد التحضير مباشرة
-    else if (deliveryStatus === 2) targetStatus = 'ready'      // Ready
-    else if (deliveryStatus === 6) targetStatus = 'cancelled'  // Cancelled (DMS)
-    else if (deliveryStatus !== null && deliveryStatus >= 5) targetStatus = 'completed' // Delivered
-
-    // delivery_status = null أو 3/4 (Assigned/Enroute تتولاها DMS) → لا تغيير حالة
+    // تحديد الحالة المحلية المستهدفة من delivery_status (الخريطة في foodics-status.ts)
+    // delivery_status = null أو قيم وسيطة (Assigned/Enroute تتولاها فوديكس) → لا تغيير حالة
+    const targetStatus = deliveryStatusToLocal(deliveryStatus)
     if (!targetStatus) {
       return json({ status: 'no_actionable_delivery_status', delivery_status: deliveryStatus, foodics_order_id: orderId })
     }

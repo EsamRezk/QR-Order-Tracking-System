@@ -7,13 +7,25 @@ export function useOrders(branchId) {
 
   const fetchOrders = useCallback(async () => {
     if (!branchId) return
-    const { data } = await supabase
+    // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها.
+    const { data: active } = await supabase
       .from('orders')
       .select('*')
       .eq('branch_id', branchId)
       .in('status', ['new', 'preparing', 'ready'])
       .order('created_at', { ascending: false })
-    setOrders(data || [])
+
+    // الطلبات المكتملة (تم تسليمها) — آخر 50 فقط لقسم "تم تسليمها" في شاشة العميل،
+    // حتى لا نحمّل كل التاريخ. الـ Realtime يضيف الجديد تلقائياً.
+    const { data: completed } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('branch_id', branchId)
+      .eq('status', 'completed')
+      .order('completed_at', { ascending: false, nullsFirst: false })
+      .limit(50)
+
+    setOrders([...(active || []), ...(completed || [])])
   }, [branchId])
 
   useEffect(() => {
@@ -53,6 +65,10 @@ export function useOrders(branchId) {
   const incoming = orders.filter(o => o.status === 'new')
   const preparing = orders.filter(o => o.status === 'preparing')
   const ready = orders.filter(o => o.status === 'ready')
+  // تم تسليمها (مكتمل) — لقسم العميل المطوي. الأحدث أولاً.
+  const delivered = orders
+    .filter(o => o.status === 'completed')
+    .sort((a, b) => new Date(b.completed_at || b.ready_at || 0) - new Date(a.completed_at || a.ready_at || 0))
 
-  return { orders, incoming, preparing, ready, newOrderFlag, refetch: fetchOrders }
+  return { orders, incoming, preparing, ready, delivered, newOrderFlag, refetch: fetchOrders }
 }

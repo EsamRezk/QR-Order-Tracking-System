@@ -311,6 +311,14 @@
     color: var(--green-dark);
 }
 
+/* علامة "جاهز" داخل كارت قسم الجاهز */
+.kitchen-card-ready-flag {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--green-dark, #16a34a);
+    white-space: nowrap;
+}
+
 .kitchen-card-tags {
     display: flex;
     align-items: center;

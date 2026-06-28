@@ -18,6 +18,8 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// 🔑 كل افتراضات حالات فوديكس في ملف واحد — عدّلها هناك فقط بعد تأكيد فوديكس.
+import { outboundBody, outboundPath } from '../_shared/foodics-status.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -43,11 +45,6 @@ async function getConfig() {
     .limit(1)
     .maybeSingle()
   return data
-}
-
-// توقيت UTC بصيغة فوديكس: YYYY-MM-DD HH:MM:SS
-function utcNow(): string {
-  return new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
 
 Deno.serve(async (req) => {
@@ -78,11 +75,9 @@ Deno.serve(async (req) => {
       const config = await getConfig()
       if (config?.access_token) {
         const base = (config.api_base_url || 'https://api.foodics.com/v5').replace(/\/$/, '')
-        const body = action === 'ready'
-          ? { delivery_status: 2 }
-          : { delivery_status: 5, driver_collected_at: utcNow() }
+        const body = outboundBody(action) // الحقول/القيم في foodics-status.ts
         try {
-          const res = await fetch(`${base}/orders/${encodeURIComponent(order.foodics_order_id)}`, {
+          const res = await fetch(`${base}${outboundPath(order.foodics_order_id)}`, {
             method: 'PUT',
             headers: {
               'Accept': 'application/json',
