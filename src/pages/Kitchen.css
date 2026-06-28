@@ -230,12 +230,12 @@
 /* Order card */
 .kitchen-card {
     background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.04) 100%);
-    border: 1px solid rgba(88, 48, 197, 0.2);
-    border-radius: 16px;
+    border: 2.5px solid rgba(88, 48, 197, 0.2);
+    border-radius: 20px;
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.7rem;
     animation: kitchen-card-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
@@ -264,14 +264,21 @@
 
 .kitchen-card-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 0.85rem;
 }
 
 .kitchen-card-order {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    align-items: baseline;
+    gap: 0.45rem;
+}
+
+.kitchen-card-order-lbl {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
 .kitchen-card-icon {
@@ -311,24 +318,20 @@
 }
 
 .kitchen-card-type {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 800;
-    padding: 0.1rem 0.5rem;
+    padding: 0.25rem 0.7rem;
     border-radius: 100px;
     background: rgba(88, 48, 197, 0.12);
     color: var(--accent);
+    white-space: nowrap;
 }
 
 .kitchen-card-id {
-    font-size: 1.5rem;
+    font-size: 2.6rem;
     font-weight: 900;
     color: var(--text-primary);
-}
-
-.kitchen-card-channel {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--accent-light);
+    line-height: 1;
 }
 
 .kitchen-card-time {

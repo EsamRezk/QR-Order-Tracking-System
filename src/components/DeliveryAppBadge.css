@@ -1,0 +1,50 @@
+/* صندوق اللوجو */
+.app-logo {
+  background: #fff;
+  border-radius: 18px;
+  border: 3px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.12);
+}
+
+.app-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 5px;
+}
+
+.app-logo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.6em;
+}
+
+.app-logo--sm { width: 48px; height: 48px; border-radius: 12px; border-width: 2px; }
+.app-logo--md { width: 64px; height: 64px; border-radius: 16px; }
+.app-logo--lg { width: 84px; height: 84px; }
+.app-logo--xl { width: 104px; height: 104px; border-radius: 22px; border-width: 4px; }
+
+/* بادج اسم التطبيق (pill) */
+.app-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Cairo', 'Tajawal', sans-serif;
+  font-weight: 800;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.12);
+}
+
+.app-pill--sm { font-size: 0.75rem; padding: 0.3rem 0.7rem; }
+.app-pill--md { font-size: 0.9rem;  padding: 0.4rem 0.9rem; }
+.app-pill--lg { font-size: 1.05rem; padding: 0.5rem 1.1rem; }
