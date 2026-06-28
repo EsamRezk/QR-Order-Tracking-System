@@ -1,10 +1,17 @@
 # 🔌 وثيقة التسليم والتكامل مع Foodics — كبة زون
 
-> **التاريخ:** 2026-06-24 (محدّث)
+> **التاريخ:** 2026-06-25 (محدّث — الورك فلو الجديد delivery-driven + مزامنة عكسية)
 > **الغرض:** توثيق كل ما تم تنفيذه في النظام للتحوّل الكامل إلى Foodics، وتحديد البيانات المطلوبة من Foodics بدقة لإكمال التشغيل.
-> **الحالة:** ✅ التكامل يعمل end-to-end على Sandbox (طلب حقيقي من iPad Cashier يظهر في المطبخ). ⏳ المتبقي للإنتاج: تقليل زمن تسليم فوديكس (القسم 6) + ضمان بقاء الـ webhook مفعّلاً.
+> **الحالة:** ✅ الكود جاهز (lint + build). ⏳ متبقٍ نشر/إعداد على Supabase الجديد + تسجيل أحداث delivery على فوديكس (القسم 3 و 4).
 >
-> **🔑 أهم اكتشاف (2026-06-24):** webhook `order.created` يحمل **الطلب كاملاً داخل `payload.order`** (الفرع/الرقم/النوع)، وليس `entity.id` فقط. لذلك الـ Edge Function تقرأ الطلب **مباشرة من الـ webhook بدون أي نداء API** — ما ألغى مشكلة الصلاحيات (403) والحاجة لـ `orders.limited.read` و حدّ المعدّل نهائياً.
+> **🆕 تحديث 2026-06-25 — الورك فلو الجديد (`KebbaZone_Foodics_Integration_Flow`):**
+> 1. **إلغاء خطوة "الاستلام"** — الطلب يدخل `preparing` مباشرة عند وصول `delivery_status=1` (الكود باقٍ موقوفاً للإرجاع).
+> 2. **مزامنة عكسية لفوديكس (جديد):** زر "جاهز" → `PUT /orders/{id} {delivery_status:2}`؛ زر **"تم التسليم"** → `PUT {delivery_status:5, driver_collected_at:UTC}`. عبر Edge Function جديدة **`foodics-update-status`**.
+> 3. **الأحداث:** نسجّل `order.delivery.created` + `order.delivery.updated` (بدل `order.created`)، والمفتاح هو `delivery_status` لا مجرد الإنشاء.
+> 4. **توكن production** (`922240`) يملك scope **`orders.limited.deliver`** ✅ — المزامنة العكسية ممكنة.
+> 5. **⚠️ المشروع انتقل لـ Supabase جديد:** `mbmrcvazjdzkarysqwgb` (ليس `ucpudjjahbctzluseipo`). كل النشر والإعداد يتم عليه.
+>
+> **🔑 اكتشاف سابق (لا يزال صحيحاً):** webhook الطلب يحمل **الطلب كاملاً داخل `payload.order`** — نقرأه مباشرة بلا نداء API (لا حاجة لـ `orders.limited.read`).
 
 ---
 
@@ -12,17 +19,23 @@
 
 تم **إلغاء نظام مسح QR نهائياً**. مصدر الطلبات الوحيد الآن هو **Foodics** عبر Webhook.
 
-### التدفق الجديد بالكامل
+### التدفق الجديد بالكامل (delivery-driven + مزامنة عكسية)
 ```
-Foodics (طلب جديد)
-  → webhook: order.created
-  → Edge Function ينشئ الطلب بحالة "جديد" (new)
-  → يظهر في شاشة المطبخ ضمن قسم "طلبات جديدة"
-  → الموظف يضغط "استلام الطلب"  → الحالة: قيد التجهيز (preparing)
-       → يظهر فوراً في شاشة العميل ضمن "قيد التحضير"
-  → الموظف يضغط "جاهز"          → الحالة: جاهز (ready)
-       → ينتقل في شاشة العميل إلى "جاهز للاستلام"
-  → تلقائياً بعد 5 دقائق         → مكتمل (completed) ويختفي
+Foodics (طلب جديد دخل المطبخ، delivery_status=1)
+  → webhook: order.delivery.created / order.delivery.updated
+  → Edge Function (foodics-webhook) ينشئ الطلب بحالة "قيد التحضير" (preparing) مباشرة
+       → يظهر فوراً في المطبخ + شاشة العميل + صوت تنبيه   ← لا خطوة استلام
+  → الموظف يضغط "جاهز"
+       → Edge Function (foodics-update-status, action=ready)
+       → PUT /orders/{id} {delivery_status:2}  +  status=ready
+       → ينتقل لقسم "جاهز" بالمطبخ + "جاهز للاستلام" عند العميل
+  → الموظف يضغط "تم التسليم"
+       → Edge Function (foodics-update-status, action=delivered)
+       → PUT /orders/{id} {delivery_status:5, driver_collected_at:UTC}  +  status=completed
+       → يختفي من المطبخ وشاشة العميل
+  ───────
+  إلغاء من فوديكس (status=3 declined / 7 void) → status=cancelled (إزالة من العرض)
+  forward-only: الحالة لا تتراجع أبداً
 ```
 
 ---
@@ -87,10 +100,10 @@ Foodics (طلب جديد)
 | # | المطلوب | الحالة | أين يُستخدم |
 |---|---------|--------|-------------|
 | 1 | **Access Token** | ⏳ أُرسل في إيميل من `no-reply@mail.foodics.com` إلى `foodics@kebbazone.com` — يلزم إحضاره (راجع Spam) | `foodics_config.access_token` |
-| 2 | **تسجيل الـ Webhook** على رابطنا مع حدث `order.created` | ⏳ يتم من إعدادات التطبيق أو بمراسلة `support@foodics.com` | إعداد فوديكس |
-| 3 | **تأكيد** أن `order.created` يُطلَق لطلبات الكاشير + الأونلاين | ⏳ سؤال تشغيلي | — |
-| 4 | الـ **Branch IDs** | ✅ نجلبها بأنفسنا عبر `scripts/foodics-list-branches.mjs` فور توفّر التوكن | `018_...sql` |
-| 5 | الـ **Scopes** | ✅ من الدليل: `general.read` + `orders.limited.read` (الأقل المطلوب لتكاملنا) | إعداد التطبيق |
+| 2 | **تسجيل الـ Webhook** على رابطنا مع حدثَي **`order.delivery.created` + `order.delivery.updated`** | ⏳ من إعدادات التطبيق أو بمراسلة `support@foodics.com` | إعداد فوديكس |
+| 3 | **تأكيد** أن أحداث delivery تُطلَق لطلبات الكاشير + الأونلاين + الكول سنتر | ⏳ سؤال تشغيلي | — |
+| 4 | الـ **Branch IDs** (الإنتاج) | ✅ نجلبها عبر `scripts/foodics-list-branches.mjs` | `018_...sql` |
+| 5 | الـ **Scopes** | ✅ توكن production يملك `general.read` + `orders.list` + `orders.limited.deliver` + `orders.limited.decline` — يكفي للوارد والمزامنة العكسية | إعداد التطبيق |
 
 ### تم حلّها من الدليل (لم تعد مطلوبة)
 - ~~Webhook signature/HMAC~~ → فوديكس لا ترسل توقيعاً؛ الأمان عبر جلب الطلب بالتوكن.
@@ -109,18 +122,22 @@ Foodics (طلب جديد)
 
 ## 4. خطوات الإكمال بعد وصول بيانات Foodics
 
+> **⚠️ كل الخطوات على مشروع Supabase الجديد: `mbmrcvazjdzkarysqwgb`.**
 ```
-1) شغّل migrations على Supabase بالترتيب: 014 → 015 → 016 → 017
-2) خزّن التوكن:
-     INSERT INTO foodics_config (business_id, access_token)
-     VALUES ('922240', '<ACCESS_TOKEN>');
-3) اجلب الفروع واملأ الربط:
-     FOODICS_TOKEN=<ACCESS_TOKEN> node scripts/foodics-list-branches.mjs
-     ثم شغّل 018_seed_foodics_branch_mapping.sql بالقيم
-4) انشر الـ Edge Function:
-     supabase functions deploy test-foodics-webhook --no-verify-jwt
-5) سجّل الرابط في Foodics مع حدث order.created
-6) اختبر بطلب حقيقي → يظهر في المطبخ كـ "جديد"
+1) شغّل migrations بالترتيب: 014 → 015 → 016 → 017 → 018 → 019
+2) خزّن توكن production (base URL الإنتاجي افتراضي بعد 019):
+     INSERT INTO foodics_config (business_id, access_token, api_base_url)
+     VALUES ('922240', '<PROD_ACCESS_TOKEN>', 'https://api.foodics.com/v5');
+3) اجلب الفروع واملأ الربط (لكل فرع صف):
+     FOODICS_TOKEN=<PROD_ACCESS_TOKEN> node scripts/foodics-list-branches.mjs
+     ثم عدّل/شغّل 018 بمعرّفات فروع الإنتاج الحقيقية
+4) انشر الـ Edge Functions:
+     supabase functions deploy foodics-webhook        --no-verify-jwt   # inbound
+     supabase functions deploy foodics-update-status  --no-verify-jwt   # outbound (المزامنة العكسية)
+5) سجّل في Foodics حدثَي **order.delivery.created + order.delivery.updated** على رابط:
+     https://mbmrcvazjdzkarysqwgb.supabase.co/functions/v1/foodics-webhook
+6) اختبر بطلب حقيقي → يظهر "قيد التحضير" مباشرة → "جاهز" → "تم التسليم"
+   وتحقق أن delivery_status في فوديكس صار 2 ثم 5، و synced_to_foodics=true محلياً.
 ```
 
 ### اختبار يدوي سريع (curl)

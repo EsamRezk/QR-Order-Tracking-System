@@ -129,8 +129,17 @@ e:\My Projects\QR Order Tracking System\
         ├── 009_seed_laban_users.sql
         ├── 010_session_auto_refresh.sql
         ├── 011_allow_concurrent_sessions.sql
-        └── 012_active_sessions.sql
+        ├── 012_active_sessions.sql
+        ├── 013_rpc_update_user.sql
+        ├── 014_foodics_orders_flow.sql        # حالة new + أعمدة Foodics + تتبع الاستلام
+        ├── 015_foodics_config_and_mapping.sql # foodics_config + foodics_branch_mapping
+        ├── 016_scan_logs_types.sql            # accept / ready_scan
+        ├── 017_rpc_kitchen_flow.sql           # rpc_kitchen_accept_order (موقوف بالواجهة)
+        ├── 018_seed_foodics_branch_mapping.sql
+        └── 019_foodics_delivery_flow.sql      # الورك فلو الجديد: cancelled + أعمدة delivery + RPCs المزامنة العكسية
 ```
+
+> **Edge Functions:** `supabase/functions/foodics-webhook` (inbound — القناة الرسمية) · `foodics-update-status` (outbound — المزامنة العكسية) · `test-foodics-webhook` (alias للتوافق).
 
 ---
 
@@ -171,13 +180,23 @@ id                     UUID (PK, auto)
 order_id               TEXT NOT NULL              -- رقم الطلب من QR
 branch_id              UUID FK→branches(id)       -- الفرع
 channel_link           TEXT                       -- رابط القناة (jahez, hungerstation...)
-status                 TEXT CHECK ('preparing','ready','completed')
-scanned_at             TIMESTAMPTZ DEFAULT now()  -- وقت أول مسح
-ready_at               TIMESTAMPTZ                -- وقت الجاهزية
-completed_at           TIMESTAMPTZ                -- وقت الاكتمال
-prep_duration_seconds  INTEGER (GENERATED)        -- مدة التحضير (تلقائي)
-raw_qr_data            JSONB                      -- بيانات QR الخام
-created_at             TIMESTAMPTZ DEFAULT now()
+status                  TEXT CHECK ('new','preparing','ready','completed','cancelled')
+scanned_at              TIMESTAMPTZ DEFAULT now()  -- بداية احتساب مدة التحضير
+ready_at                TIMESTAMPTZ                -- وقت الجاهزية
+delivered_at            TIMESTAMPTZ                -- وقت "تم التسليم"
+completed_at            TIMESTAMPTZ                -- وقت الاكتمال
+prep_duration_seconds   INTEGER (GENERATED)        -- مدة التحضير (تلقائي)
+raw_qr_data             JSONB                      -- raw_qr_data.foodics_order = الطلب الخام من فوديكس
+created_at              TIMESTAMPTZ DEFAULT now()
+-- أعمدة Foodics (migrations 014 + 019):
+source                  TEXT DEFAULT 'qr'          -- 'foodics' | 'qr'
+foodics_order_id        TEXT (UNIQUE partial)      -- UUID الطلب في فوديكس (للـ PUT)
+foodics_order_number    TEXT                       -- الرقم المعروض
+order_type              TEXT                       -- dine_in | pickup | delivery | drive_thru
+order_source            INTEGER                    -- 1=POS, 2=API, 3=Call Center
+foodics_delivery_status INTEGER                    -- آخر delivery_status من فوديكس (1,2,5,6)
+synced_to_foodics       BOOLEAN DEFAULT false      -- هل آخر تحديث وصل فوديكس؟
+accepted_at/accepted_by                            -- (موقوف) تتبع خطوة الاستلام
 UNIQUE(order_id, branch_id)
 ```
 - `prep_duration_seconds` محسوب تلقائيًا: `EXTRACT(EPOCH FROM (ready_at - scanned_at))`
@@ -247,18 +266,37 @@ started_at      TIMESTAMPTZ DEFAULT now()
 
 ## 6. المنطق التشغيلي (Business Logic)
 
-### دورة حياة الطلب (بعد إلغاء QR — التدفق الحالي)
+### دورة حياة الطلب (الورك فلو الجديد — delivery-driven + مزامنة عكسية لفوديكس)
 ```
-[Foodics webhook: order.created] → INSERT order (status: new, source: foodics)
+[Foodics webhook: order.delivery.created/updated مع delivery_status=1]
+       → INSERT order (status: preparing مباشرة، source: foodics)   ← خطوة "الاستلام" أُلغيت
+       ↓  (يظهر فوراً في المطبخ "قيد التحضير" + في شاشة العميل + صوت تنبيه)
+[زر "جاهز" في المطبخ]
+       → Edge Function foodics-update-status (action: ready)
+       → PUT /orders/{id} {delivery_status: 2}  +  UPDATE status=ready, ready_at, foodics_delivery_status=2, synced_to_foodics + scan_log (ready_scan)
+       ↓  (ينتقل لقسم "جاهز" في المطبخ + "جاهز للاستلام" عند العميل)
+[زر "تم التسليم" في المطبخ]
+       → Edge Function foodics-update-status (action: delivered)
+       → PUT /orders/{id} {delivery_status: 5, driver_collected_at: <UTC>}  +  UPDATE status=completed, delivered_at, foodics_delivery_status=5 + scan_log (delivered)
        ↓
-[زر "استلام" في المطبخ] → UPDATE order (status: preparing, scanned_at=now, accepted_at) + scan_log (accept)
-       ↓  (يظهر الآن في شاشة العميل "قيد التحضير")
-[زر "جاهز" في المطبخ] → UPDATE order (status: ready, ready_at) + scan_log (second_scan)
-       ↓
-[Auto Timeout] → UPDATE order (status: completed, completed_at)
-   (بعد 5 دقائق من ready_at، قابل للتغيير عبر VITE_READY_TIMEOUT_MINUTES)
+[completed] يختفي من المطبخ وشاشة العميل
 ```
-> ملاحظة: مسح QR أُلغي نهائياً (2026-06-22). مصدر الطلبات الوحيد هو Foodics. التفعيل متوقف على بيانات Foodics — راجع docs/FOODICS_HANDOFF.md.
+- **إلغاء من فوديكس:** webhook بـ `order.status` = 3 (Declined) أو 7 (Void) → `status=cancelled` (إزالة من العرض).
+- **forward-only:** الحالة لا تتراجع (preparing→ready→completed فقط)؛ محمي في الـ webhook (STATUS_RANK) وفي شروط الـ RPC.
+- **معالجة فشل فوديكس:** لو فشل الـ PUT، يُحدَّث المحلي على أي حال (`synced_to_foodics=false`) حتى لا يتوقف المطبخ.
+- **الإكمال التلقائي (5 دقائق) موقوف لطلبات foodics** — الإكمال صار صريحاً عبر زر "تم التسليم" (مع مزامنة). يبقى الـ auto-complete فعّالاً لطلبات qr القديمة فقط.
+- **خطوة "الاستلام" (new → preparing) موقوفة في الواجهة** لكنها باقية في القاعدة (`rpc_kitchen_accept_order` + حالة `new`) قابلة للإرجاع.
+
+> ملاحظة: مسح QR أُلغي نهائياً (2026-06-22). مصدر الطلبات الوحيد هو Foodics. الورك فلو الجديد موثّق في `KebbaZone_Foodics_Integration_Flow` و `docs/FOODICS_HANDOFF.md`.
+
+### مزامنة فوديكس (delivery_status codes)
+| الكود | المعنى | الاتجاه عندنا |
+|------|--------|---------------|
+| 1 | Sent to Kitchen | وارد (inbound) → preparing |
+| 2 | Ready | صادر (outbound) عند زر "جاهز" |
+| 5 | Delivered | صادر (outbound) عند زر "تم التسليم" + `driver_collected_at` (UTC) |
+| 3/4 | Assigned/Enroute | تتولاها DMS — نتجاهلها |
+| 6 | Cancelled | وارد → cancelled |
 
 ### تحديد قناة الطلب
 ```javascript
@@ -602,6 +640,7 @@ npm run lint      # فحص الكود
 | 2026-06-22 | **مراجعة بعد دليل Foodics الرسمي:** اكتُشف أن webhook فوديكس يرسل `entity.id` فقط (لا تفاصيل) ولا يرسل توقيعاً. أُعيدت كتابة Edge Function `test-foodics-webhook` لتجلب الطلب عبر `GET /orders/{id}` بالـ access_token ثم تنشئه بحالة `new`. أُضيف عمود `api_base_url` لـ foodics_config (Sandbox افتراضياً). أُضيف سكربت `scripts/foodics-list-branches.mjs` لجلب الفروع. حُذفت فكرة HMAC. الناقص: التوكن (إيميل المالك) + تسجيل الـ webhook + تأكيد order.created للكاشير. التفاصيل: docs/FOODICS_HANDOFF.md. |
 | 2026-06-22 | **إلغاء QR نهائياً + تحويل الواجهة لتدفق Foodics.** حُذف: Scanner.jsx/.css, ScannerView.jsx/.css, useScanner.js, parseQR.js, generate-qrcodes.html, مكتبة html5-qrcode, مسار /scan وكل مراجعه. **التدفق الجديد:** Foodics webhook → `new` → (زر استلام) → `preparing` → (زر جاهز) → `ready` → مكتمل. **الواجهة:** useOrders يدعم `new` ويُصدّر `incoming`؛ Kitchen.jsx قسمان (طلبات جديدة بزر استلام + قيد التحضير بزر جاهز) عبر rpc_kitchen_accept_order و rpc_scanner_mark_ready؛ OrderCard يعرض شارة نوع الطلب؛ DisplayDashboard يصدر الصوت عند الاستلام لا الإنشاء. المسار الافتراضي للموظف صار /kitchen. ✅ build ناجح. وثيقة التسليم: docs/FOODICS_HANDOFF.md. **لا تظهر طلبات حتى يُفعّل webhook فوديكس (مقصود).** |
 | 2026-06-23 | **تفعيل تكامل Foodics على Sandbox (الباك إند جاهز).** اكتُشف من JWT أن صلاحيات التوكن قراءة فقط (`orders.list`, `general.read`, `orders.limited.decline/deliver`) — تكفي لـ `GET /orders/{id}` (أُكّد بـ 404 لا 403) لكن **لا تسمح بإنشاء طلب** (`POST /orders` = 403)، فإنشاء طلب الاختبار ينتظر iPad Cashier App. **ما تم فعلياً على Supabase (مشروع ucpudjjahbctzluseipo):** تشغيل migrations 014→018، تخزين التوكن في foodics_config (business 922240, Sandbox URL), ملء ربط الفرع 018 (Foodics `a217671a...` → فرعنا B01). **نُشرت** Edge Function عبر `supabase functions deploy test-foodics-webhook --no-verify-jwt`. اختبار دخان بـ id وهمي رجّع `fetch_failed/404` = نجاح (function+توكن+وصول لـ Foodics مؤكد). **المتبقي:** (1) طلب حقيقي من iPad Cashier؛ (2) تسجيل الـ webhook عبر support@foodics.com على `…/functions/v1/test-foodics-webhook` بحدث order.created. |
+| 2026-06-25 | **🔄 تطبيق الورك فلو الجديد (delivery-driven) + مزامنة عكسية لفوديكس.** حسب `KebbaZone_Foodics_Integration_Flow`: (1) **إلغاء خطوة "الاستلام"** — الطلب يدخل `preparing` مباشرة عند `delivery_status=1` (الكود باقٍ موقوفاً للإرجاع). (2) **مزامنة عكسية لفوديكس:** زر "جاهز" → `PUT /orders/{id} {delivery_status:2}`؛ زر **"تم التسليم" جديد** → `PUT {delivery_status:5, driver_collected_at:UTC}` — عبر Edge Function جديدة `foodics-update-status` (scope مؤكّد: `orders.limited.deliver` من توكن production). (3) **inbound** أُعيدت كتابته (`foodics-webhook`) ليعالج `order.delivery.created/updated` + منطق `status`/`delivery_status` (preparing/ready/completed/cancelled) مع forward-only و idempotency؛ `test-foodics-webhook` صار alias له. (4) **migration 019:** حالة `cancelled` + أعمدة `order_source`/`foodics_delivery_status`/`delivered_at`/`synced_to_foodics` + `scan_type='delivered'` + RPCs `rpc_kitchen_mark_ready_synced`/`rpc_kitchen_mark_delivered` + base URL إنتاجي. (5) **المطبخ:** قسمان "قيد التحضير" (زر جاهز) + "جاهز" (زر تم التسليم أزرق). (6) auto-complete موقوف لطلبات foodics. ✅ lint نظيف + build ناجح. **⚠️ نشر/إعداد متبقٍ:** المشروع انتقل لـ Supabase جديد (`mbmrcvazjdzkarysqwgb`) — تشغيل migrations 014→019، تخزين توكن production، ملء branch mapping، نشر الـ Functions، تسجيل أحداث `order.delivery.created/updated` على رابط `foodics-webhook`. التفاصيل: `docs/FOODICS_HANDOFF.md`. |
 | 2026-06-24 | **✅ تكامل Foodics يعمل end-to-end على Sandbox.** اكتُشف من الـ payload الخام أن webhook `order.created` يحمل **الطلب كاملاً داخل `payload.order`** (الفرع/الرقم/النوع/المنتجات)، وليس `entity.id` فقط كما كان مفترضاً. لذلك أُعيدت كتابة Edge Function `test-foodics-webhook` لتقرأ الطلب **مباشرة من جسم الـ webhook** بدون أي نداء API — ما ألغى نهائياً مشكلة الصلاحيات (403 على `GET /orders/{id}` لغياب `orders.limited.read`)، وحدّ المعدّل (90/دقيقة)، وزمن النداء الإضافي. **مسار احتياطي (fallback):** إن لم يحمل الـ webhook الطلب، يُجلب عبر `GET /orders?filter[id]={id}` (scope: orders.list). أُضيف logging للـ payload الخام و`Order source`. أُضيف `scripts/foodics-check-webhook.mjs` و`scripts/foodics-postman-collection.json`. **اختبار حقيقي ناجح:** طلبات من iPad Cashier ظهرت في المطبخ (فرع B01، نوع محلي). **التأخير المرصود ~1 دقيقة وكله من جهة فوديكس:** الفجوة بين `closed_at` و `created_at` ≈ 49–60 ثانية (مزامنة الجهاز بالسحابة)، والـ webhook يصلنا خلال ~2 ثانية من `created_at`. **المتبقي للإنتاج:** تأكيد فوديكس لزمن تسليم أقل (مستهدف ≤5 ثوانٍ) + ضمان بقاء الـ webhook مفعّلاً. التفاصيل: docs/FOODICS_HANDOFF.md. |
 
 ---

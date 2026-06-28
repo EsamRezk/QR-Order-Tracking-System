@@ -59,6 +59,9 @@ function DisplayDashboardInner() {
       const now = Date.now()
       for (const order of ready) {
         if (fadingOrders.has(order.id)) continue
+        // الورك فلو الجديد: طلبات فوديكس تُكمَل فقط بزر "تم التسليم" (مع مزامنة delivery_status=5).
+        // لا نُكملها تلقائياً حتى لا تُغلق بدون إبلاغ فوديكس. (الإكمال التلقائي يبقى لطلبات qr القديمة فقط.)
+        if (order.source === 'foodics') continue
         const readyAt = new Date(order.ready_at).getTime()
         if (now - readyAt >= READY_TIMEOUT_MS) {
           completeOrder(order.id)

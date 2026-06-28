@@ -1,0 +1,291 @@
+{
+  "info": {
+    "name": "KebbaZone × Foodics — PRODUCTION Verification",
+    "_postman_id": "kebbazone-foodics-prod",
+    "description": "اختبار تكامل فوديكس على الإنتاج (business 922240) — الورك فلو الجديد delivery-driven.\n\n══════════ الإعداد ══════════\n1) تبويب Variables بالأعلى → املأ: foodics_token (توكن production).\n2) base_url مضبوط على الإنتاج: https://api.foodics.com/v5\n3) شغّل بالترتيب 1 → 7. كل طلب فيه Test script يفسّر النتيجة في تبويب Test Results + Console.\n\n══════════ ترتيب الأهمية ══════════\n• 1 Whoami      → التوكن صالح + business صحيح\n• 2 Branches    → scope general.read + معرّفات الفروع (للـ mapping)\n• 3 List Orders → scope orders.list + يلتقط order_id حقيقي تلقائياً\n• 4 PUT Ready ⭐ → يتأكد scope orders.limited.deliver (نفس نداء زر 'جاهز')\n• 5 PUT Delivered ⭐ → نفس نداء زر 'تم التسليم' (delivery_status=5 + UTC)\n• 6 Webhooks    → هل أحداث delivery مسجّلة على رابطنا؟\n• 7 Simulate    → يحاكي webhook delivery الكامل على Edge Function بتاعنا\n\n⚠️ تحذير: الطلبان 4 و 5 (PUT) **يعدّلان طلباً حقيقياً** في فوديكس. استخدم طلب اختبار/تجريبي يمكن إغلاقه، أو طلباً نشطاً تقصده.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{foodics_token}}", "type": "string" }]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api-sandbox.foodics.com/v5",
+      "type": "string",
+      "description": "⚠️ التوكن الحالي يعمل على Sandbox فقط (production يرجّع 404 Business not found). للإنتاج الحقيقي بدّل لـ https://api.foodics.com/v5 بعد الحصول على توكن production."
+    },
+    {
+      "key": "foodics_token",
+      "value": "",
+      "type": "string",
+      "description": "توكن production من foodics_config.access_token (business 922240)"
+    },
+    {
+      "key": "foodics_order_id",
+      "value": "",
+      "type": "string",
+      "description": "معرّف طلب حقيقي. يُملأ تلقائياً من '3. List Orders'، أو ضعه يدوياً."
+    },
+    {
+      "key": "webhook_url",
+      "value": "https://mbmrcvazjdzkarysqwgb.supabase.co/functions/v1/foodics-webhook",
+      "type": "string",
+      "description": "رابط الـ Edge Function (inbound) على مشروع Supabase الجديد"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Whoami (token + business)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const b = (pm.response.json().data) || {};",
+              "  console.log('✅ business:', b.name, '| reference:', b.reference);",
+              "  pm.test('200 — التوكن صالح', () => pm.expect(b.reference).to.eql('922240'));",
+              "} else {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('التوكن غير صالح أو منتهي', () => pm.expect(pm.response.code).to.eql(200));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/whoami",
+          "host": ["{{base_url}}"],
+          "path": ["whoami"]
+        },
+        "description": "يتأكد إن التوكن صالح ويخص business 922240."
+      }
+    },
+    {
+      "name": "2. Get Branches (general.read + mapping)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const list = pm.response.json().data || [];",
+              "  console.log('✅ عدد الفروع:', list.length);",
+              "  list.forEach(b => console.log('  •', b.id, '|', b.name, '| ref:', b.reference, '| online:', b.receives_online_orders));",
+              "  pm.test('200 — general.read شغّال', () => {});",
+              "} else {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('فشل جلب الفروع', () => pm.expect(pm.response.code).to.eql(200));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/branches?include=tags",
+          "host": ["{{base_url}}"],
+          "path": ["branches"],
+          "query": [{ "key": "include", "value": "tags" }]
+        },
+        "description": "200 + قائمة الفروع. انسخ كل id لملء foodics_branch_mapping."
+      }
+    },
+    {
+      "name": "3. List Orders (orders.list + التقاط id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const list = pm.response.json().data || [];",
+              "  pm.test('200 — orders.list شغّال', () => {});",
+              "  if (list.length) {",
+              "    const o = list[0];",
+              "    pm.collectionVariables.set('foodics_order_id', o.id);",
+              "    console.log('✅ تم التقاط foodics_order_id =', o.id);",
+              "    console.log('   status:', o.status, '| delivery_status:', o.delivery_status, '| type:', o.type, '| source:', o.source);",
+              "  } else {",
+              "    console.log('⚠️ لا توجد طلبات — أنشئ طلباً أولاً أو ضع foodics_order_id يدوياً.');",
+              "  }",
+              "} else {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('فشل قائمة الطلبات', () => pm.expect(pm.response.code).to.eql(200));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/orders?include=branch&page=1",
+          "host": ["{{base_url}}"],
+          "path": ["orders"],
+          "query": [
+            { "key": "include", "value": "branch" },
+            { "key": "page", "value": "1" }
+          ]
+        },
+        "description": "200 → يحفظ id أول طلب في foodics_order_id تلقائياً (للطلبين 4 و 5)."
+      }
+    },
+    {
+      "name": "4. PUT delivery_status=2 (Ready) ⭐",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  console.log('✅✅ الأهم: orders.limited.deliver يعمل — المزامنة العكسية ستنجح.');",
+              "  pm.test('PUT delivery_status=2 نجح (scope deliver شغّال)', () => {});",
+              "} else if (pm.response.code === 403) {",
+              "  console.log('❌ 403 — التوكن ناقصه scope: orders.limited.deliver');",
+              "  pm.test('403 — scope deliver ناقص', () => {});",
+              "} else if (pm.response.code === 422) {",
+              "  console.log('⚠️ 422 — الـ scope موجود لكن الانتقال مرفوض (الطلب ليس Active أو الحالة لا تسمح). جرّب طلباً نشطاً.');",
+              "  console.log(pm.response.text());",
+              "  pm.test('422 — انتقال غير صالح (الـ scope نفسه شغّال)', () => {});",
+              "} else {",
+              "  console.log('HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('استجابة غير متوقعة', () => {});",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"delivery_status\": 2\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/orders/{{foodics_order_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["orders", "{{foodics_order_id}}"]
+        },
+        "description": "⭐ أهم اختبار: نفس نداء زر 'جاهز'.\n200/201 = scope orders.limited.deliver شغّال ✅\n403 = الـ scope ناقص ❌\n422 = الـ scope شغّال لكن الطلب لا يقبل الانتقال (جرّب طلباً Active).\n\n⚠️ يعدّل طلباً حقيقياً."
+      }
+    },
+    {
+      "name": "5. PUT delivery_status=5 (Delivered) ⭐",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// توقيت UTC بصيغة فوديكس: YYYY-MM-DD HH:MM:SS",
+              "const utc = new Date().toISOString().slice(0, 19).replace('T', ' ');",
+              "pm.collectionVariables.set('utc_now', utc);",
+              "console.log('driver_collected_at (UTC) =', utc);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  console.log('✅ Delivered نجح — delivery_status=5 + driver_collected_at قُبلا.');",
+              "  pm.test('PUT delivery_status=5 نجح', () => {});",
+              "} else if (pm.response.code === 403) {",
+              "  console.log('❌ 403 — scope orders.limited.deliver ناقص');",
+              "  pm.test('403 — scope deliver ناقص', () => {});",
+              "} else {",
+              "  console.log('HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('راجع الاستجابة (قد يكون انتقال غير صالح)', () => {});",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"delivery_status\": 5,\n  \"driver_collected_at\": \"{{utc_now}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/orders/{{foodics_order_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["orders", "{{foodics_order_id}}"]
+        },
+        "description": "نفس نداء زر 'تم التسليم'. الـ pre-request script يحقن وقت UTC الحالي تلقائياً.\n⚠️ يعدّل طلباً حقيقياً ويغلقه كـ Delivered."
+      }
+    },
+    {
+      "name": "6. List Webhooks (هل أحداث delivery مسجّلة؟)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const list = pm.response.json().data || [];",
+              "  console.log('الـ webhooks المسجّلة:', list.length);",
+              "  list.forEach(w => console.log('  •', (w.events || w.event), '→', w.url));",
+              "  pm.test('200 — راجع وجود order.delivery.created/updated على رابطنا', () => {});",
+              "} else {",
+              "  console.log('HTTP', pm.response.code, '— قد يحتاج scope webhooks. سجّل الأحداث من كونسول فوديكس أو support.', pm.response.text());",
+              "  pm.test('قائمة الـ webhooks غير متاحة بهذا التوكن', () => {});",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/webhooks",
+          "host": ["{{base_url}}"],
+          "path": ["webhooks"]
+        },
+        "description": "دوّر على url بتاعنا + events تتضمن order.delivery.created و order.delivery.updated."
+      }
+    },
+    {
+      "name": "7. Simulate delivery webhook → Edge Function",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event\": \"order.delivery.created\",\n  \"business\": { \"name\": \"KebbaZone\", \"reference\": \"922240\" },\n  \"order\": {\n    \"id\": \"{{foodics_order_id}}\",\n    \"reference\": \"TEST-001\",\n    \"number\": 9001,\n    \"type\": 3,\n    \"source\": 1,\n    \"status\": 2,\n    \"delivery_status\": 1,\n    \"branch\": { \"id\": \"<PUT_REAL_FOODICS_BRANCH_ID>\" }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{webhook_url}}",
+          "host": ["{{webhook_url}}"]
+        },
+        "description": "يحاكي webhook delivery الكامل (الطلب مضمّن في payload.order، delivery_status=1).\n⚠️ استبدل branch.id بمعرّف فرع فوديكس حقيقي مربوط في foodics_branch_mapping.\nمتوقع: {\"status\":\"created\",...} ويظهر في المطبخ 'قيد التحضير'.\nلو {\"status\":\"branch_not_found\"} → الفرع غير مربوط في foodics_branch_mapping.\nتنظيف: DELETE FROM orders WHERE source='foodics' AND order_id='9001';"
+      }
+    }
+  ]
+}
