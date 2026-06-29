@@ -76,8 +76,11 @@ Deno.serve(async (req) => {
       if (config?.access_token) {
         const base = (config.api_base_url || 'https://api.foodics.com/v5').replace(/\/$/, '')
         const body = outboundBody(action) // الحقول/القيم في foodics-status.ts
+        const url = `${base}${outboundPath(order.foodics_order_id)}`
+        // تشخيصي: يكشف لو الرابط Sandbox بالغلط أو الأوردر/التوكن غير متطابقين عند 404
+        console.log('Foodics PUT →', url, '| body:', JSON.stringify(body))
         try {
-          const res = await fetch(`${base}${outboundPath(order.foodics_order_id)}`, {
+          const res = await fetch(url, {
             method: 'PUT',
             headers: {
               'Accept': 'application/json',
@@ -89,7 +92,7 @@ Deno.serve(async (req) => {
           foodicsHttp = res.status
           synced = res.ok
           if (!res.ok) {
-            console.error('Foodics PUT failed', res.status, await res.text())
+            console.error('Foodics PUT failed', res.status, '| url:', url, '|', await res.text())
           }
         } catch (e) {
           console.error('Foodics PUT exception:', e)

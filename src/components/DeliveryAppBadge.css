@@ -45,6 +45,6 @@
   box-shadow: 0 4px 12px rgba(17, 24, 39, 0.12);
 }
 
-.app-pill--sm { font-size: 0.75rem; padding: 0.3rem 0.7rem; }
+.app-pill--sm { font-size: 0.65rem; padding: 0.2rem 0.55rem; font-weight: 700; }
 .app-pill--md { font-size: 0.9rem;  padding: 0.4rem 0.9rem; }
 .app-pill--lg { font-size: 1.05rem; padding: 0.5rem 1.1rem; }

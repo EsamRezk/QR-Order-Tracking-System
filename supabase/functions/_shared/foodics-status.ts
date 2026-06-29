@@ -101,15 +101,18 @@ export const STATUS_RANK: Record<string, number> = {
 // ───────────────────────────────────────────────────────────────────
 // 5) الكتابة (outbound): عندنا → فوديكس. ماذا نرسل عند كل زر؟
 //
-//    ✅ مؤكّد: الـ scope المتاح على توكن الإنتاج = orders.limited.deliver
-//       (إيميل فوديكس 2026-06-29) + القيم delivery_status (2=جاهز، 5=تم التسليم).
-//    ❓ CONFIRM (لم يحدّده الإيميل صراحةً — تحقّق عند أول كتابة فعلية):
-//       - الـ endpoint الصحيح (PUT /orders/{id}؟ أم endpoint توصيل خاص؟)
-//       - اسم حقل التوقيت عند "تم التسليم" (driver_collected_at؟) وصيغته
-//       - هل orders.limited.deliver يسمح بضبط "جاهز"=2 أم فقط "تم التسليم"=5؟
+//    ✅ مؤكّد من توثيق فوديكس الرسمي (Delivery Management Integration):
+//       - الـ endpoint: PUT {base_url}/orders/{order_id}
+//       - الحقول القابلة للتحديث (فردياً): delivery_status (1..6) + توقيتات UTC
+//         بصيغة "YYYY-MM-DD HH:MM:SS": driver_assigned_at / dispatched_at /
+//         driver_collected_at / delivered_at + driver_id.
+//       - scope: orders.limited.deliver.
+//    ⚠️ خطأ 404 على الـ PUT لا يعني الـ endpoint غلط — يعني الأوردر غير موجود
+//       بالتوكن/البيئة المستخدمة (تحقّق أن foodics_config: التوكن إنتاج + api_base_url
+//       = https://api.foodics.com/v5 وليس Sandbox).
 // ───────────────────────────────────────────────────────────────────
 
-// توقيت UTC بصيغة فوديكس: "YYYY-MM-DD HH:MM:SS"  ❓ CONFIRM الصيغة المطلوبة
+// توقيت UTC بصيغة فوديكس: "YYYY-MM-DD HH:MM:SS"  ✅ (مؤكّد من التوثيق)
 export function foodicsUtcNow(): string {
   return new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
@@ -119,16 +122,16 @@ export type OutboundAction = 'ready' | 'delivered'
 // جسم طلب الـ PUT المرسل لفوديكس لكل زر.
 export function outboundBody(action: OutboundAction): Record<string, unknown> {
   if (action === 'ready') {
-    return { delivery_status: FOODICS_DELIVERY_STATUS.READY } // ❓ CONFIRM
+    return { delivery_status: FOODICS_DELIVERY_STATUS.READY } // ✅ 2 (Ready)
   }
-  // delivered
+  // delivered (5) → التوقيت الصحيح للتسليم للعميل هو delivered_at (حسب التوثيق)
   return {
-    delivery_status: FOODICS_DELIVERY_STATUS.DELIVERED,        // ❓ CONFIRM
-    driver_collected_at: foodicsUtcNow(),                      // ❓ CONFIRM (الحقل/الصيغة)
+    delivery_status: FOODICS_DELIVERY_STATUS.DELIVERED, // ✅ 5 (Delivered)
+    delivered_at: foodicsUtcNow(),                      // ✅ حقل التسليم
   }
 }
 
-// مسار تحديث الطلب على فوديكس (نسبةً لـ api_base_url).  ❓ CONFIRM
+// مسار تحديث الطلب على فوديكس (نسبةً لـ api_base_url).  ✅ PUT /orders/{id}
 export function outboundPath(foodicsOrderId: string): string {
   return `/orders/${encodeURIComponent(foodicsOrderId)}`
 }
