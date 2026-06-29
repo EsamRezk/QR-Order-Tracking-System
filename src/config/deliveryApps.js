@@ -129,10 +129,11 @@ export function isDeliveryAppOrder(order) {
 }
 
 /**
- * رقم الطلب المعروض. لطلبات تطبيقات التوصيل يُفضَّل الرقم الظاهر داخل التطبيق
- * نفسه (المأخوذ من فوديكس في `meta.external_number` بصيغة "AppName: NUMBER").
+ * رقم الطلب المعروض. لطلبات تطبيقات التوصيل نأخذ الرقم الظاهر داخل التطبيق
+ * نفسه (من فوديكس في `meta.external_number` بصيغة "AppName: NUMBER") ونعرض
+ * **آخر 4 أرقام فقط من اليمين** (مثل 547077316 → 7316، و5094 → 5094).
  * نأخذ ما بعد ":" ثم أول سطر فقط (Keeta أحياناً تضيف رقم تتبّع طويل في سطر تالٍ).
- * إن لم يوجد → نرجع رقم فوديكس الداخلي order_id كما هو.
+ * إن لم يوجد (طلب غير-توصيل) → نرجع رقم فوديكس الداخلي order_id كاملاً.
  */
 export function resolveDisplayNumber(order) {
   if (!order) return ''
@@ -140,7 +141,7 @@ export function resolveDisplayNumber(order) {
   if (typeof ext === 'string' && ext.includes(':')) {
     const afterColon = ext.split(':').slice(1).join(':').trim()
     const firstLine = afterColon.split('\n')[0].trim()
-    if (firstLine) return firstLine
+    if (firstLine) return firstLine.slice(-4) // آخر 4 أرقام من اليمين
   }
   return order.order_id
 }
