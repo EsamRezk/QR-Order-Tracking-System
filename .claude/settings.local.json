@@ -15,7 +15,8 @@
       "WebFetch(domain:www.foodics.com)",
       "Bash(git fetch *)",
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('scripts/foodics-postman-delivery-orders.json','utf8'\\)\\); console.log\\('✅ JSON valid'\\)\")",
-      "WebFetch(domain:www.postman.com)"
+      "WebFetch(domain:www.postman.com)",
+      "PowerShell(npm run build 2>&1)"
     ]
   },
   "mcpServers": {

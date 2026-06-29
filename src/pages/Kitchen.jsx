@@ -271,34 +271,35 @@ function KitchenCard({ order, mode, fading = false, onAction }) {
       className={`kitchen-card ${isReady ? 'kitchen-card--ready' : ''} ${fading ? 'kitchen-card--fading' : ''}`}
       style={cardStyle}
     >
-      {/* رأس: نوع الطلب + علامة جاهز (يمين) ولوجو التطبيق (يسار) */}
-      <div className="kitchen-card-header">
-        <div className="kitchen-card-tags">
-          {order.order_type && (
-            <span className="kitchen-card-type" style={{ background: hexToRgba(app.color, 0.14), color: app.ink }}>
-              {ORDER_TYPE_LABELS[order.order_type] || order.order_type}
-            </span>
-          )}
-          {isReady && <span className="kitchen-card-ready-flag">✓ جاهز</span>}
+      {/* صف علوي مدمج: لوجو التطبيق ملاصق للمعلومات */}
+      <div className="kitchen-card-top">
+        <DeliveryAppLogo app={app} size="lg" />
+        <div className="kitchen-card-info">
+          {/* نوع الطلب + اسم التطبيق (صغير) + علامة جاهز */}
+          <div className="kitchen-card-tags">
+            {order.order_type && (
+              <span className="kitchen-card-type" style={{ background: hexToRgba(app.color, 0.14), color: app.ink }}>
+                {ORDER_TYPE_LABELS[order.order_type] || order.order_type}
+              </span>
+            )}
+            <DeliveryAppPill app={app} size="sm" />
+            {isReady && <span className="kitchen-card-ready-flag">✓ جاهز</span>}
+          </div>
+
+          {/* رقم الطلب */}
+          <div className="kitchen-card-order">
+            <span className="kitchen-card-order-lbl">طلب</span>
+            <span className="kitchen-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
+          </div>
+
+          {/* الوقت */}
+          <div className="kitchen-card-time">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {elapsed}
+          </div>
         </div>
-        <DeliveryAppLogo app={app} size="xl" />
-      </div>
-
-      {/* بادج اسم التطبيق */}
-      <DeliveryAppPill app={app} size="lg" />
-
-      {/* رقم الطلب */}
-      <div className="kitchen-card-order">
-        <span className="kitchen-card-order-lbl">طلب</span>
-        <span className="kitchen-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
-      </div>
-
-      {/* الوقت */}
-      <div className="kitchen-card-time">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        {elapsed}
       </div>
 
       {/* الزر: قيد التحضير → "جاهز"، جاهز → "تم التسليم" */}

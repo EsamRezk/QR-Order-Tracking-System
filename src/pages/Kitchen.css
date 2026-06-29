@@ -252,19 +252,25 @@
 /* Grid layout */
 .kitchen-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.7rem;
+}
+
+@media (max-width: 1280px) {
+    .kitchen-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 /* Order card */
 .kitchen-card {
     background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.04) 100%);
-    border: 2.5px solid rgba(88, 48, 197, 0.2);
-    border-radius: 20px;
-    padding: 1.25rem;
+    border: 2px solid rgba(88, 48, 197, 0.2);
+    border-radius: 14px;
+    padding: 0.75rem 0.85rem;
     display: flex;
     flex-direction: column;
-    gap: 0.7rem;
+    gap: 0.6rem;
     animation: kitchen-card-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
@@ -291,21 +297,29 @@
     }
 }
 
-.kitchen-card-header {
+/* صف علوي مدمج: لوجو ملاصق للمعلومات */
+.kitchen-card-top {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.85rem;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.kitchen-card-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
 .kitchen-card-order {
     display: flex;
     align-items: baseline;
-    gap: 0.45rem;
+    gap: 0.4rem;
 }
 
 .kitchen-card-order-lbl {
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-muted);
 }
@@ -342,7 +356,7 @@
 
 /* علامة "جاهز" داخل كارت قسم الجاهز */
 .kitchen-card-ready-flag {
-    font-size: 0.8rem;
+    font-size: 0.62rem;
     font-weight: 800;
     color: var(--green-dark, #16a34a);
     white-space: nowrap;
@@ -351,13 +365,14 @@
 .kitchen-card-tags {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
+    flex-wrap: wrap;
 }
 
 .kitchen-card-type {
-    font-size: 0.78rem;
+    font-size: 0.62rem;
     font-weight: 800;
-    padding: 0.25rem 0.7rem;
+    padding: 0.15rem 0.5rem;
     border-radius: 100px;
     background: rgba(88, 48, 197, 0.12);
     color: var(--accent);
@@ -365,7 +380,7 @@
 }
 
 .kitchen-card-id {
-    font-size: 2.6rem;
+    font-size: 2.1rem;
     font-weight: 900;
     color: var(--text-primary);
     line-height: 1;
@@ -374,8 +389,8 @@
 .kitchen-card-time {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    font-size: 0.85rem;
+    gap: 0.35rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
 }
 
