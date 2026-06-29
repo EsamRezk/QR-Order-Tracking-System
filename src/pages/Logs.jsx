@@ -13,7 +13,7 @@ const ROLE_LABELS = {
 
 const PAGE_MAP = {
   '/display': { label: 'شاشة العرض', icon: '🖥️' },
-  '/kitchen': { label: 'شاشة المطبخ', icon: '🔥' },
+  '/kitchen': { label: 'شاشة الفرع', icon: '🔥' },
   '/analytics': { label: 'التحليلات', icon: '📊' },
   '/admin': { label: 'إدارة الفروع', icon: '🏪' },
   '/add-user': { label: 'إدارة المستخدمين', icon: '👥' },

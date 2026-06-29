@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { formatElapsed } from '../utils/formatTime'
-import { resolveDeliveryApp, hexToRgba } from '../config/deliveryApps'
+import { resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
 import { DeliveryAppLogo, DeliveryAppPill } from './DeliveryAppBadge'
 
 const ORDER_TYPE_LABELS = {
@@ -64,7 +64,7 @@ export default function OrderCard({ order, fading = false }) {
       <div className="mt-2 flex items-baseline gap-2">
         <span className="text-base lg:text-lg font-medium text-[#9ca3af]">طلب</span>
         <span className="text-4xl lg:text-6xl font-extrabold text-[#2E2D2C] leading-none" style={{ color: app.ink }}>
-          #{order.order_id}
+          #{resolveDisplayNumber(order)}
         </span>
       </div>
 

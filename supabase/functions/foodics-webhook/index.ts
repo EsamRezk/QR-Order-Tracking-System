@@ -2,7 +2,7 @@
 // Edge Function: foodics-webhook  (inbound — الإنتاج)
 //
 // الورك فلو الجديد (KebbaZone_Foodics_Integration_Flow):
-//   نسجّل في فوديكس الحدثين: order.delivery.created + order.delivery.updated
+//   ✅ الأحداث المشتركة على الإنتاج (مؤكّدة 2026-06-29): orders.created + orders.updated
 //   ونتعامل مع الطلب حسب status + delivery_status:
 //
 //   IF status ∈ {3 Declined, 7 Void}            → 'cancelled' (إزالة من العرض)

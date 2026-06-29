@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   },
   {
     path: '/kitchen',
-    label: 'شاشة المطبخ',
+    label: 'شاشة الفرع',
     needsBranch: true,
     icon: (
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">

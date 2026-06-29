@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
+import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
 import { useAuth } from '../context/AuthContext'
 import { formatClock, formatElapsed } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
-import { resolveDeliveryApp, hexToRgba } from '../config/deliveryApps'
+import { resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
 import { DeliveryAppLogo, DeliveryAppPill } from '../components/DeliveryAppBadge'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
@@ -32,6 +33,8 @@ function KitchenInner() {
   // الورك فلو (delivery-driven): الطلب يدخل "قيد التحضير" مباشرة (بلا خطوة استلام).
   // ملاحظة: incoming لا يزال متاحاً من useOrders لو احتجنا إرجاع خطوة الاستلام لاحقاً.
   const { preparing, ready } = useOrders(branch?.id)
+  // مفتاح "إظهار كل الطلبات على شاشة العرض" (يتحكم في شاشة العرض فقط — هذه الشاشة تعرض الكل دائماً)
+  const { showAll, setShowAll } = useBranchDisplaySetting(branch?.id)
   const [clock, setClock] = useState(formatClock())
   // confirm = { order, action: 'ready' | 'delivered' }
   const [confirm, setConfirm] = useState(null)
@@ -108,7 +111,7 @@ function KitchenInner() {
               </svg>
             </div>
             <div>
-              <h1 className="kitchen-branch-name">مطبخ — {branch?.name_ar}</h1>
+              <h1 className="kitchen-branch-name">الفرع — {branch?.name_ar}</h1>
               <p className="kitchen-branch-sub">{branch?.name_en} — كبة زون</p>
             </div>
           </div>
@@ -125,6 +128,15 @@ function KitchenInner() {
                 </span>
               </div>
             </div>
+            {/* مفتاح إظهار كل الطلبات على شاشة العرض (يتزامن realtime) */}
+            <label className="kitchen-display-toggle" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={e => setShowAll(e.target.checked)}
+              />
+              <span>إظهار كل الطلبات على شاشة العرض</span>
+            </label>
           </div>
         </div>
       </header>
@@ -201,9 +213,9 @@ function KitchenInner() {
             <div className="kitchen-modal-icon">{confirm.action === 'ready' ? '✓' : '🚗'}</div>
             <div className="kitchen-modal-title">
               {confirm.action === 'ready' ? (
-                <>هل تريد تحويل الطلب <span className="kitchen-modal-order-id">{confirm.order.order_id}</span> إلى جاهز؟</>
+                <>هل تريد تحويل الطلب <span className="kitchen-modal-order-id">{resolveDisplayNumber(confirm.order)}</span> إلى جاهز؟</>
               ) : (
-                <>هل تم تسليم الطلب <span className="kitchen-modal-order-id">{confirm.order.order_id}</span>؟</>
+                <>هل تم تسليم الطلب <span className="kitchen-modal-order-id">{resolveDisplayNumber(confirm.order)}</span>؟</>
               )}
             </div>
             <div className="kitchen-modal-subtitle">
@@ -278,7 +290,7 @@ function KitchenCard({ order, mode, fading = false, onAction }) {
       {/* رقم الطلب */}
       <div className="kitchen-card-order">
         <span className="kitchen-card-order-lbl">طلب</span>
-        <span className="kitchen-card-id" style={{ color: app.ink }}>#{order.order_id}</span>
+        <span className="kitchen-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
       </div>
 
       {/* الوقت */}

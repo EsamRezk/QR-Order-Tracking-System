@@ -1,11 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════
 // 🔑 المصدر الوحيد لكل افتراضات حالات فوديكس (Single Source of Truth)
 //
-// ⚠️⚠️ كل القيم هنا "مفترضة" من ملف KebbaZone_Foodics_Integration_Flow ولم
-//      تُؤكَّد بعد من فوديكس. بعد الاجتماع/أول طلب حقيقي، عدّل القيم في هذا
-//      الملف وحده ثم أعد نشر الـ Edge Functions — لا تعدّل أي مكان آخر.
+// ✅ أُكّدت قيم delivery_status بالكامل من فوديكس (اجتماع + إيميل 2026-06-29):
+//      1=Sent to kitchen  2=Ready  3=Assigned  4=Enroute  5=Delivered  6=Cancelled
+//      كما أُكّد base URL (api.foodics.com/v5) و scope الكتابة (orders.limited.deliver)
+//      والأحداث المشتركة (orders.created / orders.updated).
 //
-// كل بند ناقص متعلّم بـ:  // ❓ CONFIRM
+// ما زال غير مؤكّد رسمياً ومتعلّم بـ // ❓ CONFIRM: أرقام order.type، وأرقام
+//      order.status للإلغاء، وصيغة جسم الـ PUT الصادر (الحقول/التوقيت).
+// عند تأكيد أيٍّ منها: عدّل هنا فقط ثم أعد نشر الـ Edge Functions — لا مكان آخر.
 //
 // الدالتان (inbound + outbound) تستوردان من هنا:
 //   - foodics-webhook/index.ts        (القراءة: فوديكس → عندنا)
@@ -25,9 +28,9 @@ export const ORDER_TYPES: Record<number, string> = {
 
 // ───────────────────────────────────────────────────────────────────
 // 2) أحداث الـ webhook التي نسجّلها/نعالجها عند فوديكس
-//    ❓ CONFIRM: الأسماء الدقيقة للأحداث التي تُطلق عند:
-//       - إرسال الطلب للمطبخ
-//       - تغيّر حالة التوصيل (ready / delivered)
+//    ✅ مؤكّد (إيميل فوديكس 2026-06-29): المشترك على الإنتاج orders.created +
+//       orders.updated (يحملان الطلب كاملاً مع delivery_status). والطلبات تصل فعلياً.
+//       نُبقي صيغ المفرد + أحداث delivery.* القديمة دفاعياً دون ضرر.
 // ───────────────────────────────────────────────────────────────────
 export const HANDLED_EVENTS = new Set<string>([
   'order.delivery.created',
@@ -53,20 +56,21 @@ export function isCancelledOrderStatus(orderStatus: number): boolean {
 
 // ───────────────────────────────────────────────────────────────────
 // 4) delivery_status  ← القلب: مزامنة القراءة (inbound)
-//    فوديكس → الحالة المحلية. هذه أهم قيم نحتاج تأكيدها.
+//    فوديكس → الحالة المحلية.
 //
-//    ❓ CONFIRM (الأهم في الاجتماع): القيمة الرقمية الدقيقة لكل مرحلة:
-//       SENT_TO_KITCHEN  (الكاشير ضغط "إرسال للمطبخ")     المفترض = 1
-//       READY            (جاهز)                            المفترض = 2
-//       DELIVERED        (تم التسليم للمندوب/العميل)        المفترض = 5
-//       CANCELLED        (ألغي من نظام التوصيل DMS)         المفترض = 6
-//    والقيم الوسيطة (assigned/enroute) التي نتجاهلها (تتولاها فوديكس).
+//    ✅ مؤكّد بالكامل من فوديكس (جدول delivery_status — اجتماع + إيميل 2026-06-29):
+//       1 = Sent to kitchen  (بعد قبول الطلب وإرساله للتحضير)
+//       2 = Ready            (عند bump الطلب من المطبخ)
+//       3 = Assigned         (DMS يُسند مندوباً)        ← نتجاهله
+//       4 = Enroute          (DMS أرسل المندوب)         ← نتجاهله
+//       5 = Delivered        (المندوب سلّم الطلب)
+//       6 = Cancelled        (DMS ألغى الطلب)
 // ───────────────────────────────────────────────────────────────────
 export const FOODICS_DELIVERY_STATUS = {
-  SENT_TO_KITCHEN: 1, // ❓ CONFIRM  → نُنشئ الطلب محلياً كـ 'preparing'
-  READY:           2, // ❓ CONFIRM  → 'ready'
-  DELIVERED:       5, // ❓ CONFIRM  → 'completed'
-  CANCELLED:       6, // ❓ CONFIRM  → 'cancelled'
+  SENT_TO_KITCHEN: 1, // ✅ → نُنشئ الطلب محلياً كـ 'preparing'
+  READY:           2, // ✅ → 'ready'
+  DELIVERED:       5, // ✅ → 'completed'
+  CANCELLED:       6, // ✅ → 'cancelled'
 }
 
 // خريطة inbound: delivery_status رقمي → الحالة المحلية المستهدفة.
@@ -97,14 +101,12 @@ export const STATUS_RANK: Record<string, number> = {
 // ───────────────────────────────────────────────────────────────────
 // 5) الكتابة (outbound): عندنا → فوديكس. ماذا نرسل عند كل زر؟
 //
-//    ❓ CONFIRM (مهم في الاجتماع):
-//       - الـ endpoint الصحيح لتحديث حالة التوصيل (PUT /orders/{id}؟ أم
-//         endpoint خاص بالتوصيل مثل /orders/{id}/delivery؟)
-//       - اسم الحقل وقيمته عند "جاهز"  (المفترض delivery_status = 2)
-//       - اسم الحقل وقيمته عند "تم التسليم" (المفترض delivery_status = 5
-//         + driver_collected_at بصيغة UTC؟ أم حقل آخر؟)
-//       - الـ scope المطلوب على التوكن لتنفيذ هذه الكتابة
-//         (المفترض orders.limited.deliver)
+//    ✅ مؤكّد: الـ scope المتاح على توكن الإنتاج = orders.limited.deliver
+//       (إيميل فوديكس 2026-06-29) + القيم delivery_status (2=جاهز، 5=تم التسليم).
+//    ❓ CONFIRM (لم يحدّده الإيميل صراحةً — تحقّق عند أول كتابة فعلية):
+//       - الـ endpoint الصحيح (PUT /orders/{id}؟ أم endpoint توصيل خاص؟)
+//       - اسم حقل التوقيت عند "تم التسليم" (driver_collected_at؟) وصيغته
+//       - هل orders.limited.deliver يسمح بضبط "جاهز"=2 أم فقط "تم التسليم"=5؟
 // ───────────────────────────────────────────────────────────────────
 
 // توقيت UTC بصيغة فوديكس: "YYYY-MM-DD HH:MM:SS"  ❓ CONFIRM الصيغة المطلوبة

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
+import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
+import { isDeliveryAppOrder } from '../config/deliveryApps'
 import { useSound } from '../hooks/useSound'
 import { useAuth } from '../context/AuthContext'
 import { formatClock, formatDate } from '../utils/formatTime'
@@ -30,6 +32,12 @@ function DisplayDashboardInner() {
   const { session } = useAuth()
   const { branch, loading, error } = useBranch()
   const { preparing, ready, delivered } = useOrders(branch?.id)
+  // إعداد الفرع: لو unchecked → نُظهر طلبات تطبيقات التوصيل فقط (نخفي غير-التوصيل).
+  // يتزامن realtime مع شاشة الفرع التي تتحكم فيه.
+  const { showAll } = useBranchDisplaySetting(branch?.id)
+  const visPreparing = showAll ? preparing : preparing.filter(isDeliveryAppOrder)
+  const visReady = showAll ? ready : ready.filter(isDeliveryAppOrder)
+  const visDelivered = showAll ? delivered : delivered.filter(isDeliveryAppOrder)
   const { play, loadSound } = useSound()
   const [clock, setClock] = useState(formatClock())
   const [date, setDate] = useState(formatDate())
@@ -83,7 +91,7 @@ function DisplayDashboardInner() {
 
   // Play sound when an order enters the customer's view (تم استلامه → قيد التجهيز)
   useEffect(() => {
-    const ids = new Set(preparing.map(o => o.id))
+    const ids = new Set(visPreparing.map(o => o.id))
     // أول تحميل: نسجّل الموجود بدون صوت
     if (knownPreparingIds.current === null) {
       knownPreparingIds.current = ids
@@ -95,7 +103,7 @@ function DisplayDashboardInner() {
     }
     knownPreparingIds.current = ids
     if (hasNew && soundEnabled) play()
-  }, [preparing, play, soundEnabled])
+  }, [visPreparing, play, soundEnabled])
 
   const toggleSound = () => {
     if (!soundEnabled) {
@@ -122,7 +130,7 @@ function DisplayDashboardInner() {
     )
   }
 
-  const totalActive = preparing.length + ready.length
+  const totalActive = visPreparing.length + visReady.length
 
   /* ── Main Dashboard ── */
   return (
@@ -174,7 +182,7 @@ function DisplayDashboardInner() {
 
       {/* ── Content ── */}
       <main className="dash-main">
-        {totalActive === 0 && delivered.length === 0 ? (
+        {totalActive === 0 && visDelivered.length === 0 ? (
           <div className="dash-empty-wrap">
             <div className="dash-empty">
               <div className="dash-empty-icon">
@@ -193,12 +201,12 @@ function DisplayDashboardInner() {
           <>
             {totalActive > 0 && (
               <div className="dash-columns">
-                <PreparingColumn orders={preparing} />
-                <ReadyColumn orders={ready} fadingOrders={fadingOrders} />
+                <PreparingColumn orders={visPreparing} />
+                <ReadyColumn orders={visReady} fadingOrders={fadingOrders} />
               </div>
             )}
             {/* قسم "تم تسليمها" — مطوي افتراضياً */}
-            <DeliveredColumn orders={delivered} />
+            <DeliveredColumn orders={visDelivered} />
           </>
         )}
       </main>

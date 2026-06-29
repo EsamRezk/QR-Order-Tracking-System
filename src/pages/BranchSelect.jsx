@@ -33,7 +33,7 @@ export default function BranchSelect({ target = 'display' }) {
   }
 
   const titles = {
-    kitchen: { title: 'شاشة المطبخ', subtitle: 'اختر الفرع لعرض طلبات المطبخ' },
+    kitchen: { title: 'شاشة الفرع', subtitle: 'اختر الفرع لعرض الطلبات' },
     display: { title: 'شاشة العرض', subtitle: 'اختر الفرع لعرض الطلبات' },
   }
   const { title, subtitle } = titles[target] || titles.display

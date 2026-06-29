@@ -1,0 +1,227 @@
+{
+  "info": {
+    "name": "KebbaZone × Foodics — Delivery Orders Study (type=2) [PRODUCTION]",
+    "_postman_id": "kebbazone-foodics-delivery-orders",
+    "description": "دراسة طلبات تطبيقات التوصيل (type=2) من فوديكس الإنتاج للإجابة على سؤالين:\n\n① رقم الطلب الظاهر داخل تطبيق التوصيل نفسه: أي حقل في الطلب يحمله؟ (number / reference / delivery.reference / meta…) — عشان نعرضه بدل رقم فوديكس الداخلي.\n② تحديث delivery_status (1→3→5) من عندنا — هل التوكن (scope orders.limited.deliver) يسمح؟\n\n══════════ الإعداد ══════════\n1) تبويب Variables بالأعلى → املأ foodics_token (توكن production الحقيقي، مش 922240 التيست).\n2) base_url مضبوط على الإنتاج: https://api.foodics.com/v5\n3) افتح Postman Console (View → Show Postman Console) لرؤية التحليل المطبوع.\n\n══════════ الطلبات ══════════\n• 1 Whoami                → يتأكد التوكن صالح + production (reference ≠ 922240).\n• 2 Get Delivery Orders   → يجلب آخر طلبات type=2 (افتراضي 20)، ويطبع جدول مقارنة للحقول المرشّحة لرقم تطبيق التوصيل + توزيع delivery_status + JSON كامل لأول 3 طلبات للدراسة.\n• 3 Verify Outbound (PUT) → ⚠️ يحدّث delivery_status لطلب واحد محدد (لاختبار الانعكاس في فوديكس). فارغ افتراضياً — لا يعمل إلا لو ملأت test_order_id يدوياً. استخدمه على طلب تجريبي فقط."
+,
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{foodics_token}}", "type": "string" }]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.foodics.com/v5",
+      "type": "string",
+      "description": "الإنتاج. (للتيست بدّل لـ https://api-sandbox.foodics.com/v5)"
+    },
+    {
+      "key": "foodics_token",
+      "value": "",
+      "type": "string",
+      "description": "توكن production الحقيقي (access_token). لا تستخدم توكن 922240 التيست."
+    },
+    {
+      "key": "order_type",
+      "value": "2",
+      "type": "string",
+      "description": "نوع الطلب المطلوب دراسته. 2 = طلبات تطبيقات التوصيل (حسب فوديكس)."
+    },
+    {
+      "key": "page_size",
+      "value": "20",
+      "type": "string",
+      "description": "كم طلب نجلب للدراسة (الجدول والتحليل في الـ Console يقتصر على هذا العدد)."
+    },
+    {
+      "key": "test_order_id",
+      "value": "",
+      "type": "string",
+      "description": "⚠️ معرّف طلب فوديكس (UUID) لاختبار تحديث delivery_status في الطلب رقم 3. اتركه فارغاً ليبقى الطلب 3 معطّلاً. استخدم طلباً تجريبياً فقط."
+    },
+    {
+      "key": "new_delivery_status",
+      "value": "3",
+      "type": "string",
+      "description": "⚠️ قيمة delivery_status الجديدة التي سترسلها في الطلب 3 (1=للمطبخ، 2=جاهز، 3=Assigned، 5=Delivered)."
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Whoami (تأكيد التوكن + production)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const b = (pm.response.json().data) || {};",
+              "  console.log('✅ business:', b.name, '| reference:', b.reference, '| id:', b.id);",
+              "  if (b.reference === '922240') {",
+              "    console.log('⚠️ تحذير: ده business التيست (922240) مش production. بدّل التوكن.');",
+              "  }",
+              "  pm.test('200 — التوكن صالح', () => pm.expect(pm.response.code).to.eql(200));",
+              "} else {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('التوكن غير صالح/منتهي أو البيئة غلط', () => pm.expect(pm.response.code).to.eql(200));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/whoami",
+          "host": ["{{base_url}}"],
+          "path": ["whoami"]
+        }
+      }
+    },
+    {
+      "name": "2. Get Delivery Orders (type=2 — دراسة الحقول)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code !== 200) {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('فشل جلب الطلبات', () => pm.expect(pm.response.code).to.eql(200));",
+              "  return;",
+              "}",
+              "const wantType = Number(pm.collectionVariables.get('order_type'));",
+              "const limit = Number(pm.collectionVariables.get('page_size')) || 20;",
+              "let list = pm.response.json().data || [];",
+              "// fallback: لو فوديكس تجاهلت فلتر النوع، نصفّي محلياً",
+              "const beforeFilter = list.length;",
+              "list = list.filter(o => Number(o.type) === wantType);",
+              "if (list.length === 0 && beforeFilter > 0) {",
+              "  console.log(`🟡 لا يوجد طلب type=${wantType} في هذه الصفحة (رجعت ${beforeFilter} طلب بأنواع أخرى).`);",
+              "  const types = {};",
+              "  (pm.response.json().data || []).forEach(o => { types[o.type] = (types[o.type]||0)+1; });",
+              "  console.log('توزيع الأنواع المتاحة:', JSON.stringify(types));",
+              "  return;",
+              "}",
+              "list = list.slice(0, limit);",
+              "console.log(`✅ طلبات type=${wantType}: ${list.length}`);",
+              "console.log('');",
+              "",
+              "// ① الحقول المرشّحة لرقم الطلب الظاهر في تطبيق التوصيل",
+              "console.log('═══ ① الحقول المرشّحة لرقم تطبيق التوصيل ═══');",
+              "console.log('number | reference | delivery.reference | meta.* | app_id(8) | customer');",
+              "console.log('-'.repeat(95));",
+              "list.forEach(o => {",
+              "  const d = o.delivery || {};",
+              "  const meta = o.meta || o.metadata || {};",
+              "  const metaRef = meta.reference || meta.order_reference || meta.external_reference || '—';",
+              "  const app = o.app_id ? String(o.app_id).slice(0,8) : '—';",
+              "  console.log(",
+              "    `${String(o.number ?? '—').padEnd(7)}| ${String(o.reference ?? '—').padEnd(18)}| ${String(d.reference ?? '—').padEnd(18)}| ${String(metaRef).padEnd(12)}| ${app.padEnd(9)}| ${String((o.customer&&o.customer.name) ?? '—').slice(0,18)}`",
+              "  );",
+              "});",
+              "console.log('');",
+              "console.log('👈 قارن هذه الأرقام بالرقم الظاهر فعلياً في تطبيق التوصيل لتحديد الحقل الصحيح.');",
+              "console.log('');",
+              "",
+              "// ② توزيع delivery_status (لمعرفة المراحل المتاحة فعلياً)",
+              "console.log('═══ ② توزيع delivery_status ═══');",
+              "const dist = {};",
+              "list.forEach(o => { const k = (o.delivery_status==null?'null':o.delivery_status); dist[k]=(dist[k]||0)+1; });",
+              "console.log(JSON.stringify(dist));",
+              "console.log('(1=للمطبخ 2=جاهز 3=Assigned 4=Enroute 5=Delivered 6=Cancelled)');",
+              "console.log('');",
+              "",
+              "// ③ JSON كامل لأول 3 طلبات للدراسة العميقة",
+              "console.log('═══ ③ JSON كامل لأول 3 طلبات ═══');",
+              "list.slice(0,3).forEach(o => {",
+              "  console.log(`\\n— الطلب id=${o.id} (number=${o.number}) —`);",
+              "  console.log(JSON.stringify(o, null, 2));",
+              "});",
+              "",
+              "pm.test('200 — طلبات type='+wantType+' رجعت', () => pm.expect(list.length).to.be.above(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/orders?filter[type]={{order_type}}&include=branch,customer&per_page={{page_size}}&sort=-created_at",
+          "host": ["{{base_url}}"],
+          "path": ["orders"],
+          "query": [
+            { "key": "filter[type]", "value": "{{order_type}}", "description": "فلتر نوع الطلب (2=توصيل). لو تجاهله فوديكس يصفّي السكربت محلياً." },
+            { "key": "include", "value": "branch,customer", "description": "علاقات خفيفة فقط. تجنّب products (تسبّب 504 timeout على القوائم الكبيرة)." },
+            { "key": "per_page", "value": "{{page_size}}", "description": "حدّ عدد الطلبات في الصفحة (افتراضي 20) — يقلّل الحمل ويمنع timeout." },
+            { "key": "sort", "value": "-created_at", "description": "الأحدث أولاً." }
+          ]
+        },
+        "description": "يجلب طلبات النوع المطلوب (افتراضي type=2 توصيل) بعلاقات خفيفة فقط (branch,customer) وper_page محدود لتجنّب 504. الـ Console يطبع: ① جدول الحقول المرشّحة لرقم تطبيق التوصيل، ② توزيع delivery_status، ③ JSON كامل لأول 3 طلبات. ⚠️ لا تضف include=products على القوائم — يسبّب timeout."
+      }
+    },
+    {
+      "name": "3. ⚠️ Verify Outbound — Update delivery_status (PUT)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const id = (pm.collectionVariables.get('test_order_id') || '').trim();",
+              "if (!id) {",
+              "  console.log('⏭️ تخطّي: test_order_id فارغ. املأه بمعرّف طلب تجريبي لتفعيل هذا الطلب.');",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const ns = pm.collectionVariables.get('new_delivery_status');",
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  console.log(`✅ نجح التحديث → delivery_status=${ns}. افتح فوديكس وتأكد أن الانعكاس ظهر.`);",
+              "  const d = pm.response.json().data || {};",
+              "  console.log('delivery_status الحالي في الرد:', d.delivery_status);",
+              "  pm.test('التوكن يسمح بتحديث delivery_status', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "} else if (pm.response.code === 403) {",
+              "  console.log('❌ 403 — التوكن (orders.limited.deliver) لا يسمح بهذه القيمة. ربما يسمح فقط بـ 5 (Delivered).');",
+              "  console.log(pm.response.text());",
+              "  pm.test('403 — صلاحية غير كافية لهذه القيمة', () => pm.expect(pm.response.code).to.eql(403));",
+              "} else {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('فشل غير متوقع', () => pm.expect([200,201]).to.include(pm.response.code));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"delivery_status\": {{new_delivery_status}}\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/orders/{{test_order_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["orders", "{{test_order_id}}"]
+        },
+        "description": "⚠️⚠️ يكتب فعلياً في فوديكس الإنتاج. لا يعمل إلا لو ملأت test_order_id. استخدمه على طلب تجريبي فقط لتأكيد أن التوكن يسمح بـ 1→3→5، وهل القيمة تنعكس في فوديكس. لو رجع 403 على 3 → الـ scope يسمح فقط بـ 5 (Delivered)."
+      }
+    }
+  ]
+}

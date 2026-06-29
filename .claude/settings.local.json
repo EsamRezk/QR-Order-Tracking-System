@@ -13,7 +13,8 @@
       "WebFetch(domain:brandfetch.com)",
       "WebFetch(domain:logosandtypes.com)",
       "WebFetch(domain:www.foodics.com)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('scripts/foodics-postman-delivery-orders.json','utf8'\\)\\); console.log\\('✅ JSON valid'\\)\")"
     ]
   },
   "mcpServers": {

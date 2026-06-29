@@ -96,6 +96,8 @@ export function resolveDeliveryApp(order) {
   // (3) تجميع كل النصوص المرشّحة من الطلب ومطابقتها بالأسماء المعروفة
   const candidates = [
     explicit,
+    raw.meta?.channelLink,          // ✅ الأدق (مؤكّد من طلبات الإنتاج): "Jahez"/"Keeta"...
+    raw.meta?.external_number,       // "Jahez: 547077316" — يحوي اسم التطبيق أيضاً
     raw.aggregator?.name,
     raw.aggregator?.reference,
     raw.delivery?.aggregator?.name,
@@ -119,4 +121,26 @@ export function resolveDeliveryApp(order) {
   }
 
   return DIRECT_APP
+}
+
+/** هل الطلب من تطبيق توصيل؟ (له هوية تطبيق معروفة، أي ليس DIRECT/كاشير يدوي) */
+export function isDeliveryAppOrder(order) {
+  return resolveDeliveryApp(order).key !== 'direct'
+}
+
+/**
+ * رقم الطلب المعروض. لطلبات تطبيقات التوصيل يُفضَّل الرقم الظاهر داخل التطبيق
+ * نفسه (المأخوذ من فوديكس في `meta.external_number` بصيغة "AppName: NUMBER").
+ * نأخذ ما بعد ":" ثم أول سطر فقط (Keeta أحياناً تضيف رقم تتبّع طويل في سطر تالٍ).
+ * إن لم يوجد → نرجع رقم فوديكس الداخلي order_id كما هو.
+ */
+export function resolveDisplayNumber(order) {
+  if (!order) return ''
+  const ext = order.raw_qr_data?.foodics_order?.meta?.external_number
+  if (typeof ext === 'string' && ext.includes(':')) {
+    const afterColon = ext.split(':').slice(1).join(':').trim()
+    const firstLine = afterColon.split('\n')[0].trim()
+    if (firstLine) return firstLine
+  }
+  return order.order_id
 }

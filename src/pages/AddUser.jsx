@@ -17,14 +17,14 @@ const ROLE_OPTIONS = [
 
 const ROUTE_OPTIONS = {
   user: [
-    { value: '/kitchen', label: '/kitchen — شاشة المطبخ' },
+    { value: '/kitchen', label: '/kitchen — شاشة الفرع' },
     { value: '/display', label: '/display — شاشة العرض' },
     { value: '/analytics', label: '/analytics — التحليلات' },
   ],
   admin: [
     { value: '/analytics', label: '/analytics — التحليلات' },
     { value: '/admin', label: '/admin — إدارة الفروع' },
-    { value: '/kitchen', label: '/kitchen — شاشة المطبخ' },
+    { value: '/kitchen', label: '/kitchen — شاشة الفرع' },
   ],
 }
 
