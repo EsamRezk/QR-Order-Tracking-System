@@ -37,12 +37,12 @@ export default function OrderCard({ order, fading = false }) {
       style={cardStyle}
       className={`${fading ? 'animate-fade-out' : 'animate-slide-in'} rounded-xl border-2 transition-all`}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-center gap-2.5">
         {/* لوجو التطبيق */}
         <DeliveryAppLogo app={app} size="lg" />
 
-        {/* المعلومات — تملأ المساحة المتبقية وتتمركز فيها */}
-        <div className="flex-1 min-w-0 flex flex-col items-center">
+        {/* المعلومات — ملاصقة للوجو كمجموعة واحدة */}
+        <div className="min-w-0 flex flex-col items-center">
           {/* صف علوي: نوع الطلب + اسم التطبيق (صغير) + جاهز */}
           <div className="flex items-center justify-center gap-1.5 flex-wrap">
             {order.order_type && (
@@ -62,7 +62,7 @@ export default function OrderCard({ order, fading = false }) {
           {/* رقم الطلب (كبير) */}
           <div className="mt-0.5 flex items-baseline justify-center gap-1.5">
             <span className="text-xs lg:text-sm font-medium text-[#9ca3af]">طلب</span>
-            <span className="text-4xl lg:text-5xl font-extrabold leading-none" style={{ color: app.ink }}>
+            <span className="text-3xl lg:text-4xl font-extrabold leading-none" style={{ color: app.ink }}>
               #{resolveDisplayNumber(order)}
             </span>
           </div>

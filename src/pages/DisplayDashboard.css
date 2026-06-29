@@ -456,7 +456,8 @@
 /* ── Columns Layout ── */
 .dash-columns {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: flex-start;
     gap: 1.5rem;
 }
 
