@@ -46,6 +46,12 @@
       "value": "3",
       "type": "string",
       "description": "⚠️ قيمة delivery_status الجديدة التي سترسلها في الطلب 3 (1=للمطبخ، 2=جاهز، 3=Assigned، 5=Delivered)."
+    },
+    {
+      "key": "search_last4",
+      "value": "",
+      "type": "string",
+      "description": "آخر 4 أرقام من رقم تطبيق التوصيل للبحث عنه في الطلب 2b (مثل 0869)."
     }
   ],
   "item": [
@@ -164,6 +170,60 @@
           ]
         },
         "description": "يجلب طلبات النوع المطلوب (افتراضي type=2 توصيل) بعلاقات خفيفة فقط (branch,customer) وper_page محدود لتجنّب 504. الـ Console يطبع: ① جدول الحقول المرشّحة لرقم تطبيق التوصيل، ② توزيع delivery_status، ③ JSON كامل لأول 3 طلبات. ⚠️ لا تضف include=products على القوائم — يسبّب timeout."
+      }
+    },
+    {
+      "name": "2b. 🔎 Find order by app last-4 (+ delivery_status)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const want = (pm.collectionVariables.get('search_last4') || '').trim();",
+              "if (!want) { console.log('⚠️ املأ المتغيّر search_last4 بآخر 4 أرقام (مثل 0869).'); return; }",
+              "if (pm.response.code !== 200) { console.log('❌ HTTP', pm.response.code, pm.response.text()); return; }",
+              "const list = pm.response.json().data || [];",
+              "const appNum = (o) => {",
+              "  const ext = o.meta && o.meta.external_number;",
+              "  if (typeof ext !== 'string' || !ext.includes(':')) return null;",
+              "  const afterColon = ext.split(':').slice(1).join(':').trim();",
+              "  return afterColon.split('\\n')[0].trim();",
+              "};",
+              "const matches = list.filter(o => { const n = appNum(o); return n && n.slice(-4) === want; });",
+              "console.log(`🔎 بحث عن آخر 4 = ${want} ضمن ${list.length} طلب type=2 (الأحدث):`);",
+              "if (matches.length === 0) {",
+              "  console.log('🟡 لا يوجد تطابق في هذه الصفحة — الطلب أقدم من آخر', list.length, 'طلب. زِد per_page في الرابط.');",
+              "  return;",
+              "}",
+              "matches.forEach(o => {",
+              "  console.log('═══════════════════════════════');",
+              "  console.log('id:', o.id);",
+              "  console.log('channelLink:', o.meta && o.meta.channelLink, '| external_number:', JSON.stringify(o.meta && o.meta.external_number));",
+              "  console.log('foodics number:', o.number, '| order.status:', o.status);",
+              "  console.log('⭐ delivery_status:', o.delivery_status, ' (1=للمطبخ 2=جاهز 3=Assigned 4=Enroute 5=Delivered 6=Cancelled)');",
+              "  console.log('updated_at:', o.updated_at);",
+              "  console.log('driver_collected_at:', o.driver_collected_at, '| delivered_at:', o.delivered_at);",
+              "});",
+              "pm.test('وُجد الطلب', () => pm.expect(matches.length).to.be.above(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/orders?filter[type]=2&per_page=50&sort=-created_at",
+          "host": ["{{base_url}}"],
+          "path": ["orders"],
+          "query": [
+            { "key": "filter[type]", "value": "2", "description": "طلبات التوصيل." },
+            { "key": "per_page", "value": "50", "description": "نطاق بحث أوسع (50). زِدها لو الطلب أقدم." },
+            { "key": "sort", "value": "-created_at", "description": "الأحدث أولاً." }
+          ]
+        },
+        "description": "يجلب آخر 50 طلب type=2 ويبحث في الـ Console عن الطلب الذي ينتهي رقم تطبيقه بـ search_last4، ويطبع delivery_status الحالي + التوقيتات لمعرفة هل تحدّث في فوديكس."
       }
     },
     {
