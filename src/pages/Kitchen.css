@@ -252,11 +252,17 @@
 /* Grid layout */
 .kitchen-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 0.7rem;
 }
 
 @media (max-width: 1280px) {
+    .kitchen-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
     .kitchen-grid {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -309,12 +315,14 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 0.2rem;
 }
 
 .kitchen-card-order {
     display: flex;
     align-items: baseline;
+    justify-content: center;
     gap: 0.4rem;
 }
 
@@ -402,13 +410,13 @@
 /* Accept button (استلام) — بنفسجي */
 .kitchen-accept-btn {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.45rem;
     border: none;
-    border-radius: 10px;
+    border-radius: 9px;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
     color: white;
     font-family: 'Tajawal', sans-serif;
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -430,13 +438,13 @@
 /* Ready button */
 .kitchen-ready-btn {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.45rem;
     border: none;
-    border-radius: 10px;
+    border-radius: 9px;
     background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
     color: white;
     font-family: 'Tajawal', sans-serif;
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -464,13 +472,13 @@
 /* Delivered button (تم التسليم) — أزرق */
 .kitchen-delivered-btn {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.45rem;
     border: none;
-    border-radius: 10px;
+    border-radius: 9px;
     background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
     color: white;
     font-family: 'Tajawal', sans-serif;
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.2s ease;
