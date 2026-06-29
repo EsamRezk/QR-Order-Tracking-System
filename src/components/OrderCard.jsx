@@ -27,7 +27,7 @@ export default function OrderCard({ order, fading = false }) {
   const isReady = order.status === 'ready'
 
   const cardStyle = {
-    padding: '0.75rem 0.85rem',
+    padding: '0.5rem 0.6rem',
     borderColor: app.color,
     background: `linear-gradient(150deg, ${hexToRgba(app.color, 0.16)} 0%, #ffffff 60%)`,
   }
@@ -37,9 +37,9 @@ export default function OrderCard({ order, fading = false }) {
       style={cardStyle}
       className={`${fading ? 'animate-fade-out' : 'animate-slide-in'} rounded-xl border-2 transition-all`}
     >
-      <div className="flex items-center justify-center gap-2.5">
+      <div className="flex items-center justify-center gap-2">
         {/* لوجو التطبيق */}
-        <DeliveryAppLogo app={app} size="lg" />
+        <DeliveryAppLogo app={app} size="md" />
 
         {/* المعلومات — ملاصقة للوجو كمجموعة واحدة */}
         <div className="min-w-0 flex flex-col items-center">
@@ -62,7 +62,7 @@ export default function OrderCard({ order, fading = false }) {
           {/* رقم الطلب (كبير) */}
           <div className="mt-0.5 flex items-baseline justify-center gap-1.5">
             <span className="text-xs lg:text-sm font-medium text-[#9ca3af]">طلب</span>
-            <span className="text-3xl lg:text-4xl font-extrabold leading-none" style={{ color: app.ink }}>
+            <span className="text-2xl lg:text-3xl font-extrabold leading-none" style={{ color: app.ink }}>
               #{resolveDisplayNumber(order)}
             </span>
           </div>
