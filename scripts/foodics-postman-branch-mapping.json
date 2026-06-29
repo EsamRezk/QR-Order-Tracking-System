@@ -1,0 +1,111 @@
+{
+  "info": {
+    "name": "KebbaZone × Foodics — Branch Mapping (PRODUCTION)",
+    "_postman_id": "kebbazone-foodics-branch-mapping",
+    "description": "جلب فروع Foodics على الإنتاج لملء جدول foodics_branch_mapping.\n\n══════════ الإعداد ══════════\n1) تبويب Variables بالأعلى → املأ foodics_token (توكن production الحقيقي).\n2) base_url مضبوط على الإنتاج: https://api.foodics.com/v5\n3) شغّل 1 ثم 2.\n\n══════════ الطلبات ══════════\n• 1 Whoami       → يتأكد التوكن صالح + يطبع الـ business name/reference (لازم يكون production مش 922240 التيست).\n• 2 Get Branches → قائمة الفروع + يطبع تلقائياً جدول الربط و SQL جاهز للصق في migration (يطابق Foodics reference بـ branches.code عندنا).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{foodics_token}}", "type": "string" }]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.foodics.com/v5",
+      "type": "string",
+      "description": "الإنتاج. (للتيست بدّل لـ https://api-sandbox.foodics.com/v5)"
+    },
+    {
+      "key": "foodics_token",
+      "value": "",
+      "type": "string",
+      "description": "توكن production الحقيقي (access_token). لا تستخدم توكن 922240 التيست."
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Whoami (تأكيد التوكن + business)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const b = (pm.response.json().data) || {};",
+              "  console.log('✅ business:', b.name, '| reference:', b.reference, '| id:', b.id);",
+              "  pm.test('200 — التوكن صالح', () => pm.expect(pm.response.code).to.eql(200));",
+              "  if (b.reference === '922240') {",
+              "    console.log('⚠️ تحذير: ده business التيست (922240) مش production. بدّل التوكن.');",
+              "  }",
+              "} else {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('التوكن غير صالح/منتهي أو البيئة غلط', () => pm.expect(pm.response.code).to.eql(200));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/whoami",
+          "host": ["{{base_url}}"],
+          "path": ["whoami"]
+        },
+        "description": "يتأكد إن التوكن صالح ويطبع الـ business. لازم reference ≠ 922240 (اللي ده التيست)."
+      }
+    },
+    {
+      "name": "2. Get Branches (+ يولّد SQL الربط)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code !== 200) {",
+              "  console.log('❌ HTTP', pm.response.code, pm.response.text());",
+              "  pm.test('فشل جلب الفروع', () => pm.expect(pm.response.code).to.eql(200));",
+              "  return;",
+              "}",
+              "const list = pm.response.json().data || [];",
+              "console.log('✅ عدد الفروع:', list.length);",
+              "console.log('');",
+              "console.log('id | name | reference | online');",
+              "list.forEach(b => console.log(`  ${b.id} | ${b.name} | ref: ${b.reference} | online: ${b.receives_online_orders}`));",
+              "",
+              "// يولّد SQL يربط كل فرع Foodics بفرعنا حسب تطابق reference = branches.code",
+              "console.log('');",
+              "console.log('── الصق ده في migration جديد (يربط بالـ reference أوتوماتيك) ──');",
+              "console.log('INSERT INTO foodics_branch_mapping (foodics_branch_id, branch_id)');",
+              "list.forEach((b, i) => {",
+              "  const prefix = i === 0 ? 'SELECT' : 'UNION ALL SELECT';",
+              "  const ref = (b.reference || '').replace(/'/g, \"''\");",
+              "  console.log(`${prefix} '${b.id}', id FROM branches WHERE code = '${ref}'  -- ${b.name}`);",
+              "});",
+              "console.log('ON CONFLICT (foodics_branch_id) DO NOTHING;');",
+              "console.log('');",
+              "console.log('⚠️ راجع إن كل reference عندها code مطابق في جدول branches (B01..B10). أي فرع reference بتاعه فاضي/مش مطابق صحّحه يدوياً.');",
+              "",
+              "pm.test('200 — الفروع رجعت', () => pm.expect(list.length).to.be.above(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/branches?include=tags",
+          "host": ["{{base_url}}"],
+          "path": ["branches"],
+          "query": [{ "key": "include", "value": "tags" }]
+        },
+        "description": "200 + قائمة الفروع. تبويب Console (View → Show Postman Console) يطبع جدول الفروع + SQL ربط جاهز يطابق Foodics reference بـ branches.code عندنا."
+      }
+    }
+  ]
+}
