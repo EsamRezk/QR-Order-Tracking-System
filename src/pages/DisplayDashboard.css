@@ -598,9 +598,9 @@
         padding: 2rem 3rem;
     }
 
-    /* شاشات كبيرة / تلفاز — كروت أكبر وأرقام أوضح */
+    /* شاشات كبيرة / تلفاز — 7 طلبات في الصف الواحد */
     .disp-grid {
-        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+        grid-template-columns: repeat(7, 1fr);
         gap: 2.4rem 1.4rem;
     }
 
