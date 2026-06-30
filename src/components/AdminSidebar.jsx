@@ -152,7 +152,7 @@ export default function AdminSidebar() {
       >
         {/* Header */}
         <div style={{
-          padding: '1.5rem 1.25rem 1.25rem',
+          padding: '1.5rem 3.75rem 1.25rem 1.25rem',
           borderBottom: '1px solid #e5e7eb40',
         }}>
           <div style={{

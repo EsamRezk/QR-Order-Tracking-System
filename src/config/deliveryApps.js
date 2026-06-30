@@ -145,3 +145,22 @@ export function resolveDisplayNumber(order) {
   }
   return order.order_id
 }
+
+/**
+ * رقم الطلب الكامل كما يظهر **داخل تطبيق التوصيل** (بلا قص) — للتقارير والبحث.
+ * يأخذ ما بعد ":" من `meta.external_number` ("Jahez: 547316067" → "547316067")،
+ * أول سطر فقط. إن لم يوجد (طلب غير-توصيل) يرجع null.
+ */
+export function resolveAppOrderNumber(order) {
+  const ext = order?.raw_qr_data?.foodics_order?.meta?.external_number
+  if (typeof ext === 'string' && ext.includes(':')) {
+    const firstLine = ext.split(':').slice(1).join(':').trim().split('\n')[0].trim()
+    if (firstLine) return firstLine
+  }
+  return null
+}
+
+/** رقم الطلب في فوديكس (الرقم المعروض داخل فوديكس). */
+export function resolveFoodicsNumber(order) {
+  return order?.foodics_order_number || order?.order_id || '—'
+}

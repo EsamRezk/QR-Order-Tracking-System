@@ -6,6 +6,14 @@ import { exportOrdersToExcel } from '../utils/exportExcel'
 import BranchSelector from '../components/BranchSelector'
 import LogoutButton from '../components/LogoutButton'
 import LoadingScreen from '../components/LoadingScreen'
+import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
+import {
+  DELIVERY_APPS,
+  DIRECT_APP,
+  resolveDeliveryApp,
+  resolveAppOrderNumber,
+  resolveFoodicsNumber,
+} from '../config/deliveryApps'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import './Analytics.css'
 
@@ -14,6 +22,74 @@ const DATE_RANGES = [
   { label: 'آخر 7 أيام', days: 7, icon: '📅' },
   { label: 'آخر 30 يوم', days: 30, icon: '📊' },
 ]
+
+// خيارات فلتر الحالة (الكل + كل الحالات الممكنة)
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'كل الحالات' },
+  { value: 'preparing', label: 'قيد التحضير' },
+  { value: 'ready', label: 'جاهز' },
+  { value: 'completed', label: 'مكتمل' },
+  { value: 'cancelled', label: 'ملغي' },
+  { value: 'new', label: 'جديد' },
+]
+
+const STATUS_META = {
+  new: { label: '🆕 جديد' },
+  preparing: { label: '🔥 قيد التحضير' },
+  ready: { label: '✅ جاهز' },
+  completed: { label: '📦 مكتمل' },
+  cancelled: { label: '🚫 ملغي' },
+}
+
+// خيارات فلتر التطبيق (الكل + تطبيقات التوصيل + مباشر)
+const APP_OPTIONS = [
+  { value: 'all', label: 'كل التطبيقات' },
+  ...Object.entries(DELIVERY_APPS).map(([key, app]) => ({ value: key, label: app.name })),
+  { value: DIRECT_APP.key, label: DIRECT_APP.name },
+]
+
+/* ── صف طلب في الجدول (يعرض هوية التطبيق + رقمي التطبيق وفوديكس + الحالة) ── */
+function OrderRow({ order }) {
+  const app = resolveDeliveryApp(order)
+  const appNumber = resolveAppOrderNumber(order)
+  const status = STATUS_META[order.status] || { label: order.status }
+  return (
+    <tr>
+      <td>
+        <div className="app-cell">
+          <DeliveryAppLogo app={app} size="sm" />
+          <span className="app-cell-name" style={{ color: app.ink }}>{app.name}</span>
+        </div>
+      </td>
+      <td className="order-id-cell" dir="ltr">{appNumber || '—'}</td>
+      <td className="order-id-cell" dir="ltr">{resolveFoodicsNumber(order)}</td>
+      <td className="branch-cell">{order.branches?.name_ar || '—'}</td>
+      <td>
+        <span className={`status-badge status-badge--${order.status}`}>{status.label}</span>
+      </td>
+      <td className="time-cell">{new Date(order.scanned_at || order.created_at).toLocaleString('ar-SA')}</td>
+      <td className="time-cell">{order.ready_at ? new Date(order.ready_at).toLocaleString('ar-SA') : '—'}</td>
+      <td className="duration-cell">{order.prep_duration_seconds ? formatDuration(order.prep_duration_seconds) : '—'}</td>
+    </tr>
+  )
+}
+
+function OrdersTableHead() {
+  return (
+    <thead>
+      <tr>
+        <th>التطبيق</th>
+        <th>رقم بالتطبيق</th>
+        <th>رقم فوديكس</th>
+        <th>الفرع</th>
+        <th>الحالة</th>
+        <th>وقت الطلب</th>
+        <th>وقت الجاهزية</th>
+        <th>مدة التحضير</th>
+      </tr>
+    </thead>
+  )
+}
 
 function getDateFrom(days) {
   if (days === 0) {
@@ -79,6 +155,10 @@ export default function Analytics() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResult, setSearchResult] = useState(null)
   const [searching, setSearching] = useState(false)
+  // فلاتر جدول السجل (تُطبّق محلياً على الطلبات المجلوبة)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [appFilter, setAppFilter] = useState('all')
+  const [numberFilter, setNumberFilter] = useState('')
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -127,12 +207,13 @@ export default function Analytics() {
 
     const fetchOrders = async () => {
       setLoading(true)
+      // نجلب كل الطلبات (بكل الحالات) ضمن الفترة/الفرع — الفلترة بالحالة/التطبيق/الرقم محلية
       let query = supabase
         .from('orders')
         .select('*, branches(name_ar, name_en)')
-        .not('prep_duration_seconds', 'is', null)
         .gte('created_at', getDateFrom(dateRange))
         .order('created_at', { ascending: false })
+        .limit(1000)
 
       if (selectedBranch) {
         query = query.eq('branch_id', selectedBranch)
@@ -144,6 +225,24 @@ export default function Analytics() {
     }
     fetchOrders()
   }, [selectedBranch, dateRange, isUserRole, session.branchId])
+
+  // الطلبات بعد تطبيق فلاتر الجدول (الحالة + التطبيق + الرقم)
+  const filteredOrders = useMemo(() => {
+    const num = numberFilter.trim().toLowerCase()
+    return orders.filter(o => {
+      if (statusFilter !== 'all' && o.status !== statusFilter) return false
+      if (appFilter !== 'all' && resolveDeliveryApp(o).key !== appFilter) return false
+      if (num) {
+        const haystack = [
+          o.order_id,
+          o.foodics_order_number,
+          resolveAppOrderNumber(o),
+        ].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(num)) return false
+      }
+      return true
+    })
+  }, [orders, statusFilter, appFilter, numberFilter])
 
   const stats = useMemo(() => {
     if (orders.length === 0) return { total: 0, avg: 0, fastest: 0, slowest: 0 }
@@ -159,10 +258,11 @@ export default function Analytics() {
   const branchChartData = useMemo(() => {
     const map = {}
     orders.forEach(o => {
+      if (!o.prep_duration_seconds) return // متوسط التحضير يُحسب فقط على الطلبات المكتملة
       const name = o.branches?.name_ar || 'غير معروف'
       if (!map[name]) map[name] = { name, total: 0, sum: 0 }
       map[name].total++
-      map[name].sum += o.prep_duration_seconds || 0
+      map[name].sum += o.prep_duration_seconds
     })
     return Object.values(map).map(b => ({
       name: b.name,
@@ -263,6 +363,37 @@ export default function Analytics() {
                 </button>
               ))}
             </div>
+
+            <select
+              className="filter-select"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              aria-label="فلترة بالحالة"
+            >
+              {STATUS_OPTIONS.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+
+            <select
+              className="filter-select"
+              value={appFilter}
+              onChange={e => setAppFilter(e.target.value)}
+              aria-label="فلترة بالتطبيق"
+            >
+              {APP_OPTIONS.map(a => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+
+            <input
+              type="text"
+              className="filter-number-input"
+              placeholder="فلترة برقم الطلب..."
+              value={numberFilter}
+              onChange={e => setNumberFilter(e.target.value)}
+              dir="ltr"
+            />
           </div>
         </div>
       </header>
@@ -297,36 +428,10 @@ export default function Analytics() {
                 ) : (
                   <div className="table-wrapper">
                     <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>رقم الطلب</th>
-                          <th>الفرع</th>
-                          <th>القناة</th>
-                          <th>الحالة</th>
-                          <th>وقت المسح</th>
-                          <th>وقت الجاهزية</th>
-                          <th>مدة التحضير</th>
-                        </tr>
-                      </thead>
+                      <OrdersTableHead />
                       <tbody>
                         {searchResult.map(o => (
-                          <tr key={o.id}>
-                            <td className="order-id-cell">{o.order_id}</td>
-                            <td className="branch-cell">{o.branches?.name_ar || '—'}</td>
-                            <td>
-                              <span className={`channel-badge ${o.channel_link ? 'channel-badge--delivery' : 'channel-badge--direct'}`}>
-                                {o.channel_link ? '🛵 توصيل' : '🏪 مباشر'}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`status-badge status-badge--${o.status}`}>
-                                {o.status === 'preparing' ? '🔥 قيد التحضير' : o.status === 'ready' ? '✅ جاهز' : '📦 مكتمل'}
-                              </span>
-                            </td>
-                            <td className="time-cell">{new Date(o.scanned_at).toLocaleString('ar-SA')}</td>
-                            <td className="time-cell">{o.ready_at ? new Date(o.ready_at).toLocaleString('ar-SA') : '—'}</td>
-                            <td className="duration-cell">{o.prep_duration_seconds ? formatDuration(o.prep_duration_seconds) : '—'}</td>
-                          </tr>
+                          <OrderRow key={o.id} order={o} />
                         ))}
                       </tbody>
                     </table>
@@ -454,46 +559,30 @@ export default function Analytics() {
                   <span className="chart-title-icon">📋</span>
                   سجل الطلبات
                 </div>
-                {orders.length > 0 && (
+                {filteredOrders.length > 0 && (
                   <span className="table-count">
-                    {orders.length} طلب
+                    {filteredOrders.length}{filteredOrders.length !== orders.length ? ` من ${orders.length}` : ''} طلب
                   </span>
                 )}
               </div>
 
-              {orders.length === 0 ? (
+              {filteredOrders.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">📭</div>
-                  <div className="empty-text">لا توجد بيانات للفترة المحددة</div>
-                  <div className="empty-subtext">جرّب تغيير الفترة الزمنية أو الفرع</div>
+                  <div className="empty-text">
+                    {orders.length === 0 ? 'لا توجد بيانات للفترة المحددة' : 'لا توجد طلبات مطابقة للفلاتر'}
+                  </div>
+                  <div className="empty-subtext">
+                    {orders.length === 0 ? 'جرّب تغيير الفترة الزمنية أو الفرع' : 'جرّب تغيير الحالة أو التطبيق أو الرقم'}
+                  </div>
                 </div>
               ) : (
                 <div className="table-wrapper">
                   <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>رقم الطلب</th>
-                        <th>الفرع</th>
-                        <th>القناة</th>
-                        <th>وقت المسح</th>
-                        <th>وقت الجاهزية</th>
-                        <th>مدة التحضير</th>
-                      </tr>
-                    </thead>
+                    <OrdersTableHead />
                     <tbody>
-                      {orders.slice(0, 50).map(o => (
-                        <tr key={o.id}>
-                          <td className="order-id-cell">{o.order_id}</td>
-                          <td className="branch-cell">{o.branches?.name_ar}</td>
-                          <td>
-                            <span className={`channel-badge ${o.channel_link ? 'channel-badge--delivery' : 'channel-badge--direct'}`}>
-                              {o.channel_link ? '🛵 توصيل' : '🏪 مباشر'}
-                            </span>
-                          </td>
-                          <td className="time-cell">{new Date(o.scanned_at).toLocaleString('ar-SA')}</td>
-                          <td className="time-cell">{o.ready_at ? new Date(o.ready_at).toLocaleString('ar-SA') : '—'}</td>
-                          <td className="duration-cell">{formatDuration(o.prep_duration_seconds)}</td>
-                        </tr>
+                      {filteredOrders.map(o => (
+                        <OrderRow key={o.id} order={o} />
                       ))}
                     </tbody>
                   </table>

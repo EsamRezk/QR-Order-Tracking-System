@@ -325,6 +325,71 @@
   border: 1px solid #5830C520;
 }
 
+.status-badge--new {
+  background: #3b82f612;
+  color: #2563eb;
+  border: 1px solid #3b82f620;
+}
+
+.status-badge--cancelled {
+  background: #ef444412;
+  color: #dc2626;
+  border: 1px solid #ef444420;
+}
+
+/* ── خلية التطبيق (لوجو + اسم) ── */
+.app-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-cell .app-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border-width: 2px;
+  box-shadow: 0 2px 6px rgba(17, 24, 39, 0.1);
+}
+
+.app-cell .app-logo-img { padding: 3px; }
+
+.app-cell-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── عناصر الفلترة (الحالة / التطبيق / الرقم) ── */
+.filter-select,
+.filter-number-input {
+  font-family: 'Tajawal', sans-serif;
+  height: 42px;
+  padding: 0 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-select:focus,
+.filter-number-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #5830C520;
+}
+
+.filter-number-input {
+  cursor: text;
+  width: 170px;
+}
+
+.filter-number-input::placeholder { color: var(--text-muted); }
+
 /* ── Filters Bar ── */
 .filters-bar {
   display: flex;
