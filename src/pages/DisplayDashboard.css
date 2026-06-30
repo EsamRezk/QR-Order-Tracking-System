@@ -473,6 +473,7 @@
 
 .disp-card {
     position: relative;
+    min-width: 0;
     background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.04) 100%);
     border: 2px solid rgba(88, 48, 197, 0.2);
     border-radius: 18px;
@@ -537,6 +538,8 @@
     flex-direction: column;
     align-items: center;
     gap: 0.1rem;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .disp-card-order-lbl {
@@ -551,6 +554,8 @@
     font-weight: 900;
     line-height: 1;
     color: var(--text-primary);
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 @keyframes display-enter {
@@ -599,13 +604,15 @@
     }
 
     /* شاشات كبيرة / تلفاز — 7 طلبات في الصف الواحد */
+    /* minmax(0,1fr) ضروري: يمنع تمدد الأعمدة فوق عرض الشاشة (overflow-x) */
     .disp-grid {
-        grid-template-columns: repeat(7, 1fr);
-        gap: 2.4rem 1.4rem;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 2.2rem 1rem;
     }
 
+    /* الرقم يتكيّف مع عرض العمود حتى لا يفيض داخل الكرت */
     .disp-card-id {
-        font-size: 3.6rem;
+        font-size: clamp(2rem, 2.4vw, 3.4rem);
     }
 }
 
@@ -664,7 +671,7 @@
 
     /* الجوال — عمودان وكروت أصغر */
     .disp-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 1.6rem 0.7rem;
     }
 
