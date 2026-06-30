@@ -248,19 +248,6 @@ export default function Analytics() {
   // مصدر تغيير الحالة لكل طلب: { [orderId]: { ready: bool, delivered: bool } }
   // وجود سجل scan_log (ready_scan/delivered) = التغيير تمّ من نظامنا؛ غيابه = من فوديكس.
   const [statusSources, setStatusSources] = useState({})
-  // ارتفاع الهيدر الثابت — يُستخدم لتثبيت رأس الجدول أسفله مباشرة عند التمرير
-  const headerRef = useRef(null)
-  const [headerH, setHeaderH] = useState(0)
-
-  useEffect(() => {
-    const el = headerRef.current
-    if (!el) return
-    const update = () => setHeaderH(el.offsetHeight)
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -375,9 +362,9 @@ export default function Analytics() {
   ]
 
   return (
-    <div className="analytics-root" style={{ '--thead-top': `${headerH}px` }}>
+    <div className="analytics-root">
       {/* ── Page Header ── */}
-      <header className="page-header" ref={headerRef}>
+      <header className="page-header">
         <div className="header-inner">
           <div className="header-top">
             <div className="header-title-group">

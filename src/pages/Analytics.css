@@ -46,9 +46,6 @@
   background-image: linear-gradient(135deg, #5830C508 0%, transparent 50%);
   border-bottom: 1px solid var(--border);
   padding: 1rem 0 0.9rem;
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 
 .header-inner {
@@ -835,9 +832,9 @@
   letter-spacing: 0.05em;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
-  /* رأس الجدول يبقى ثابتاً أسفل هيدر الصفحة الثابت عند التمرير */
+  /* رأس الجدول يبقى ثابتاً أعلى النافذة عند تمرير القائمة */
   position: sticky;
-  top: var(--thead-top, 0);
+  top: 0;
   z-index: 20;
   background: var(--bg-deep);
 }
