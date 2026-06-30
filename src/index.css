@@ -110,13 +110,15 @@ body {
   animation: glowPulse 2s ease-in-out infinite;
 }
 
-/* App logo - responsive */
-.app-logo {
+/* لوجو كبة زون الثابت في الزاوية (AppLogo) — يُخفى على الجوال.
+   ملاحظة: مقصور على .kz-fixed-logo فقط حتى لا يتعارض مع لوجوهات
+   تطبيقات التوصيل (.app-logo) فتختفي على الجوال بالخطأ. */
+.kz-fixed-logo {
   display: block;
 }
 
 @media (max-width: 1024px) {
-  .app-logo {
+  .kz-fixed-logo {
     display: none !important;
   }
 }

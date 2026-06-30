@@ -5,7 +5,7 @@ export default function AppLogo() {
     <img
       src={logo}
       alt="كبة زون"
-      className="app-logo"
+      className="kz-fixed-logo"
       style={{
         position: 'fixed',
         top: 24,
