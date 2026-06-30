@@ -3,19 +3,21 @@ import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
 import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
-import { isDeliveryAppOrder } from '../config/deliveryApps'
+import { isDeliveryAppOrder, resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
+import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
 import { useSound } from '../hooks/useSound'
 import { useAuth } from '../context/AuthContext'
 import { formatClock, formatDate } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
-import PreparingColumn from '../components/PreparingColumn'
-import ReadyColumn from '../components/ReadyColumn'
 import DeliveredColumn from '../components/DeliveredColumn'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
 import './DisplayDashboard.css'
 
 const READY_TIMEOUT_MS = (parseInt(import.meta.env.VITE_READY_TIMEOUT_MINUTES, 10) || 5) * 60 * 1000
+
+// نص البادج العلوي لكل حالة على شاشة العرض (حالتان فقط)
+const DISP_BADGE = { preparing: 'قيد التحضير', ready: 'جاهز' }
 
 export default function DisplayDashboard() {
   const [searchParams] = useSearchParams()
@@ -200,9 +202,19 @@ function DisplayDashboardInner() {
         ) : (
           <>
             {totalActive > 0 && (
-              <div className="dash-columns">
-                <PreparingColumn orders={visPreparing} />
-                <ReadyColumn orders={visReady} fadingOrders={fadingOrders} />
+              <div className="disp-grid">
+                {/* الأولوية للجاهز ثم قيد التحضير */}
+                {[
+                  ...visReady.map(order => ({ order, mode: 'ready' })),
+                  ...visPreparing.map(order => ({ order, mode: 'preparing' })),
+                ].map(({ order, mode }) => (
+                  <DisplayCard
+                    key={order.id}
+                    order={order}
+                    mode={mode}
+                    fading={fadingOrders.has(order.id)}
+                  />
+                ))}
               </div>
             )}
             {/* قسم "تم تسليمها" — مطوي افتراضياً */}
@@ -210,6 +222,37 @@ function DisplayDashboardInner() {
           </>
         )}
       </main>
+    </div>
+  )
+}
+
+/**
+ * كرت شاشة العرض — مبسّط: بادج الحالة العلوي + لوجو التطبيق + رقم الطلب فقط.
+ * (بلا زر / بلا نوع الطلب / بلا اسم التطبيق / بلا عدّاد وقت)
+ * قيد التحضير = لون التطبيق + بادج أصفر، جاهز = أزرق + بادج أزرق.
+ */
+function DisplayCard({ order, mode, fading = false }) {
+  const app = resolveDeliveryApp(order)
+  const cardStyle =
+    mode === 'preparing'
+      ? {
+          borderColor: app.color,
+          background: `linear-gradient(150deg, ${hexToRgba(app.color, 0.16)} 0%, #ffffff 55%)`,
+        }
+      : undefined
+
+  return (
+    <div className={`disp-card disp-card--${mode} ${fading ? 'disp-card--fading' : ''}`} style={cardStyle}>
+      <span className={`disp-card-badge disp-card-badge--${mode}`}>{DISP_BADGE[mode]}</span>
+
+      <div className="disp-card-logo">
+        <DeliveryAppLogo app={app} size="lg" />
+      </div>
+
+      <div className="disp-card-order">
+        <span className="disp-card-order-lbl">طلب</span>
+        <span className="disp-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
+      </div>
     </div>
   )
 }
