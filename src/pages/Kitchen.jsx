@@ -4,7 +4,7 @@ import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
 import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
 import { useAuth } from '../context/AuthContext'
-import { formatClock, formatElapsed } from '../utils/formatTime'
+import { formatElapsed } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
 import { resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
 import { DeliveryAppLogo, DeliveryAppPill } from '../components/DeliveryAppBadge'
@@ -19,6 +19,13 @@ const ORDER_TYPE_LABELS = {
   drive_thru: 'سيارة',
 }
 
+// نصوص ولون البادج الملصق أعلى الكارت لكل حالة
+const STATE_BADGE = {
+  preparing: 'قيد التحضير',
+  ready: 'جاهز',
+  delivered: 'تم الاستلام',
+}
+
 export default function Kitchen() {
   const [searchParams] = useSearchParams()
   if (!searchParams.get('branch')) {
@@ -31,21 +38,14 @@ function KitchenInner() {
   const { session } = useAuth()
   const { branch, loading, error } = useBranch()
   // الورك فلو (delivery-driven): الطلب يدخل "قيد التحضير" مباشرة (بلا خطوة استلام).
-  // ملاحظة: incoming لا يزال متاحاً من useOrders لو احتجنا إرجاع خطوة الاستلام لاحقاً.
-  const { preparing, ready } = useOrders(branch?.id)
-  // مفتاح "إظهار كل الطلبات على شاشة العرض" (يتحكم في شاشة العرض فقط — هذه الشاشة تعرض الكل دائماً)
+  const { preparing, ready, delivered } = useOrders(branch?.id)
+  // مفتاح "إظهار كل الطلبات على شاشة العرض" (يتحكم في شاشة العرض فقط)
   const { showAll, setShowAll } = useBranchDisplaySetting(branch?.id)
-  const [clock, setClock] = useState(formatClock())
+  // إظهار/إخفاء قسم "تم الاستلام" (محلي لهذه الشاشة فقط)
+  const [showDelivered, setShowDelivered] = useState(false)
   // confirm = { order, action: 'ready' | 'delivered' }
   const [confirm, setConfirm] = useState(null)
   const [working, setWorking] = useState(false)
-  const [fadingOrders, setFadingOrders] = useState(new Set())
-
-  // Live clock
-  useEffect(() => {
-    const interval = setInterval(() => setClock(formatClock()), 1000)
-    return () => clearInterval(interval)
-  }, [])
 
   const handleConfirm = useCallback(async () => {
     if (!confirm || !session?.sessionId) return
@@ -66,11 +66,7 @@ function KitchenInner() {
         throw new Error(data.error || 'فشلت العملية')
       }
 
-      // "تم التسليم" يُخرج الطلب من شاشة المطبخ → أنيميشن خروج.
-      // "جاهز" ينقل الطلب من قسم "قيد التحضير" إلى "جاهز" تلقائياً عبر Realtime — بلا fade.
-      if (action === 'delivered') {
-        setFadingOrders(prev => new Set([...prev, order.id]))
-      }
+      // الانتقال بين الأقسام يتم تلقائياً عبر Realtime (preparing → ready → completed).
       setConfirm(null)
     } catch (err) {
       console.error('Kitchen action error:', err)
@@ -81,8 +77,13 @@ function KitchenInner() {
     }
   }, [confirm, session?.sessionId])
 
-  const visibleReady = ready.filter(o => !fadingOrders.has(o.id))
-  const totalActive = preparing.length + visibleReady.length
+  // ترتيب الأولوية: قيد التحضير أولاً، ثم الجاهز. (تم الاستلام في قسمه المنفصل)
+  const activeOrders = [
+    ...preparing.map(order => ({ order, mode: 'preparing' })),
+    ...ready.map(order => ({ order, mode: 'ready' })),
+  ]
+  const hasActive = activeOrders.length > 0
+  const hasDelivered = delivered.length > 0
 
   if (loading) return <LoadingScreen fullScreen />
 
@@ -100,50 +101,26 @@ function KitchenInner() {
 
   return (
     <div className="kitchen-root">
-      {/* Header */}
+      {/* Header — اسم الفرع + مفتاح إظهار الطلبات على شاشة العرض فقط */}
       <header className="kitchen-header">
         <div className="kitchen-header-inner">
-          <div className="kitchen-brand">
-            <div className="kitchen-logo">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="kitchen-branch-name">الفرع — {branch?.name_ar}</h1>
-              <p className="kitchen-branch-sub">{branch?.name_en} — كبة زون</p>
-            </div>
-          </div>
+          <h1 className="kitchen-branch-name">{branch?.name_ar}</h1>
 
-          <div className="kitchen-info">
-            <div>
-              <div className="kitchen-clock">{clock}</div>
-              <div className="kitchen-count">
-                <div className={`kitchen-count-dot ${totalActive > 0 ? 'kitchen-count-dot--active' : 'kitchen-count-dot--idle'}`} />
-                <span className="kitchen-count-text">
-                  قيد التحضير: <span className="kitchen-count-number">{preparing.length}</span>
-                  {' · '}
-                  جاهز: <span className="kitchen-count-number">{visibleReady.length}</span>
-                </span>
-              </div>
-            </div>
-            {/* مفتاح إظهار كل الطلبات على شاشة العرض (يتزامن realtime) */}
-            <label className="kitchen-display-toggle" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
-              <input
-                type="checkbox"
-                checked={showAll}
-                onChange={e => setShowAll(e.target.checked)}
-              />
-              <span>إظهار كل الطلبات على شاشة العرض</span>
-            </label>
-          </div>
+          {/* مفتاح إظهار كل الطلبات على شاشة العرض (يتزامن realtime) */}
+          <label className="kitchen-display-toggle" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
+            <input
+              type="checkbox"
+              checked={showAll}
+              onChange={e => setShowAll(e.target.checked)}
+            />
+            <span>إظهار كل الطلبات على شاشة العرض</span>
+          </label>
         </div>
       </header>
 
       {/* Content */}
       <main className="kitchen-main">
-        {totalActive === 0 ? (
+        {!hasActive && !hasDelivered ? (
           <div className="kitchen-empty-wrap">
             <div className="kitchen-empty">
               <div className="kitchen-empty-icon">
@@ -160,46 +137,51 @@ function KitchenInner() {
           </div>
         ) : (
           <>
-            {/* قسم قيد التحضير — بزر "جاهز" */}
-            {preparing.length > 0 && (
-              <section className="kitchen-section">
-                <div className="kitchen-section-header kitchen-section-header--prep">
-                  <span className="kitchen-section-dot" />
-                  <h2 className="kitchen-section-title">قيد التحضير</h2>
-                  <span className="kitchen-section-count">{preparing.length}</span>
-                </div>
-                <div className="kitchen-grid">
-                  {preparing.map(order => (
-                    <KitchenCard
-                      key={order.id}
-                      order={order}
-                      mode="preparing"
-                      onAction={() => setConfirm({ order, action: 'ready' })}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* قسم واحد: الطلبات النشطة (قيد التحضير + جاهز) */}
+            <section className="kitchen-section">
+              <div className="kitchen-section-header">
+                <h2 className="kitchen-section-title">الطلبات النشطة</h2>
+                <span className="kitchen-section-count">{activeOrders.length}</span>
+              </div>
 
-            {/* قسم جاهز — بزر "تم التسليم" */}
-            {visibleReady.length > 0 && (
-              <section className="kitchen-section">
-                <div className="kitchen-section-header kitchen-section-header--ready">
-                  <span className="kitchen-section-dot" />
-                  <h2 className="kitchen-section-title">جاهز</h2>
-                  <span className="kitchen-section-count">{visibleReady.length}</span>
-                </div>
+              {hasActive ? (
                 <div className="kitchen-grid">
-                  {visibleReady.map(order => (
+                  {activeOrders.map(({ order, mode }) => (
                     <KitchenCard
                       key={order.id}
                       order={order}
-                      mode="ready"
-                      fading={fadingOrders.has(order.id)}
-                      onAction={() => setConfirm({ order, action: 'delivered' })}
+                      mode={mode}
+                      onAction={() =>
+                        setConfirm({ order, action: mode === 'preparing' ? 'ready' : 'delivered' })
+                      }
                     />
                   ))}
                 </div>
+              ) : (
+                <div className="kitchen-section-empty">لا توجد طلبات نشطة حالياً</div>
+              )}
+            </section>
+
+            {/* قسم تم الاستلام — قابل للطي عبر checkbox */}
+            {hasDelivered && (
+              <section className="kitchen-section kitchen-section--delivered">
+                <label className="kitchen-delivered-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showDelivered}
+                    onChange={e => setShowDelivered(e.target.checked)}
+                  />
+                  <span>تم الاستلام</span>
+                  <span className="kitchen-section-count">{delivered.length}</span>
+                </label>
+
+                {showDelivered && (
+                  <div className="kitchen-grid">
+                    {delivered.map(order => (
+                      <KitchenCard key={order.id} order={order} mode="delivered" />
+                    ))}
+                  </div>
+                )}
               </section>
             )}
           </>
@@ -210,7 +192,9 @@ function KitchenInner() {
       {confirm && (
         <div className="kitchen-modal-overlay" onClick={() => !working && setConfirm(null)}>
           <div className="kitchen-modal" onClick={e => e.stopPropagation()}>
-            <div className="kitchen-modal-icon">{confirm.action === 'ready' ? '✓' : '🚗'}</div>
+            <div className={`kitchen-modal-icon ${confirm.action === 'delivered' ? 'kitchen-modal-icon--delivered' : 'kitchen-modal-icon--ready'}`}>
+              {confirm.action === 'ready' ? '✓' : '🚗'}
+            </div>
             <div className="kitchen-modal-title">
               {confirm.action === 'ready' ? (
                 <>هل تريد تحويل الطلب <span className="kitchen-modal-order-id">{resolveDisplayNumber(confirm.order)}</span> إلى جاهز؟</>
@@ -225,7 +209,7 @@ function KitchenInner() {
             </div>
             <div className="kitchen-modal-actions">
               <button
-                className={confirm.action === 'delivered' ? 'kitchen-modal-confirm kitchen-modal-confirm--delivered' : 'kitchen-modal-confirm'}
+                className={confirm.action === 'delivered' ? 'kitchen-modal-confirm kitchen-modal-confirm--delivered' : 'kitchen-modal-confirm kitchen-modal-confirm--ready'}
                 onClick={handleConfirm}
                 disabled={working}
               >
@@ -246,9 +230,14 @@ function KitchenInner() {
   )
 }
 
-function KitchenCard({ order, mode, fading = false, onAction }) {
-  // قيد التحضير: العداد منذ بدء التجهيز (scanned_at). جاهز: منذ الجاهزية (ready_at).
-  const timeField = mode === 'ready' ? (order.ready_at || order.scanned_at) : order.scanned_at
+function KitchenCard({ order, mode, onAction }) {
+  // قيد التحضير: العداد منذ بدء التجهيز (scanned_at). جاهز: منذ الجاهزية. تم الاستلام: منذ التسليم.
+  const timeField =
+    mode === 'delivered'
+      ? (order.delivered_at || order.completed_at || order.ready_at)
+      : mode === 'ready'
+        ? (order.ready_at || order.scanned_at)
+        : order.scanned_at
   const [elapsed, setElapsed] = useState(() => formatElapsed(timeField))
 
   useEffect(() => {
@@ -257,25 +246,28 @@ function KitchenCard({ order, mode, fading = false, onAction }) {
     return () => clearInterval(interval)
   }, [timeField])
 
-  // هوية تطبيق التوصيل: الكارت كله يأخذ لون التطبيق (إطار + خلفية متدرّجة).
+  // هوية تطبيق التوصيل: تُحدّد لون كارت "قيد التحضير" فقط. (جاهز=أزرق، تم الاستلام=أخضر عبر CSS)
   const app = resolveDeliveryApp(order)
-  const isReady = mode === 'ready'
 
-  const cardStyle = {
-    borderColor: app.color,
-    background: `linear-gradient(150deg, ${hexToRgba(app.color, 0.16)} 0%, #ffffff 55%)`,
-  }
+  // لون الكارت: قيد التحضير = لون التطبيق (inline)؛ غير ذلك = لون الحالة عبر class.
+  const cardStyle =
+    mode === 'preparing'
+      ? {
+          borderColor: app.color,
+          background: `linear-gradient(150deg, ${hexToRgba(app.color, 0.16)} 0%, #ffffff 55%)`,
+        }
+      : undefined
 
   return (
-    <div
-      className={`kitchen-card ${isReady ? 'kitchen-card--ready' : ''} ${fading ? 'kitchen-card--fading' : ''}`}
-      style={cardStyle}
-    >
+    <div className={`kitchen-card kitchen-card--${mode}`} style={cardStyle}>
+      {/* بادج الحالة الملصق أعلى الكارت */}
+      <span className={`kitchen-card-badge kitchen-card-badge--${mode}`}>{STATE_BADGE[mode]}</span>
+
       {/* صف علوي مدمج: لوجو التطبيق ملاصق للمعلومات */}
       <div className="kitchen-card-top">
         <DeliveryAppLogo app={app} size="lg" />
         <div className="kitchen-card-info">
-          {/* نوع الطلب + اسم التطبيق (صغير) + علامة جاهز */}
+          {/* نوع الطلب + اسم التطبيق (صغير) */}
           <div className="kitchen-card-tags">
             {order.order_type && (
               <span className="kitchen-card-type" style={{ background: hexToRgba(app.color, 0.14), color: app.ink }}>
@@ -283,7 +275,6 @@ function KitchenCard({ order, mode, fading = false, onAction }) {
               </span>
             )}
             <DeliveryAppPill app={app} size="sm" />
-            {isReady && <span className="kitchen-card-ready-flag">✓ جاهز</span>}
           </div>
 
           {/* رقم الطلب */}
@@ -302,14 +293,15 @@ function KitchenCard({ order, mode, fading = false, onAction }) {
         </div>
       </div>
 
-      {/* الزر: قيد التحضير → "جاهز"، جاهز → "تم التسليم" */}
-      {isReady ? (
+      {/* الزر: قيد التحضير → "جهز" (أزرق)، جاهز → "تم التسليم" (أخضر)، تم الاستلام → بلا زر */}
+      {mode === 'preparing' && (
+        <button className="kitchen-ready-btn" onClick={onAction}>
+          ✓ جهز
+        </button>
+      )}
+      {mode === 'ready' && (
         <button className="kitchen-delivered-btn" onClick={onAction}>
           🚗 تم التسليم
-        </button>
-      ) : (
-        <button className="kitchen-ready-btn" onClick={onAction}>
-          ✓ جاهز
         </button>
       )}
     </div>

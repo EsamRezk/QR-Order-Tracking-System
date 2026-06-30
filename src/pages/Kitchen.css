@@ -61,85 +61,17 @@
     gap: 1rem;
 }
 
-.kitchen-brand {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.kitchen-logo {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.2);
-    flex-shrink: 0;
-}
-
-.kitchen-logo svg {
-    width: 26px;
-    height: 26px;
-    color: white;
-}
-
 .kitchen-branch-name {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 900;
     color: var(--text-primary);
     letter-spacing: -0.02em;
     line-height: 1.2;
     margin: 0;
-}
-
-.kitchen-branch-sub {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-weight: 400;
-    margin-top: 0.1rem;
-}
-
-.kitchen-info {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-.kitchen-clock {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-    line-height: 1;
-    direction: ltr;
-    padding-left: 30px;
-}
-
-.kitchen-count {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.4rem;
-}
-
-.kitchen-count-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.kitchen-count-dot--active {
-    background: var(--accent);
-    box-shadow: 0 0 8px rgba(88, 48, 197, 0.5);
-    animation: kitchen-blink 2s ease-in-out infinite;
-}
-
-.kitchen-count-dot--idle {
-    background: var(--text-muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @keyframes kitchen-blink {
@@ -152,17 +84,6 @@
     50% {
         opacity: 0.4;
     }
-}
-
-.kitchen-count-text {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.kitchen-count-number {
-    color: var(--text-primary);
-    font-weight: 800;
 }
 
 /* مفتاح إظهار كل الطلبات على شاشة العرض */
@@ -180,6 +101,7 @@
     border-radius: 0.9rem;
     background: rgba(88, 48, 197, 0.06);
     transition: all 0.15s ease;
+    flex-shrink: 0;
 }
 
 .kitchen-display-toggle:hover {
@@ -208,7 +130,7 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.4rem;
 }
 
 .kitchen-section-title {
@@ -227,57 +149,102 @@
     color: var(--text-secondary);
 }
 
-.kitchen-section-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
+.kitchen-section-empty {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 1.5rem 0;
 }
 
-.kitchen-section-header--new .kitchen-section-dot {
-    background: var(--accent);
-    box-shadow: 0 0 10px rgba(88, 48, 197, 0.6);
-    animation: kitchen-blink 1.5s ease-in-out infinite;
+/* قسم تم الاستلام (مطوي) */
+.kitchen-section--delivered {
+    border-top: 1px dashed var(--border-solid);
+    padding-top: 1.5rem;
 }
 
-.kitchen-section-header--prep .kitchen-section-dot {
-    background: var(--green);
+.kitchen-delivered-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1rem;
+    font-weight: 900;
+    color: var(--green-dark);
+    padding: 0.5rem 0.9rem;
+    border: 1.5px solid rgba(34, 197, 94, 0.3);
+    border-radius: 0.9rem;
+    background: rgba(34, 197, 94, 0.08);
+    transition: all 0.15s ease;
+    margin-bottom: 1.4rem;
 }
 
-.kitchen-section-header--ready .kitchen-section-dot {
-    background: var(--blue);
-    box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+.kitchen-delivered-toggle:hover {
+    border-color: rgba(34, 197, 94, 0.55);
+    background: rgba(34, 197, 94, 0.12);
 }
 
-/* Grid layout */
+.kitchen-delivered-toggle input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--green);
+    cursor: pointer;
+}
+
+.kitchen-delivered-toggle .kitchen-section-count {
+    background: rgba(34, 197, 94, 0.18);
+    color: var(--green-dark);
+}
+
+/* Grid layout — auto-fill responsive (يتكيّف تلقائياً من التلفاز للجوال) */
 .kitchen-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 0.7rem;
-}
-
-@media (max-width: 1280px) {
-    .kitchen-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-@media (max-width: 900px) {
-    .kitchen-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 1.4rem 0.7rem;
 }
 
 /* Order card */
 .kitchen-card {
+    position: relative;
     background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.04) 100%);
     border: 2px solid rgba(88, 48, 197, 0.2);
     border-radius: 14px;
-    padding: 0.75rem 0.85rem;
+    padding: 1rem 0.85rem 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
     animation: kitchen-card-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* بادج الحالة الملصق أعلى الكارت (كأنه ملزق من فوق) */
+.kitchen-card-badge {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    padding: 0.22rem 0.7rem;
+    border-radius: 100px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    z-index: 2;
+}
+
+.kitchen-card-badge--preparing {
+    background: #FFC400;
+    color: #3A2A00;
+}
+
+.kitchen-card-badge--ready {
+    background: var(--blue);
+    color: #ffffff;
+}
+
+.kitchen-card-badge--delivered {
+    background: var(--green);
+    color: #ffffff;
 }
 
 @keyframes kitchen-card-in {
@@ -345,29 +312,16 @@
     font-weight: bold;
 }
 
-/* بطاقة الطلب الجديد — حدود بنفسجية أبرز */
-.kitchen-card--new {
-    border-color: rgba(88, 48, 197, 0.45);
-    background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.08) 100%);
-}
-
-/* بطاقة الطلب الجاهز — حدود خضراء أبرز */
+/* بطاقة الطلب الجاهز — أزرق */
 .kitchen-card--ready {
-    border-color: rgba(34, 197, 94, 0.45);
-    background: linear-gradient(135deg, #ffffff 0%, rgba(34, 197, 94, 0.08) 100%);
+    border-color: rgba(37, 99, 235, 0.5);
+    background: linear-gradient(150deg, rgba(37, 99, 235, 0.14) 0%, #ffffff 55%);
 }
 
-.kitchen-card-icon--ready {
-    background: rgba(34, 197, 94, 0.18);
-    color: var(--green-dark);
-}
-
-/* علامة "جاهز" داخل كارت قسم الجاهز */
-.kitchen-card-ready-flag {
-    font-size: 0.62rem;
-    font-weight: 800;
-    color: var(--green-dark, #16a34a);
-    white-space: nowrap;
+/* بطاقة الطلب المُستلَم — أخضر */
+.kitchen-card--delivered {
+    border-color: rgba(34, 197, 94, 0.5);
+    background: linear-gradient(150deg, rgba(34, 197, 94, 0.14) 0%, #ffffff 55%);
 }
 
 .kitchen-card-tags {
@@ -435,42 +389,8 @@
     transform: translateY(0);
 }
 
-/* Ready button */
+/* زر "جهز" (قيد التحضير → جاهز) — أزرق (لون الحالة التالية) */
 .kitchen-ready-btn {
-    width: 100%;
-    padding: 0.45rem;
-    border: none;
-    border-radius: 9px;
-    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
-    color: white;
-    font-family: 'Tajawal', sans-serif;
-    font-size: 0.85rem;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-.kitchen-ready-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
-}
-
-.kitchen-ready-btn:active {
-    transform: translateY(0);
-}
-
-.kitchen-ready-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Delivered button (تم التسليم) — أزرق */
-.kitchen-delivered-btn {
     width: 100%;
     padding: 0.45rem;
     border: none;
@@ -488,9 +408,43 @@
     gap: 0.5rem;
 }
 
-.kitchen-delivered-btn:hover {
+.kitchen-ready-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+}
+
+.kitchen-ready-btn:active {
+    transform: translateY(0);
+}
+
+.kitchen-ready-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* زر "تم التسليم" (جاهز → مُستلَم) — أخضر (لون الحالة التالية) */
+.kitchen-delivered-btn {
+    width: 100%;
+    padding: 0.45rem;
+    border: none;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+    color: white;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.kitchen-delivered-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
 }
 
 .kitchen-delivered-btn:active {
@@ -552,13 +506,21 @@
     width: 56px;
     height: 56px;
     border-radius: 16px;
-    background: rgba(34, 197, 94, 0.12);
-    border: 1px solid rgba(34, 197, 94, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 1rem;
     font-size: 1.5rem;
+}
+
+.kitchen-modal-icon--ready {
+    background: rgba(37, 99, 235, 0.12);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.kitchen-modal-icon--delivered {
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .kitchen-modal-title {
@@ -602,20 +564,20 @@
     box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
 }
 
-.kitchen-modal-confirm--accept {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-}
-
-.kitchen-modal-confirm--accept:hover {
-    box-shadow: 0 4px 16px rgba(88, 48, 197, 0.3);
-}
-
-.kitchen-modal-confirm--delivered {
+.kitchen-modal-confirm--ready {
     background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
 }
 
-.kitchen-modal-confirm--delivered:hover {
+.kitchen-modal-confirm--ready:hover {
     box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+}
+
+.kitchen-modal-confirm--delivered {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+}
+
+.kitchen-modal-confirm--delivered:hover {
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
 }
 
 .kitchen-modal-confirm:disabled {
@@ -714,23 +676,8 @@
 
 /* Responsive */
 @media (min-width: 1200px) {
-    .kitchen-logo {
-        width: 56px;
-        height: 56px;
-        border-radius: 16px;
-    }
-
-    .kitchen-logo svg {
-        width: 30px;
-        height: 30px;
-    }
-
     .kitchen-branch-name {
         font-size: 1.75rem;
-    }
-
-    .kitchen-clock {
-        font-size: 3rem;
     }
 
     .kitchen-header-inner {
@@ -741,6 +688,10 @@
 
     .kitchen-main {
         padding: 2rem 3rem;
+    }
+
+    .kitchen-grid {
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     }
 }
 
@@ -756,60 +707,38 @@
         padding: 0.75rem 1rem;
         padding-right: 68px;
         padding-left: 1rem;
-        gap: 0.5rem;
+        gap: 0.6rem;
+        flex-wrap: wrap;
     }
 
     .kitchen-main {
         padding: 1rem;
     }
 
-    .kitchen-brand {
-        gap: 0.6rem;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .kitchen-logo {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-    }
-
-    .kitchen-logo svg {
-        width: 20px;
-        height: 20px;
-    }
-
     .kitchen-branch-name {
-        font-size: 0.95rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 1.1rem;
+        flex: 1 1 auto;
     }
 
-    .kitchen-branch-sub {
-        font-size: 0.68rem;
+    .kitchen-display-toggle {
+        font-size: 0.78rem;
+        padding: 0.45rem 0.7rem;
+        gap: 0.4rem;
     }
 
-    .kitchen-info {
-        flex-shrink: 0;
+    .kitchen-display-toggle input {
+        width: 17px;
+        height: 17px;
     }
 
-    .kitchen-clock {
-        font-size: 1.5rem;
-        padding-left: 0;
-    }
-
-    .kitchen-count {
-        margin-top: 0.2rem;
-    }
-
-    .kitchen-count-text {
-        font-size: 0.7rem;
-    }
-
+    /* عمودان على الجوال */
     .kitchen-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.3rem 0.6rem;
+    }
+
+    .kitchen-card-id {
+        font-size: 1.7rem;
     }
 
     .kitchen-empty-icon {
@@ -821,5 +750,11 @@
     .kitchen-empty-icon svg {
         width: 32px;
         height: 32px;
+    }
+}
+
+@media (max-width: 380px) {
+    .kitchen-grid {
+        grid-template-columns: 1fr;
     }
 }
