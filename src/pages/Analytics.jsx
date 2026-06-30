@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { formatDuration } from '../utils/formatTime'
 import { useAuth } from '../context/AuthContext'
 import { exportOrdersToExcel } from '../utils/exportExcel'
-import BranchSelector from '../components/BranchSelector'
 import LogoutButton from '../components/LogoutButton'
 import LoadingScreen from '../components/LoadingScreen'
 import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
@@ -242,9 +241,6 @@ export default function Analytics() {
   const [selectedBranch, setSelectedBranch] = useState(null)
   const [dateRange, setDateRange] = useState(7)
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResult, setSearchResult] = useState(null)
-  const [searching, setSearching] = useState(false)
   // فلاتر جدول السجل (تُطبّق محلياً على الطلبات المجلوبة)
   const [statusFilter, setStatusFilter] = useState('all')
   const [appFilter, setAppFilter] = useState('all')
@@ -264,48 +260,6 @@ export default function Analytics() {
     }
     fetchBranches()
   }, [isUserRole, session.branchId])
-
-  const handleSearch = async (e) => {
-    e.preventDefault()
-    const q = searchQuery.trim()
-    if (!q) {
-      setSearchResult(null)
-      return
-    }
-    setSearching(true)
-    let query = supabase
-      .from('orders')
-      .select('*, branches(name_ar, name_en)')
-      .ilike('order_id', `%${q}%`)
-      .order('created_at', { ascending: false })
-      .limit(50)
-
-    if (isUserRole && session.branchId) {
-      query = query.eq('branch_id', session.branchId)
-    }
-
-    const { data } = await query
-    const rows = data || []
-    setSearchResult(rows)
-
-    // نضمن توفّر مصدر التغيير لنتائج البحث (قد تكون خارج فترة الجلب الرئيسية)
-    const ids = rows.map(r => r.id)
-    if (ids.length) {
-      const { data: logs } = await supabase
-        .from('scan_logs')
-        .select('order_id, scan_type')
-        .in('order_id', ids)
-        .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
-      const extra = buildSourceMap(logs)
-      setStatusSources(prev => ({ ...prev, ...extra }))
-    }
-    setSearching(false)
-  }
-
-  const clearSearch = () => {
-    setSearchQuery('')
-    setSearchResult(null)
-  }
 
   useEffect(() => {
     // Wait for branch to be set before fetching for user role
@@ -439,34 +393,18 @@ export default function Analytics() {
             </div>
           </div>
 
-          {/* Search */}
-          <form className="order-search-bar" onSubmit={handleSearch}>
-            <div className="order-search-input-wrap">
-              <svg className="order-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path strokeLinecap="round" d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                type="text"
-                className="order-search-input"
-                placeholder="ابحث برقم الطلب..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                dir="ltr"
-              />
-              {searchQuery && (
-                <button type="button" className="order-search-clear" onClick={clearSearch}>✕</button>
-              )}
-            </div>
-            <button type="submit" className="order-search-btn" disabled={searching}>
-              {searching ? 'جاري البحث...' : 'بحث'}
-            </button>
-          </form>
-
           {/* Filters */}
           <div className="filters-bar">
             {!isUserRole && (
-              <BranchSelector value={selectedBranch} onChange={setSelectedBranch} includeAll />
+              <Dropdown
+                value={selectedBranch || 'all'}
+                options={[
+                  { value: 'all', label: 'جميع الفروع' },
+                  ...branches.map(b => ({ value: b.id, label: b.name_ar })),
+                ]}
+                onChange={v => setSelectedBranch(v === 'all' ? null : v)}
+                ariaLabel="فلترة بالفرع"
+              />
             )}
             <div className="date-range-group">
               {DATE_RANGES.map(r => (
@@ -512,42 +450,6 @@ export default function Analytics() {
           <LoadingScreen text="جاري تحميل البيانات..." />
         ) : (
           <>
-            {/* ── Search Results ── */}
-            {searchResult !== null && (
-              <div className="table-card search-results-card">
-                <div className="table-header">
-                  <div className="table-title">
-                    <span className="chart-title-icon">🔍</span>
-                    نتائج البحث عن: <span className="search-query-highlight">{searchQuery}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {searchResult.length > 0 && (
-                      <span className="table-count">{searchResult.length} نتيجة</span>
-                    )}
-                    <button className="search-close-btn" onClick={clearSearch}>إغلاق</button>
-                  </div>
-                </div>
-                {searchResult.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-icon">🔍</div>
-                    <div className="empty-text">لا توجد نتائج لهذا الرقم</div>
-                    <div className="empty-subtext">تأكد من رقم الطلب وحاول مرة أخرى</div>
-                  </div>
-                ) : (
-                  <div className="table-wrapper">
-                    <table className="data-table">
-                      <OrdersTableHead />
-                      <tbody>
-                        {searchResult.map(o => (
-                          <OrderRow key={o.id} order={o} sources={statusSources} />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* ── KPI Cards ── */}
             <div className="kpi-grid">
               {kpiCards.map((card, i) => (
