@@ -209,10 +209,12 @@
     background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.04) 100%);
     border: 2px solid rgba(88, 48, 197, 0.2);
     border-radius: 14px;
-    padding: 1rem 0.85rem 0.75rem;
+    padding: 1.1rem 0.85rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    align-items: center;
+    text-align: center;
+    gap: 0.55rem;
     animation: kitchen-card-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
@@ -270,46 +272,25 @@
     }
 }
 
-/* صف علوي مدمج: لوجو ملاصق للمعلومات كمجموعة واحدة (بلا فراغ) */
-.kitchen-card-top {
+/* لوجو التطبيق في أعلى الكارت — موسّط وموحّد */
+.kitchen-card-logo {
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 0.65rem;
 }
 
-.kitchen-card-info {
-    min-width: 0;
+/* رقم الطلب: "طلب" صغيرة ملاصقة فوق الرقم الكبير */
+.kitchen-card-order {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.2rem;
-}
-
-.kitchen-card-order {
-    display: flex;
-    align-items: baseline;
-    justify-content: center;
-    gap: 0.4rem;
+    gap: 0.05rem;
 }
 
 .kitchen-card-order-lbl {
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
     color: var(--text-muted);
-}
-
-.kitchen-card-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: rgba(88, 48, 197, 0.2);
-    color: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    font-weight: bold;
+    line-height: 1;
 }
 
 /* بطاقة الطلب الجاهز — أزرق */
@@ -324,11 +305,14 @@
     background: linear-gradient(150deg, rgba(34, 197, 94, 0.14) 0%, #ffffff 55%);
 }
 
+/* صف نوع الطلب + اسم التطبيق — صف واحد ثابت لا يلتف (موحّد في كل الكروت) */
 .kitchen-card-tags {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.35rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    max-width: 100%;
 }
 
 .kitchen-card-type {
@@ -339,6 +323,11 @@
     background: rgba(88, 48, 197, 0.12);
     color: var(--accent);
     white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.kitchen-card-tags .app-pill {
+    flex-shrink: 0;
 }
 
 .kitchen-card-id {
@@ -737,8 +726,35 @@
         gap: 1.3rem 0.6rem;
     }
 
+    .kitchen-card {
+        padding: 1rem 0.5rem 0.6rem;
+    }
+
     .kitchen-card-id {
         font-size: 1.7rem;
+    }
+
+    /* لوجو أصغر على الجوال لكنه يبقى ظاهراً */
+    .kitchen-card-logo .app-logo--md {
+        width: 50px;
+        height: 50px;
+        border-radius: 13px;
+        border-width: 2px;
+    }
+
+    /* تصغير التاجات لتبقى في سطر واحد */
+    .kitchen-card-tags {
+        gap: 0.25rem;
+    }
+
+    .kitchen-card-type {
+        font-size: 0.56rem;
+        padding: 0.12rem 0.4rem;
+    }
+
+    .kitchen-card-tags .app-pill--sm {
+        font-size: 0.56rem;
+        padding: 0.18rem 0.45rem;
     }
 
     .kitchen-empty-icon {
