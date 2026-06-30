@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatDuration } from '../utils/formatTime'
 import { useAuth } from '../context/AuthContext'
@@ -23,14 +23,12 @@ const DATE_RANGES = [
   { label: 'آخر 30 يوم', days: 30, icon: '📊' },
 ]
 
-// خيارات فلتر الحالة (الكل + كل الحالات الممكنة)
+// خيارات فلتر الحالة (الكل + الحالات الفعّالة فقط — بلا ملغي/جديد)
 const STATUS_OPTIONS = [
   { value: 'all', label: 'كل الحالات' },
   { value: 'preparing', label: 'قيد التحضير' },
   { value: 'ready', label: 'جاهز' },
   { value: 'completed', label: 'مكتمل' },
-  { value: 'cancelled', label: 'ملغي' },
-  { value: 'new', label: 'جديد' },
 ]
 
 const STATUS_META = {
@@ -41,18 +39,86 @@ const STATUS_META = {
   cancelled: { label: '🚫 ملغي' },
 }
 
-// خيارات فلتر التطبيق (الكل + تطبيقات التوصيل + مباشر)
+// خيارات فلتر التطبيق (الكل + تطبيقات التوصيل + مباشر) — مع اللوجو في القائمة
 const APP_OPTIONS = [
   { value: 'all', label: 'كل التطبيقات' },
-  ...Object.entries(DELIVERY_APPS).map(([key, app]) => ({ value: key, label: app.name })),
-  { value: DIRECT_APP.key, label: DIRECT_APP.name },
+  ...Object.entries(DELIVERY_APPS).map(([key, app]) => ({ value: key, label: app.name, logo: app.logo })),
+  { value: DIRECT_APP.key, label: DIRECT_APP.name, logo: DIRECT_APP.logo },
 ]
 
-/* ── صف طلب في الجدول (يعرض هوية التطبيق + رقمي التطبيق وفوديكس + الحالة) ── */
-function OrderRow({ order }) {
+/* ── قائمة منسدلة مخصّصة (بدل select الافتراضي) ── */
+function Dropdown({ value, options, onChange, ariaLabel }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const selected = options.find(o => o.value === value) || options[0]
+
+  return (
+    <div className={`dd ${open ? 'dd--open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className="dd-trigger"
+        onClick={() => setOpen(o => !o)}
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        {selected.logo ? <img className="dd-logo" src={selected.logo} alt="" /> : null}
+        <span className="dd-trigger-label">{selected.label}</span>
+        <svg className="dd-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <ul className="dd-menu" role="listbox">
+          {options.map(o => (
+            <li
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              className={`dd-option ${o.value === value ? 'dd-option--active' : ''}`}
+              onClick={() => { onChange(o.value); setOpen(false) }}
+            >
+              {'logo' in o ? (
+                o.logo
+                  ? <img className="dd-logo" src={o.logo} alt="" />
+                  : <span className="dd-logo dd-logo--ph" />
+              ) : null}
+              <span>{o.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/* ── شارة مصدر تغيير الحالة (النظام = نحن / فوديكس) ── */
+function SourceBadge({ kind, by }) {
+  const label = by === 'system' ? 'النظام' : 'فوديكس'
+  const k = kind === 'ready' ? 'جاهز' : 'تسليم'
+  return <span className={`src-badge src-badge--${by}`}>{k}: {label}</span>
+}
+
+/* ── صف طلب في الجدول (يعرض هوية التطبيق + رقمي التطبيق وفوديكس + الحالة + مصدر التحديث) ── */
+function OrderRow({ order, sources }) {
   const app = resolveDeliveryApp(order)
   const appNumber = resolveAppOrderNumber(order)
   const status = STATUS_META[order.status] || { label: order.status }
+  const src = sources?.[order.id] || {}
+  const isReady = order.status === 'ready' || order.status === 'completed'
   return (
     <tr>
       <td>
@@ -66,6 +132,18 @@ function OrderRow({ order }) {
       <td className="branch-cell">{order.branches?.name_ar || '—'}</td>
       <td>
         <span className={`status-badge status-badge--${order.status}`}>{status.label}</span>
+      </td>
+      <td>
+        {isReady ? (
+          <div className="src-stack">
+            <SourceBadge kind="ready" by={src.ready ? 'system' : 'foodics'} />
+            {order.status === 'completed' && (
+              <SourceBadge kind="delivered" by={src.delivered ? 'system' : 'foodics'} />
+            )}
+          </div>
+        ) : (
+          <span className="src-empty">—</span>
+        )}
       </td>
       <td className="time-cell">{new Date(order.scanned_at || order.created_at).toLocaleString('ar-SA')}</td>
       <td className="time-cell">{order.ready_at ? new Date(order.ready_at).toLocaleString('ar-SA') : '—'}</td>
@@ -83,6 +161,7 @@ function OrdersTableHead() {
         <th>رقم فوديكس</th>
         <th>الفرع</th>
         <th>الحالة</th>
+        <th>مصدر التحديث</th>
         <th>وقت الطلب</th>
         <th>وقت الجاهزية</th>
         <th>مدة التحضير</th>
@@ -100,6 +179,17 @@ function getDateFrom(days) {
   const d = new Date()
   d.setDate(d.getDate() - days)
   return d.toISOString()
+}
+
+// يبني خريطة مصدر التغيير من صفوف scan_logs: { [orderId]: { ready, delivered } }
+function buildSourceMap(logs) {
+  const map = {}
+  ;(logs || []).forEach(l => {
+    if (!map[l.order_id]) map[l.order_id] = {}
+    if (l.scan_type === 'ready_scan' || l.scan_type === 'second_scan') map[l.order_id].ready = true
+    if (l.scan_type === 'delivered') map[l.order_id].delivered = true
+  })
+  return map
 }
 
 /* ── Animated Number ── */
@@ -159,6 +249,9 @@ export default function Analytics() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [appFilter, setAppFilter] = useState('all')
   const [numberFilter, setNumberFilter] = useState('')
+  // مصدر تغيير الحالة لكل طلب: { [orderId]: { ready: bool, delivered: bool } }
+  // وجود سجل scan_log (ready_scan/delivered) = التغيير تمّ من نظامنا؛ غيابه = من فوديكس.
+  const [statusSources, setStatusSources] = useState({})
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -192,7 +285,20 @@ export default function Analytics() {
     }
 
     const { data } = await query
-    setSearchResult(data || [])
+    const rows = data || []
+    setSearchResult(rows)
+
+    // نضمن توفّر مصدر التغيير لنتائج البحث (قد تكون خارج فترة الجلب الرئيسية)
+    const ids = rows.map(r => r.id)
+    if (ids.length) {
+      const { data: logs } = await supabase
+        .from('scan_logs')
+        .select('order_id, scan_type')
+        .in('order_id', ids)
+        .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
+      const extra = buildSourceMap(logs)
+      setStatusSources(prev => ({ ...prev, ...extra }))
+    }
     setSearching(false)
   }
 
@@ -221,6 +327,16 @@ export default function Analytics() {
 
       const { data } = await query
       setOrders(data || [])
+
+      // مصدر تغيير الحالة: نجلب سجلات scan_logs (ready_scan/second_scan/delivered)
+      // ضمن نفس الفترة. وجود السجل = تمّ من نظامنا، وغيابه = تمّ من فوديكس.
+      const { data: logs } = await supabase
+        .from('scan_logs')
+        .select('order_id, scan_type')
+        .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
+        .gte('scanned_at', getDateFrom(dateRange))
+      setStatusSources(buildSourceMap(logs))
+
       setLoading(false)
     }
     fetchOrders()
@@ -233,9 +349,9 @@ export default function Analytics() {
       if (statusFilter !== 'all' && o.status !== statusFilter) return false
       if (appFilter !== 'all' && resolveDeliveryApp(o).key !== appFilter) return false
       if (num) {
+        // الفلترة بالرقمين معاً: رقم فوديكس (reference) + رقم التطبيق
         const haystack = [
-          o.order_id,
-          o.foodics_order_number,
+          resolveFoodicsNumber(o),
           resolveAppOrderNumber(o),
         ].filter(Boolean).join(' ').toLowerCase()
         if (!haystack.includes(num)) return false
@@ -309,10 +425,10 @@ export default function Analytics() {
                   const branchName = isUserRole
                     ? session.branch
                     : branches.find(b => b.id === selectedBranch)?.name_ar || null
-                  exportOrdersToExcel(orders, branchName)
+                  exportOrdersToExcel(filteredOrders, branchName, statusSources)
                 }}
                 className="export-btn"
-                disabled={orders.length === 0}
+                disabled={filteredOrders.length === 0}
               >
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -364,27 +480,19 @@ export default function Analytics() {
               ))}
             </div>
 
-            <select
-              className="filter-select"
+            <Dropdown
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              aria-label="فلترة بالحالة"
-            >
-              {STATUS_OPTIONS.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
+              options={STATUS_OPTIONS}
+              onChange={setStatusFilter}
+              ariaLabel="فلترة بالحالة"
+            />
 
-            <select
-              className="filter-select"
+            <Dropdown
               value={appFilter}
-              onChange={e => setAppFilter(e.target.value)}
-              aria-label="فلترة بالتطبيق"
-            >
-              {APP_OPTIONS.map(a => (
-                <option key={a.value} value={a.value}>{a.label}</option>
-              ))}
-            </select>
+              options={APP_OPTIONS}
+              onChange={setAppFilter}
+              ariaLabel="فلترة بالتطبيق"
+            />
 
             <input
               type="text"
@@ -431,7 +539,7 @@ export default function Analytics() {
                       <OrdersTableHead />
                       <tbody>
                         {searchResult.map(o => (
-                          <OrderRow key={o.id} order={o} />
+                          <OrderRow key={o.id} order={o} sources={statusSources} />
                         ))}
                       </tbody>
                     </table>
@@ -582,7 +690,7 @@ export default function Analytics() {
                     <OrdersTableHead />
                     <tbody>
                       {filteredOrders.map(o => (
-                        <OrderRow key={o.id} order={o} />
+                        <OrderRow key={o.id} order={o} sources={statusSources} />
                       ))}
                     </tbody>
                   </table>

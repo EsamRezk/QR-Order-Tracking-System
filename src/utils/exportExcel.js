@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { resolveDeliveryApp, resolveAppOrderNumber, resolveFoodicsNumber } from '../config/deliveryApps'
 
 // Convert image file to base64 for exceljs
 async function getLogoBase64() {
@@ -15,11 +16,23 @@ async function getLogoBase64() {
   }
 }
 
-function getChannelName(channelLink) {
-  if (!channelLink) return 'مباشر'
-  if (channelLink.includes('jahez')) return 'جاهز'
-  if (channelLink.includes('hungerstation')) return 'هنقرستيشن'
-  return 'توصيل'
+const STATUS_LABELS = {
+  new: 'جديد',
+  preparing: 'قيد التحضير',
+  ready: 'جاهز',
+  completed: 'مكتمل',
+  cancelled: 'ملغي',
+}
+
+// نص مصدر تغيير الحالة لكل انتقال (النظام/فوديكس) — يطابق عمود "مصدر التحديث" في الواجهة
+function getSourceText(order, sources) {
+  if (order.status !== 'ready' && order.status !== 'completed') return '—'
+  const src = sources?.[order.id] || {}
+  const lines = [`جاهز: ${src.ready ? 'النظام' : 'فوديكس'}`]
+  if (order.status === 'completed') {
+    lines.push(`تسليم: ${src.delivered ? 'النظام' : 'فوديكس'}`)
+  }
+  return lines.join('\n')
 }
 
 function formatPrepDuration(seconds) {
@@ -30,7 +43,7 @@ function formatPrepDuration(seconds) {
   return `${mins}د ${secs}ث`
 }
 
-export async function exportOrdersToExcel(orders, branchName) {
+export async function exportOrdersToExcel(orders, branchName, sources = {}) {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'كبة زون'
   workbook.created = new Date()
@@ -41,17 +54,20 @@ export async function exportOrdersToExcel(orders, branchName) {
 
   // Column definitions
   sheet.columns = [
-    { header: 'رقم الطلب', key: 'order_id', width: 18 },
+    { header: 'التطبيق', key: 'app', width: 16 },
+    { header: 'رقم بالتطبيق', key: 'app_number', width: 18 },
+    { header: 'رقم فوديكس', key: 'foodics_number', width: 16 },
     { header: 'الفرع', key: 'branch', width: 16 },
-    { header: 'القناة', key: 'channel', width: 16 },
-    { header: 'وقت المسح', key: 'scanned_at', width: 28 },
-    { header: 'وقت الجاهزية', key: 'ready_at', width: 28 },
-    { header: 'مدة التحضير', key: 'prep_duration', width: 18 },
+    { header: 'الحالة', key: 'status', width: 14 },
+    { header: 'مصدر التحديث', key: 'source', width: 20 },
+    { header: 'وقت الطلب', key: 'order_time', width: 26 },
+    { header: 'وقت الجاهزية', key: 'ready_at', width: 26 },
+    { header: 'مدة التحضير', key: 'prep_duration', width: 16 },
   ]
 
   // ── Row 1-2: Logo + Title ──
   // Merge cells for logo area
-  sheet.mergeCells('A1:F2')
+  sheet.mergeCells('A1:I2')
   const titleCell = sheet.getCell('A1')
   titleCell.value = `سجل الطلبات — ${branchName || 'جميع الفروع'}`
   titleCell.font = { name: 'Tajawal', size: 16, bold: true, color: { argb: 'FF333333' } }
@@ -70,14 +86,14 @@ export async function exportOrdersToExcel(orders, branchName) {
       extension: 'png',
     })
     sheet.addImage(logoId, {
-      tl: { col: 4.5, row: 0.1 },
+      tl: { col: 7, row: 0.1 },
       ext: { width: 80, height: 45 },
     })
   }
 
   // ── Row 3: Header ──
   const headerRow = sheet.getRow(3)
-  const headers = ['رقم الطلب', 'الفرع', 'القناة', 'وقت المسح', 'وقت الجاهزية', 'مدة التحضير']
+  const headers = ['التطبيق', 'رقم بالتطبيق', 'رقم فوديكس', 'الفرع', 'الحالة', 'مصدر التحديث', 'وقت الطلب', 'وقت الجاهزية', 'مدة التحضير']
   headers.forEach((h, i) => {
     const cell = headerRow.getCell(i + 1)
     cell.value = h
@@ -100,11 +116,15 @@ export async function exportOrdersToExcel(orders, branchName) {
     const isEven = index % 2 === 0
     const bgColor = isEven ? 'FFFFFFFF' : 'FFF5F2FA'
 
+    const orderTime = order.scanned_at || order.created_at
     const values = [
-      order.order_id,
+      resolveDeliveryApp(order).name,
+      resolveAppOrderNumber(order) || '—',
+      resolveFoodicsNumber(order),
       order.branches?.name_ar || '—',
-      getChannelName(order.channel_link),
-      order.scanned_at ? new Date(order.scanned_at).toLocaleString('ar-SA') : '—',
+      STATUS_LABELS[order.status] || order.status,
+      getSourceText(order, sources),
+      orderTime ? new Date(orderTime).toLocaleString('ar-SA') : '—',
       order.ready_at ? new Date(order.ready_at).toLocaleString('ar-SA') : '—',
       formatPrepDuration(order.prep_duration_seconds),
     ]
@@ -113,7 +133,7 @@ export async function exportOrdersToExcel(orders, branchName) {
       const cell = row.getCell(i + 1)
       cell.value = val
       cell.font = { name: 'Tajawal', size: 11, color: { argb: 'FF333333' } }
-      cell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl' }
+      cell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl', wrapText: true }
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       cell.border = {
         top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
@@ -122,7 +142,7 @@ export async function exportOrdersToExcel(orders, branchName) {
         right: { style: 'thin', color: { argb: 'FFE0E0E0' } },
       }
     })
-    row.height = 26
+    row.height = order.status === 'completed' ? 40 : 26
   })
 
   // ── Generate & Download ──

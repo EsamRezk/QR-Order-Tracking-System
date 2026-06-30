@@ -361,7 +361,6 @@
 }
 
 /* ── عناصر الفلترة (الحالة / التطبيق / الرقم) ── */
-.filter-select,
 .filter-number-input {
   font-family: 'Tajawal', sans-serif;
   height: 42px;
@@ -372,23 +371,154 @@
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-weight: 600;
-  cursor: pointer;
+  width: 170px;
   transition: all 0.2s;
 }
 
-.filter-select:focus,
 .filter-number-input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px #5830C520;
 }
 
-.filter-number-input {
-  cursor: text;
-  width: 170px;
+.filter-number-input::placeholder { color: var(--text-muted); }
+
+/* ── قائمة منسدلة مخصّصة ── */
+.dd {
+  position: relative;
+  font-family: 'Tajawal', sans-serif;
 }
 
-.filter-number-input::placeholder { color: var(--text-muted); }
+.dd-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 42px;
+  min-width: 150px;
+  padding: 0 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dd-trigger:hover { border-color: #5830C540; }
+
+.dd--open .dd-trigger {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #5830C520;
+}
+
+.dd-trigger-label {
+  flex: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dd-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.dd--open .dd-chevron { transform: rotate(180deg); color: var(--accent); }
+
+.dd-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.dd-logo--ph {
+  background: #5830C515;
+  border-color: #5830C530;
+}
+
+.dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.16);
+  max-height: 320px;
+  overflow-y: auto;
+  animation: ddIn 0.15s ease;
+}
+
+@keyframes ddIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dd-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.dd-option:hover { background: #5830C50d; color: var(--text-primary); }
+
+.dd-option--active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.dd-option--active:hover { background: var(--accent); color: #fff; }
+
+/* ── شارات مصدر تغيير الحالة ── */
+.src-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
+.src-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.src-badge--system {
+  background: #5830C512;
+  color: var(--accent);
+  border: 1px solid #5830C525;
+}
+
+.src-badge--foodics {
+  background: #0ea5e912;
+  color: #0284c7;
+  border: 1px solid #0ea5e925;
+}
+
+.src-empty { color: var(--text-muted); }
 
 /* ── Filters Bar ── */
 .filters-bar {

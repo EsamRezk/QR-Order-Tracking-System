@@ -160,7 +160,13 @@ export function resolveAppOrderNumber(order) {
   return null
 }
 
-/** رقم الطلب في فوديكس (الرقم المعروض داخل فوديكس). */
+/**
+ * رقم الطلب في فوديكس = حقل `reference` داخل الطلب الخام (الرقم المرجعي المعروض
+ * في فوديكس، مثل 531087). العمود `foodics_order_number` يخزّن `order.number`
+ * (التسلسل اليومي القصير) وهو ليس المطلوب. fallback: العمود ثم order_id.
+ */
 export function resolveFoodicsNumber(order) {
+  const ref = order?.raw_qr_data?.foodics_order?.reference
+  if (ref != null && ref !== '') return String(ref)
   return order?.foodics_order_number || order?.order_id || '—'
 }
