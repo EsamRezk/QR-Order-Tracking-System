@@ -248,6 +248,19 @@ export default function Analytics() {
   // مصدر تغيير الحالة لكل طلب: { [orderId]: { ready: bool, delivered: bool } }
   // وجود سجل scan_log (ready_scan/delivered) = التغيير تمّ من نظامنا؛ غيابه = من فوديكس.
   const [statusSources, setStatusSources] = useState({})
+  // ارتفاع الهيدر الثابت — يُستخدم لتثبيت رأس الجدول أسفله مباشرة عند التمرير
+  const headerRef = useRef(null)
+  const [headerH, setHeaderH] = useState(0)
+
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const update = () => setHeaderH(el.offsetHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -327,6 +340,10 @@ export default function Analytics() {
 
   const branchChartData = useMemo(() => {
     const map = {}
+    // عند عدم تحديد فرع: نُظهر كل الفروع حتى لو بلا طلبات مكتملة (متوسط = 0)
+    if (!selectedBranch) {
+      branches.forEach(b => { map[b.name_ar] = { name: b.name_ar, total: 0, sum: 0 } })
+    }
     orders.forEach(o => {
       if (!o.prep_duration_seconds) return // متوسط التحضير يُحسب فقط على الطلبات المكتملة
       const name = o.branches?.name_ar || 'غير معروف'
@@ -338,7 +355,7 @@ export default function Analytics() {
       name: b.name,
       avg: b.total ? Math.round(b.sum / b.total / 60 * 10) / 10 : 0,
     }))
-  }, [orders])
+  }, [orders, branches, selectedBranch])
 
   const hourlyData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => ({ hour: `${i}:00`, count: 0 }))
@@ -358,9 +375,9 @@ export default function Analytics() {
   ]
 
   return (
-    <div className="analytics-root">
+    <div className="analytics-root" style={{ '--thead-top': `${headerH}px` }}>
       {/* ── Page Header ── */}
-      <header className="page-header">
+      <header className="page-header" ref={headerRef}>
         <div className="header-inner">
           <div className="header-top">
             <div className="header-title-group">

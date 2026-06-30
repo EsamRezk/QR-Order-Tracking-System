@@ -773,7 +773,7 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 18px;
-  overflow: hidden;
+  /* overflow visible حتى يعمل تثبيت رأس الجدول (sticky) بالنسبة للنافذة */
   animation: card-enter 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
   animation-delay: 450ms;
 }
@@ -806,7 +806,13 @@
 }
 
 .table-wrapper {
-  overflow-x: auto;
+  /* على الشاشات الكبيرة: بلا scroll container حتى يثبت رأس الجدول مع تمرير الصفحة.
+     على الجوال: تمرير أفقي للجدول العريض (يلغي تثبيت الرأس وهو مقبول على الجوال). */
+  overflow-x: visible;
+}
+
+@media (max-width: 768px) {
+  .table-wrapper { overflow-x: auto; }
 }
 
 .data-table {
@@ -829,6 +835,11 @@
   letter-spacing: 0.05em;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
+  /* رأس الجدول يبقى ثابتاً أسفل هيدر الصفحة الثابت عند التمرير */
+  position: sticky;
+  top: var(--thead-top, 0);
+  z-index: 20;
+  background: var(--bg-deep);
 }
 
 .data-table td {
