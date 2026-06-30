@@ -18,7 +18,11 @@
   --yellow: #f7941d;
 
   font-family: 'Tajawal', sans-serif;
-  min-height: 100vh;
+  /* تخطيط بارتفاع الشاشة: الهيدر ثابت أعلى، والمحتوى يتمرّر داخلياً (رأس الجدول يثبت معه) */
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-deep);
   color: var(--text-primary);
   direction: rtl;
@@ -46,6 +50,7 @@
   background-image: linear-gradient(135deg, #5830C508 0%, transparent 50%);
   border-bottom: 1px solid var(--border);
   padding: 1rem 0 0.9rem;
+  flex-shrink: 0; /* يبقى ثابتاً أعلى الصفحة، لا يتمرّر */
 }
 
 .header-inner {
@@ -561,9 +566,14 @@
 
 /* ── Main Content ── */
 .main-content {
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   padding: 2rem;
+  /* منطقة التمرير الوحيدة — رأس الجدول (sticky top:0) يثبت بالنسبة إليها */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ── KPI Cards ── */
@@ -814,7 +824,9 @@
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  /* separate (لا collapse) حتى يعمل تثبيت رأس الجدول sticky في كل المتصفحات */
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.85rem;
 }
 
