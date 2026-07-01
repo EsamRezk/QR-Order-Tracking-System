@@ -768,6 +768,7 @@
 
     .disp-card {
         padding: 1.2rem 0.6rem 1rem;
+        gap:10px;
     }
 
     .disp-card-id {
