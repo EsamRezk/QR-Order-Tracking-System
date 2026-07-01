@@ -587,6 +587,181 @@
 }
 
 /* ══════════════════════════════════
+   FILTER BAR (شريط الفلترة)
+   ══════════════════════════════════ */
+.dash-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+}
+
+.dash-filter-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-left: 0.2rem;
+}
+
+.dash-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-solid);
+    border-radius: 100px;
+    padding: 0.45rem 0.95rem;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    transition: all 0.18s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.dash-filter-chip:hover {
+    border-color: var(--accent-light);
+    color: var(--text-primary);
+}
+
+.dash-filter-chip.is-active {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* مربع الاختيار داخل الشريحة */
+.dash-filter-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 2px solid var(--text-muted);
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.18s ease;
+}
+
+.dash-filter-chip.is-active .dash-filter-box {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.dash-filter-chip.is-active .dash-filter-box::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 5px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* ══════════════════════════════════
+   FILTER CONFIRM MODAL (نافذة تأكيد الفلترة)
+   ══════════════════════════════════ */
+.disp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1.25rem;
+    animation: display-enter 0.2s ease both;
+}
+
+.disp-modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 2rem 2.25rem;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+    animation: display-enter 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.disp-modal-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    background: var(--accent-glow);
+    border: 1px solid rgba(88, 48, 197, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.15rem;
+    color: var(--accent);
+}
+
+.disp-modal-icon svg {
+    width: 30px;
+    height: 30px;
+}
+
+.disp-modal-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.disp-modal-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.disp-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.disp-modal-confirm,
+.disp-modal-cancel {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    border: 1.5px solid transparent;
+}
+
+.disp-modal-confirm {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(88, 48, 197, 0.25);
+}
+
+.disp-modal-confirm:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+}
+
+.disp-modal-cancel {
+    background: var(--bg-elevated);
+    border-color: var(--border-solid);
+    color: var(--text-secondary);
+}
+
+.disp-modal-cancel:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+/* ══════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════ */
 @media (min-width: 1200px) {
@@ -656,6 +831,30 @@
 
     .dash-main {
         padding: 1rem;
+    }
+
+    /* ── شريط الفلترة على الجوال ── */
+    .dash-filter-bar {
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .dash-filter-label {
+        width: 100%;
+        font-size: 0.8rem;
+        margin-bottom: 0.1rem;
+    }
+
+    .dash-filter-chip {
+        flex: 1;
+        justify-content: center;
+        padding: 0.6rem 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .disp-modal {
+        padding: 1.75rem 1.5rem;
+        border-radius: 20px;
     }
 
     .dash-brand {

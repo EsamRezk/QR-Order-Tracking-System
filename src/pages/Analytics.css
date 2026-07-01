@@ -815,6 +815,44 @@
   .table-wrapper { overflow-x: auto; }
 }
 
+/* ── ترقيم صفحات الجدول ── */
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 0 0.25rem;
+}
+
+.pagination-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-glow);
+  border: 1px solid #5830C520;
+  padding: 0.4rem 0.9rem;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #5830C520;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  min-width: 6.5rem;
+  text-align: center;
+}
+
 .data-table {
   width: 100%;
   /* separate (لا collapse) حتى يعمل تثبيت رأس الجدول sticky في كل المتصفحات */

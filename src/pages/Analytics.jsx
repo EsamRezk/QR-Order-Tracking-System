@@ -22,6 +22,9 @@ const DATE_RANGES = [
   { label: 'آخر 30 يوم', days: 30, icon: '📊' },
 ]
 
+// عدد الطلبات المعروضة في صفحة الجدول الواحدة
+const PAGE_SIZE = 100
+
 // خيارات فلتر الحالة (الكل + الحالات الفعّالة فقط — بلا ملغي/جديد)
 const STATUS_OPTIONS = [
   { value: 'all', label: 'كل الحالات' },
@@ -245,6 +248,8 @@ export default function Analytics() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [appFilter, setAppFilter] = useState('all')
   const [numberFilter, setNumberFilter] = useState('')
+  // ترقيم صفحات جدول السجل — 100 طلب في الصفحة
+  const [page, setPage] = useState(1)
   // مصدر تغيير الحالة لكل طلب: { [orderId]: { ready: bool, delivered: bool } }
   // وجود سجل scan_log (ready_scan/delivered) = التغيير تمّ من نظامنا؛ غيابه = من فوديكس.
   const [statusSources, setStatusSources] = useState({})
@@ -314,6 +319,16 @@ export default function Analytics() {
       return true
     })
   }, [orders, statusFilter, appFilter, numberFilter])
+
+  // ── ترقيم صفحات الجدول (100/صفحة) ──
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
+  // نرجع للصفحة الأولى عند تغيّر الفلاتر/الفترة/الفرع
+  useEffect(() => { setPage(1) }, [statusFilter, appFilter, numberFilter, dateRange, selectedBranch])
+  const currentPage = Math.min(page, totalPages)
+  const pagedOrders = useMemo(
+    () => filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredOrders, currentPage]
+  )
 
   const stats = useMemo(() => {
     if (orders.length === 0) return { total: 0, avg: 0, fastest: 0, slowest: 0 }
@@ -592,16 +607,39 @@ export default function Analytics() {
                   </div>
                 </div>
               ) : (
-                <div className="table-wrapper">
-                  <table className="data-table">
-                    <OrdersTableHead />
-                    <tbody>
-                      {filteredOrders.map(o => (
-                        <OrderRow key={o.id} order={o} sources={statusSources} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <OrdersTableHead />
+                      <tbody>
+                        {pagedOrders.map(o => (
+                          <OrderRow key={o.id} order={o} sources={statusSources} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="table-pagination">
+                      <button
+                        className="pagination-btn"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage <= 1}
+                      >
+                        ‹ السابق
+                      </button>
+                      <span className="pagination-info">
+                        صفحة {currentPage} من {totalPages}
+                      </span>
+                      <button
+                        className="pagination-btn"
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage >= totalPages}
+                      >
+                        التالي ›
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </>
