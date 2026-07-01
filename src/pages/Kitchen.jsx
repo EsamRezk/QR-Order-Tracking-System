@@ -169,7 +169,7 @@ function KitchenInner() {
                 checked={showAll}
                 onChange={e => setShowAll(e.target.checked)}
               />
-              <span>إظهار كل الطلبات على شاشة العرض</span>
+              <span>إظهار الكل بالعرض</span>
             </label>
           </div>
         </div>
