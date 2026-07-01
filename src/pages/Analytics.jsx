@@ -31,8 +31,10 @@ const FETCH_PAGE = 1000
 // أعمدة الجلب: بدل select('*') الذي يسحب raw_qr_data كاملاً (كيلوبايتات/طلب = بطء شديد)،
 // نجلب الأعمدة المطلوبة فقط + مسارات JSON الصغيرة التي تحتاجها دوال resolve* (قيَم نصية صغيرة).
 // الحمولة تنكمش من عدة KB/طلب إلى ~بايتات، فيتحمّل كل السجل في أقل من ثانية.
+// ملاحظة: delivery_app / channel_link ليست أعمدة حقيقية (تفحصها resolve* كاحتمال فقط
+// وترجع undefined) — لا تُدرَج في الـ select وإلا يفشل الاستعلام (column does not exist).
 const ORDERS_SELECT = [
-  'id', 'status', 'order_id', 'foodics_order_number', 'delivery_app', 'channel_link',
+  'id', 'status', 'order_id', 'foodics_order_number',
   'scanned_at', 'created_at', 'ready_at', 'prep_duration_seconds', 'branch_id',
   'branches(name_ar, name_en)',
   'rq_app_id:raw_qr_data->foodics_order->>app_id',
