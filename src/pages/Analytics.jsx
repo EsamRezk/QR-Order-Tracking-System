@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAllPaged } from '../lib/supabase'
 import { formatDuration } from '../utils/formatTime'
 import { useAuth } from '../context/AuthContext'
 import { exportOrdersToExcel } from '../utils/exportExcel'
@@ -267,28 +267,29 @@ export default function Analytics() {
 
     const fetchOrders = async () => {
       setLoading(true)
-      // نجلب كل الطلبات (بكل الحالات) ضمن الفترة/الفرع — الفلترة بالحالة/التطبيق/الرقم محلية
-      let query = supabase
-        .from('orders')
-        .select('*, branches(name_ar, name_en)')
-        .gte('created_at', getDateFrom(dateRange))
-        .order('created_at', { ascending: false })
-        .limit(1000)
-
-      if (selectedBranch) {
-        query = query.eq('branch_id', selectedBranch)
-      }
-
-      const { data } = await query
-      setOrders(data || [])
+      // نجلب كل الطلبات (بكل الحالات) ضمن الفترة/الفرع — على دفعات 100 لتجاوز حد 1000 صف.
+      // الفلترة بالحالة/التطبيق/الرقم محلية.
+      const data = await fetchAllPaged(() => {
+        let q = supabase
+          .from('orders')
+          .select('*, branches(name_ar, name_en)')
+          .gte('created_at', getDateFrom(dateRange))
+          .order('created_at', { ascending: false })
+        if (selectedBranch) q = q.eq('branch_id', selectedBranch)
+        return q
+      })
+      setOrders(data)
 
       // مصدر تغيير الحالة: نجلب سجلات scan_logs (ready_scan/second_scan/delivered)
       // ضمن نفس الفترة. وجود السجل = تمّ من نظامنا، وغيابه = تمّ من فوديكس.
-      const { data: logs } = await supabase
-        .from('scan_logs')
-        .select('order_id, scan_type')
-        .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
-        .gte('scanned_at', getDateFrom(dateRange))
+      // على دفعات 100 كذلك لتجاوز حد 1000 صف.
+      const logs = await fetchAllPaged(() =>
+        supabase
+          .from('scan_logs')
+          .select('order_id, scan_type')
+          .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
+          .gte('scanned_at', getDateFrom(dateRange))
+      )
       setStatusSources(buildSourceMap(logs))
 
       setLoading(false)

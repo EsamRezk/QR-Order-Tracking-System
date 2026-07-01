@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAllPaged } from '../lib/supabase'
 
 export function useOrders(branchId) {
   const [orders, setOrders] = useState([])
@@ -7,13 +7,15 @@ export function useOrders(branchId) {
 
   const fetchOrders = useCallback(async () => {
     if (!branchId) return
-    // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها.
-    const { data: active } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('branch_id', branchId)
-      .in('status', ['new', 'preparing', 'ready'])
-      .order('created_at', { ascending: false })
+    // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها، على دفعات 100 لتجاوز حد 1000 صف.
+    const active = await fetchAllPaged(() =>
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('branch_id', branchId)
+        .in('status', ['new', 'preparing', 'ready'])
+        .order('created_at', { ascending: false })
+    )
 
     // الطلبات المكتملة (تم تسليمها) — آخر 50 فقط لقسم "تم تسليمها" في شاشة العميل،
     // حتى لا نحمّل كل التاريخ. الـ Realtime يضيف الجديد تلقائياً.
