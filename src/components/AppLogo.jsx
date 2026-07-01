@@ -4,6 +4,8 @@ import logo from '../assets/img/KebbaZone Logo.png'
 export default function AppLogo() {
   // شاشة العرض تستخدم هيدر مضغوط → نصغّر اللوجو ونرفعه ليتناسب معه
   const { pathname } = useLocation()
+  // شاشة الفرع (/kitchen): لا نُظهر لوجو كبة زون إطلاقاً (بطلب المستخدم)
+  if (pathname === '/kitchen') return null
   const compact = pathname === '/display'
 
   return (
