@@ -467,8 +467,8 @@
    ══════════════════════════════════ */
 .disp-grid {
     display: grid;
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-    gap: 1.1rem 0.5rem;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1.4rem 0.55rem;
 }
 
 .disp-card {
@@ -476,14 +476,13 @@
     min-width: 0;
     background: linear-gradient(135deg, #ffffff 0%, rgba(88, 48, 197, 0.04) 100%);
     border: 2px solid rgba(88, 48, 197, 0.2);
-    border-radius: 12px;
-    padding: 0.45rem 0.55rem 0.3rem;
+    border-radius: 18px;
+    padding: 1.05rem 0.55rem 0.7rem;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
     text-align: center;
-    gap: 0.4rem;
+    gap: 0.5rem;
     animation: display-enter 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
@@ -507,10 +506,10 @@
 /* بادج الحالة الملصق أعلى الكرت */
 .disp-card-badge {
     position: absolute;
-    top: -5;
+    top: 0;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     font-weight: 900;
     padding: 0.24rem 0.7rem;
     border-radius: 100px;
@@ -532,18 +531,18 @@
 .disp-card-logo {
     display: flex;
     justify-content: center;
-    flex-shrink: 0;
+    width: 100%;
 }
 
-/* شاشة العرض: لوجو صغير بلا صندوق (بلا إطار/خلفية/ظل) — يمين الكرت، عشان الرقم يبقى بالعرض */
+/* شاشة العرض: نشيل الصندوق حول اللوجو ونكبّر اللوجو ليملأ عرض الكرت */
 .disp-card-logo .app-logo {
-    width: 46px;
-    height: 46px;
+    width: 100%;
+    height: auto;
     aspect-ratio: 1 / 1;
     background: transparent;
     border: none;
     box-shadow: none;
-    border-radius: 10px;
+    border-radius: 14px;
 }
 
 .disp-card-logo .app-logo-img {
@@ -552,11 +551,10 @@
 
 .disp-card-order {
     display: flex;
-    flex: 1;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 0.1rem;
+    max-width: 100%;
     min-width: 0;
 }
 
@@ -568,11 +566,12 @@
 }
 
 .disp-card-id {
-    font-size: 1.7rem;
+    font-size: 3rem;
     font-weight: 900;
     line-height: 1;
     color: var(--text-primary);
-    white-space: nowrap;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 @keyframes display-enter {
@@ -620,16 +619,16 @@
         padding: 1rem 1.5rem 1.5rem;
     }
 
-    /* شاشات كبيرة / تلفاز — 10 طلبات في الصف الواحد (كرت أفقي مستطيل) */
+    /* شاشات كبيرة / تلفاز — 12 طلب في الصف الواحد */
     /* minmax(0,1fr) ضروري: يمنع تمدد الأعمدة فوق عرض الشاشة (overflow-x) */
     .disp-grid {
-        grid-template-columns: repeat(10, minmax(0, 1fr));
-        gap: 1.2rem 0.5rem;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 1.5rem 0.55rem;
     }
 
-    /* الرقم كبير بالعرض (سطر واحد) بجانب اللوجو الصغير */
+    /* الرقم يتكيّف مع عرض العمود حتى لا يفيض داخل الكرت */
     .disp-card-id {
-        font-size: clamp(1.3rem, 1.7vw, 2.1rem);
+        font-size: clamp(1.2rem, 1.55vw, 2rem);
     }
 }
 
@@ -693,12 +692,12 @@
     }
 
     .disp-card {
-        padding: 0.4rem 0.5rem;
-        gap: 0.45rem;
+        padding: 1.2rem 0.6rem 1rem;
+        gap: 0.7rem;
     }
 
     .disp-card-id {
-        font-size: 1.4rem;
+        font-size: 2.2rem;
     }
 
     .disp-card-badge {
@@ -707,8 +706,8 @@
     }
 
     .disp-card-logo .app-logo--lg {
-        width: 46px;
-        height: 46px;
+        width: 64px;
+        height: 64px;
     }
 
     .activate-btn {
