@@ -116,6 +116,81 @@
     cursor: pointer;
 }
 
+/* مجموعة عناصر الهيدر اليمنى (الفلتر + مفتاح شاشة العرض) */
+.kitchen-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* فلتر شاشة الفرع — الكل / النشطة فقط / الجاهزة فقط */
+.kitchen-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.kitchen-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-solid);
+    border-radius: 0.9rem;
+    padding: 0.5rem 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+}
+
+.kitchen-filter-chip:hover {
+    border-color: rgba(88, 48, 197, 0.5);
+    color: var(--text-primary);
+}
+
+.kitchen-filter-chip.is-active {
+    background: rgba(88, 48, 197, 0.08);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* مربع الاختيار داخل الزر */
+.kitchen-filter-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 2px solid var(--text-muted);
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.15s ease;
+}
+
+.kitchen-filter-chip.is-active .kitchen-filter-box {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.kitchen-filter-chip.is-active .kitchen-filter-box::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 5px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
 /* Main content */
 .kitchen-main {
     padding: 1.5rem 2rem 2rem;
@@ -718,6 +793,29 @@
     .kitchen-display-toggle input {
         width: 17px;
         height: 17px;
+    }
+
+    /* الفلتر على الجوال — الزرّان بعرض كامل في صف واحد */
+    .kitchen-header-controls {
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .kitchen-filter-group {
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .kitchen-filter-chip {
+        flex: 1;
+        justify-content: center;
+        padding: 0.55rem 0.5rem;
+        font-size: 0.82rem;
+    }
+
+    .kitchen-display-toggle {
+        width: 100%;
+        justify-content: center;
     }
 
     /* عمودان على الجوال */

@@ -26,6 +26,12 @@ const STATE_BADGE = {
   delivered: 'تم الاستلام',
 }
 
+// نص تأكيد فلتر شاشة الفرع (فلتر محلي لهذه الشاشة فقط)
+const FILTER_CONFIRM = {
+  active: 'هل تريد عرض الطلبات النشطة فقط؟',
+  ready: 'هل تريد عرض الطلبات الجاهزة فقط؟',
+}
+
 export default function Kitchen() {
   const [searchParams] = useSearchParams()
   if (!searchParams.get('branch')) {
@@ -43,9 +49,29 @@ function KitchenInner() {
   const { showAll, setShowAll } = useBranchDisplaySetting(branch?.id)
   // إظهار/إخفاء قسم "تم الاستلام" (محلي لهذه الشاشة فقط)
   const [showDelivered, setShowDelivered] = useState(false)
+  // فلتر شاشة الفرع (محلي فقط): 'all' | 'active' | 'ready'
+  const [filterMode, setFilterMode] = useState('all')
+  // الفلتر المنتظر تأكيده (يفتح نافذة التأكيد)
+  const [pendingFilter, setPendingFilter] = useState(null)
   // confirm = { order, action: 'ready' | 'delivered' }
   const [confirm, setConfirm] = useState(null)
   const [working, setWorking] = useState(false)
+
+  // نقر زر الفلتر: لو مفعّل بالفعل نطفّيه فوراً (رجوع للكل)، وإلا نطلب تأكيداً
+  const toggleFilter = useCallback((mode) => {
+    setFilterMode(prev => {
+      if (prev === mode) return 'all'
+      setPendingFilter(mode)
+      return prev
+    })
+  }, [])
+
+  const confirmFilter = useCallback(() => {
+    setPendingFilter(prev => {
+      if (prev) setFilterMode(prev)
+      return null
+    })
+  }, [])
 
   const handleConfirm = useCallback(async () => {
     if (!confirm || !session?.sessionId) return
@@ -78,11 +104,16 @@ function KitchenInner() {
   }, [confirm, session?.sessionId])
 
   // ترتيب الأولوية: قيد التحضير أولاً، ثم الجاهز. (تم الاستلام في قسمه المنفصل)
-  const activeOrders = [
-    ...preparing.map(order => ({ order, mode: 'preparing' })),
-    ...ready.map(order => ({ order, mode: 'ready' })),
-  ]
+  // الفلتر المحلي: 'ready' = الجاهز فقط، غير ذلك = قيد التحضير + الجاهز.
+  const activeOrders = filterMode === 'ready'
+    ? ready.map(order => ({ order, mode: 'ready' }))
+    : [
+        ...preparing.map(order => ({ order, mode: 'preparing' })),
+        ...ready.map(order => ({ order, mode: 'ready' })),
+      ]
   const hasActive = activeOrders.length > 0
+  // قسم "تم الاستلام" يظهر فقط في وضع "الكل"
+  const deliveredVisible = filterMode === 'all'
   const hasDelivered = delivered.length > 0
 
   if (loading) return <LoadingScreen fullScreen />
@@ -106,21 +137,47 @@ function KitchenInner() {
         <div className="kitchen-header-inner">
           <h1 className="kitchen-branch-name">{branch?.name_ar}</h1>
 
-          {/* مفتاح إظهار كل الطلبات على شاشة العرض (يتزامن realtime) */}
-          <label className="kitchen-display-toggle" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
-            <input
-              type="checkbox"
-              checked={showAll}
-              onChange={e => setShowAll(e.target.checked)}
-            />
-            <span>إظهار كل الطلبات على شاشة العرض</span>
-          </label>
+          <div className="kitchen-header-controls">
+            {/* فلتر شاشة الفرع (محلي) — الكل / النشطة فقط / الجاهزة فقط */}
+            <div className="kitchen-filter-group">
+              <button
+                type="button"
+                className={`kitchen-filter-chip ${filterMode === 'active' ? 'is-active' : ''}`}
+                onClick={() => toggleFilter('active')}
+                role="checkbox"
+                aria-checked={filterMode === 'active'}
+              >
+                <span className="kitchen-filter-box" aria-hidden="true" />
+                <span>النشطة فقط</span>
+              </button>
+              <button
+                type="button"
+                className={`kitchen-filter-chip ${filterMode === 'ready' ? 'is-active' : ''}`}
+                onClick={() => toggleFilter('ready')}
+                role="checkbox"
+                aria-checked={filterMode === 'ready'}
+              >
+                <span className="kitchen-filter-box" aria-hidden="true" />
+                <span>الجاهزة فقط</span>
+              </button>
+            </div>
+
+            {/* مفتاح إظهار كل الطلبات على شاشة العرض (يتزامن realtime) */}
+            <label className="kitchen-display-toggle" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={e => setShowAll(e.target.checked)}
+              />
+              <span>إظهار كل الطلبات على شاشة العرض</span>
+            </label>
+          </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="kitchen-main">
-        {!hasActive && !hasDelivered ? (
+        {!hasActive && !(deliveredVisible && hasDelivered) ? (
           <div className="kitchen-empty-wrap">
             <div className="kitchen-empty">
               <div className="kitchen-empty-icon">
@@ -140,7 +197,9 @@ function KitchenInner() {
             {/* قسم واحد: الطلبات النشطة (قيد التحضير + جاهز) */}
             <section className="kitchen-section">
               <div className="kitchen-section-header">
-                <h2 className="kitchen-section-title">الطلبات النشطة</h2>
+                <h2 className="kitchen-section-title">
+                  {filterMode === 'ready' ? 'الطلبات الجاهزة' : 'الطلبات النشطة'}
+                </h2>
                 <span className="kitchen-section-count">{activeOrders.length}</span>
               </div>
 
@@ -158,12 +217,14 @@ function KitchenInner() {
                   ))}
                 </div>
               ) : (
-                <div className="kitchen-section-empty">لا توجد طلبات نشطة حالياً</div>
+                <div className="kitchen-section-empty">
+                  {filterMode === 'ready' ? 'لا توجد طلبات جاهزة حالياً' : 'لا توجد طلبات نشطة حالياً'}
+                </div>
               )}
             </section>
 
-            {/* قسم تم الاستلام — قابل للطي عبر checkbox */}
-            {hasDelivered && (
+            {/* قسم تم الاستلام — قابل للطي عبر checkbox (يظهر فقط في وضع "الكل") */}
+            {deliveredVisible && hasDelivered && (
               <section className="kitchen-section kitchen-section--delivered">
                 <label className="kitchen-delivered-toggle">
                   <input
@@ -220,6 +281,25 @@ function KitchenInner() {
                 onClick={() => setConfirm(null)}
                 disabled={working}
               >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Confirmation Modal — تأكيد فلتر شاشة الفرع */}
+      {pendingFilter && (
+        <div className="kitchen-modal-overlay" onClick={() => setPendingFilter(null)}>
+          <div className="kitchen-modal" onClick={e => e.stopPropagation()}>
+            <div className="kitchen-modal-icon kitchen-modal-icon--ready">🔍</div>
+            <div className="kitchen-modal-title">{FILTER_CONFIRM[pendingFilter]}</div>
+            <div className="kitchen-modal-subtitle">سيتم تطبيق الفلتر على شاشة الفرع فقط</div>
+            <div className="kitchen-modal-actions">
+              <button className="kitchen-modal-confirm kitchen-modal-confirm--ready" onClick={confirmFilter}>
+                تأكيد
+              </button>
+              <button className="kitchen-modal-cancel" onClick={() => setPendingFilter(null)}>
                 إلغاء
               </button>
             </div>

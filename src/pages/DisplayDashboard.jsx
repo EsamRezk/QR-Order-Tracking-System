@@ -19,12 +19,6 @@ const READY_TIMEOUT_MS = (parseInt(import.meta.env.VITE_READY_TIMEOUT_MINUTES, 1
 // نص البادج العلوي لكل حالة على شاشة العرض (حالتان فقط)
 const DISP_BADGE = { preparing: 'قيد التحضير', ready: 'جاهز' }
 
-// فلتر العرض المحلي — all: كل الطلبات، active: النشطة فقط، ready: الجاهزة فقط
-const FILTER_CONFIRM = {
-  active: 'هل تريد عرض الطلبات النشطة فقط؟',
-  ready: 'هل تريد عرض الطلبات الجاهزة فقط؟',
-}
-
 export default function DisplayDashboard() {
   const [searchParams] = useSearchParams()
 
@@ -52,26 +46,6 @@ function DisplayDashboardInner() {
   const knownPreparingIds = useRef(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [fadingOrders, setFadingOrders] = useState(new Set())
-  // فلتر العرض المحلي: 'all' | 'active' | 'ready'
-  const [filterMode, setFilterMode] = useState('all')
-  // الفلتر المنتظر تأكيده (يفتح نافذة التأكيد)
-  const [pendingFilter, setPendingFilter] = useState(null)
-
-  // نقر الشيك بوكس: لو مفعّل بالفعل نطفّيه فوراً (رجوع للكل)، وإلا نطلب تأكيداً
-  const toggleFilter = useCallback((mode) => {
-    setFilterMode(prev => {
-      if (prev === mode) return 'all'
-      setPendingFilter(mode)
-      return prev
-    })
-  }, [])
-
-  const confirmFilter = useCallback(() => {
-    setPendingFilter(prev => {
-      if (prev) setFilterMode(prev)
-      return null
-    })
-  }, [])
 
   // Auto-clear ready orders after timeout
   const completeOrder = useCallback(async (orderId) => {
@@ -160,12 +134,6 @@ function DisplayDashboardInner() {
 
   const totalActive = visPreparing.length + visReady.length
 
-  // تطبيق الفلتر المحلي على ما يُعرض فعلياً
-  const gridPreparing = filterMode === 'ready' ? [] : visPreparing
-  const gridReady = visReady // الجاهزة تظهر في كل الأوضاع
-  const gridDelivered = filterMode === 'all' ? visDelivered : []
-  const displayedActive = gridPreparing.length + gridReady.length
-
   /* ── Main Dashboard ── */
   return (
     <div className="display-root">
@@ -216,32 +184,7 @@ function DisplayDashboardInner() {
 
       {/* ── Content ── */}
       <main className="dash-main">
-        {/* ── شريط الفلترة ── */}
-        <div className="dash-filter-bar">
-          <span className="dash-filter-label">عرض:</span>
-          <button
-            type="button"
-            className={`dash-filter-chip ${filterMode === 'active' ? 'is-active' : ''}`}
-            onClick={() => toggleFilter('active')}
-            role="checkbox"
-            aria-checked={filterMode === 'active'}
-          >
-            <span className="dash-filter-box" aria-hidden="true" />
-            <span className="dash-filter-text">النشطة فقط</span>
-          </button>
-          <button
-            type="button"
-            className={`dash-filter-chip ${filterMode === 'ready' ? 'is-active' : ''}`}
-            onClick={() => toggleFilter('ready')}
-            role="checkbox"
-            aria-checked={filterMode === 'ready'}
-          >
-            <span className="dash-filter-box" aria-hidden="true" />
-            <span className="dash-filter-text">الجاهزة فقط</span>
-          </button>
-        </div>
-
-        {displayedActive === 0 && gridDelivered.length === 0 ? (
+        {totalActive === 0 && visDelivered.length === 0 ? (
           <div className="dash-empty-wrap">
             <div className="dash-empty">
               <div className="dash-empty-icon">
@@ -249,11 +192,7 @@ function DisplayDashboardInner() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
                 </svg>
               </div>
-              <div className="dash-empty-title">
-                {filterMode === 'ready' ? 'لا توجد طلبات جاهزة'
-                  : filterMode === 'active' ? 'لا توجد طلبات نشطة'
-                  : 'لا توجد طلبات نشطة'}
-              </div>
+              <div className="dash-empty-title">لا توجد طلبات نشطة</div>
               <div className="dash-empty-subtitle">
                 <span className="dash-empty-dot" />
                 في انتظار طلبات جديدة...
@@ -262,12 +201,12 @@ function DisplayDashboardInner() {
           </div>
         ) : (
           <>
-            {displayedActive > 0 && (
+            {totalActive > 0 && (
               <div className="disp-grid">
                 {/* الأولوية للجاهز ثم قيد التحضير */}
                 {[
-                  ...gridReady.map(order => ({ order, mode: 'ready' })),
-                  ...gridPreparing.map(order => ({ order, mode: 'preparing' })),
+                  ...visReady.map(order => ({ order, mode: 'ready' })),
+                  ...visPreparing.map(order => ({ order, mode: 'preparing' })),
                 ].map(({ order, mode }) => (
                   <DisplayCard
                     key={order.id}
@@ -278,34 +217,11 @@ function DisplayDashboardInner() {
                 ))}
               </div>
             )}
-            {/* قسم "تم تسليمها" — مطوي افتراضياً (يظهر فقط في وضع الكل) */}
-            {filterMode === 'all' && <DeliveredColumn orders={visDelivered} />}
+            {/* قسم "تم تسليمها" — مطوي افتراضياً */}
+            <DeliveredColumn orders={visDelivered} />
           </>
         )}
       </main>
-
-      {/* ── نافذة تأكيد الفلترة ── */}
-      {pendingFilter && (
-        <div className="disp-modal-overlay" onClick={() => setPendingFilter(null)}>
-          <div className="disp-modal" onClick={e => e.stopPropagation()}>
-            <div className="disp-modal-icon">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18M6 9h12M9 13.5h6M11 18h2" />
-              </svg>
-            </div>
-            <div className="disp-modal-title">{FILTER_CONFIRM[pendingFilter]}</div>
-            <div className="disp-modal-subtitle">سيتم تطبيق الفلتر على شاشة العرض فوراً</div>
-            <div className="disp-modal-actions">
-              <button type="button" className="disp-modal-confirm" onClick={confirmFilter}>
-                تأكيد
-              </button>
-              <button type="button" className="disp-modal-cancel" onClick={() => setPendingFilter(null)}>
-                إلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
