@@ -57,11 +57,12 @@ function KitchenInner() {
   const [confirm, setConfirm] = useState(null)
   const [working, setWorking] = useState(false)
 
-  // نقر زر الفلتر: لو مفعّل بالفعل نطفّيه فوراً (رجوع للكل)، وإلا نطلب تأكيداً
-  const toggleFilter = useCallback((mode) => {
+  // اختيار تاب الفلتر: "الكل" فوري بلا تأكيد، "النشطة"/"الجاهزة" تتطلب تأكيداً
+  const selectFilter = useCallback((mode) => {
     setFilterMode(prev => {
-      if (prev === mode) return 'all'
-      setPendingFilter(mode)
+      if (prev === mode) return prev       // نفس التاب — لا شيء
+      if (mode === 'all') return 'all'     // رجوع للكل فوري
+      setPendingFilter(mode)               // فلتر — افتح نافذة التأكيد
       return prev
     })
   }, [])
@@ -132,45 +133,64 @@ function KitchenInner() {
 
   return (
     <div className="kitchen-root">
-      {/* Header — اسم الفرع + مفتاح إظهار الطلبات على شاشة العرض فقط */}
+      {/* Header — براند + حالة + مفتاح شاشة العرض + تابات فلترة */}
       <header className="kitchen-header">
         <div className="kitchen-header-inner">
-          <h1 className="kitchen-branch-name">{branch?.name_ar}</h1>
-
-          <div className="kitchen-header-controls">
-            {/* فلتر شاشة الفرع (محلي) — الكل / النشطة فقط / الجاهزة فقط */}
-            <div className="kitchen-filter-group">
-              <button
-                type="button"
-                className={`kitchen-filter-chip ${filterMode === 'active' ? 'is-active' : ''}`}
-                onClick={() => toggleFilter('active')}
-                role="checkbox"
-                aria-checked={filterMode === 'active'}
-              >
-                <span className="kitchen-filter-box" aria-hidden="true" />
-                <span>النشطة فقط</span>
-              </button>
-              <button
-                type="button"
-                className={`kitchen-filter-chip ${filterMode === 'ready' ? 'is-active' : ''}`}
-                onClick={() => toggleFilter('ready')}
-                role="checkbox"
-                aria-checked={filterMode === 'ready'}
-              >
-                <span className="kitchen-filter-box" aria-hidden="true" />
-                <span>الجاهزة فقط</span>
-              </button>
+          {/* الصف العلوي: البراند يميناً + مفتاح شاشة العرض يساراً */}
+          <div className="kt-hdr-top">
+            <div className="kt-brand">
+              <div className="kt-logo">{(branch?.name_ar || '').trim().slice(0, 2) || 'فـ'}</div>
+              <div className="kt-brand-text">
+                <div className="kt-name">{branch?.name_ar}</div>
+                <div className="kt-status">
+                  <span className="kt-status-dot" />متصل الآن
+                </div>
+              </div>
             </div>
 
             {/* مفتاح إظهار كل الطلبات على شاشة العرض (يتزامن realtime) */}
-            <label className="kitchen-display-toggle" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
+            <label className="kt-display-switch" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
               <input
                 type="checkbox"
                 checked={showAll}
                 onChange={e => setShowAll(e.target.checked)}
               />
-              <span>إظهار الكل بالعرض</span>
+              <span className="kt-switch-track"><span className="kt-switch-thumb" /></span>
+              <span className="kt-switch-label">إظهار الكل بالعرض</span>
             </label>
+          </div>
+
+          {/* تابات فلترة شاشة الفرع (محلي) — النشطة / الجاهزة / الكل */}
+          <div className="kt-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterMode === 'active'}
+              className={`kt-tab ${filterMode === 'active' ? 'active' : ''}`}
+              onClick={() => selectFilter('active')}
+            >
+              النشطة
+              <span className="kt-tab-count">{preparing.length + ready.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterMode === 'ready'}
+              className={`kt-tab ${filterMode === 'ready' ? 'active' : ''}`}
+              onClick={() => selectFilter('ready')}
+            >
+              الجاهزة
+              <span className="kt-tab-count">{ready.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filterMode === 'all'}
+              className={`kt-tab ${filterMode === 'all' ? 'active' : ''}`}
+              onClick={() => selectFilter('all')}
+            >
+              الكل
+            </button>
           </div>
         </div>
       </header>
