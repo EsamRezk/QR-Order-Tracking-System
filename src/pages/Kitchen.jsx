@@ -1,23 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
 import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
 import { useAuth } from '../context/AuthContext'
-import { formatElapsed } from '../utils/formatTime'
 import { supabase } from '../lib/supabase'
 import { resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
-import { DeliveryAppLogo, DeliveryAppPill } from '../components/DeliveryAppBadge'
+import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
 import './Kitchen.css'
-
-const ORDER_TYPE_LABELS = {
-  dine_in: 'محلي',
-  pickup: 'استلام',
-  delivery: 'توصيل',
-  drive_thru: 'سيارة',
-}
 
 // نصوص ولون البادج الملصق أعلى الكارت لكل حالة
 const STATE_BADGE = {
@@ -338,21 +330,6 @@ function KitchenInner() {
 }
 
 function KitchenCard({ order, mode, onAction }) {
-  // قيد التحضير: العداد منذ بدء التجهيز (scanned_at). جاهز: منذ الجاهزية. تم الاستلام: منذ التسليم.
-  const timeField =
-    mode === 'delivered'
-      ? (order.delivered_at || order.completed_at || order.ready_at)
-      : mode === 'ready'
-        ? (order.ready_at || order.scanned_at)
-        : order.scanned_at
-  const [elapsed, setElapsed] = useState(() => formatElapsed(timeField))
-
-  useEffect(() => {
-    setElapsed(formatElapsed(timeField))
-    const interval = setInterval(() => setElapsed(formatElapsed(timeField)), 1000)
-    return () => clearInterval(interval)
-  }, [timeField])
-
   // هوية تطبيق التوصيل: تُحدّد لون كارت "قيد التحضير" فقط. (جاهز=أزرق، تم الاستلام=أخضر عبر CSS)
   const app = resolveDeliveryApp(order)
 
@@ -365,38 +342,20 @@ function KitchenCard({ order, mode, onAction }) {
         }
       : undefined
 
+  // نفس تصميم كرت شاشة العرض بالظبط (بادج + لوجو كبير بعرض الكرت + رقم كبير) + زر الإجراء
   return (
     <div className={`kitchen-card kitchen-card--${mode}`} style={cardStyle}>
       {/* بادج الحالة الملصق أعلى الكارت */}
       <span className={`kitchen-card-badge kitchen-card-badge--${mode}`}>{STATE_BADGE[mode]}</span>
 
-      {/* لوجو التطبيق في الأعلى (موحّد لكل الكروت) */}
+      {/* لوجو التطبيق يملأ عرض الكرت (مطابق لشاشة العرض) */}
       <div className="kitchen-card-logo">
-        <DeliveryAppLogo app={app} size="md" />
+        <DeliveryAppLogo app={app} size="lg" />
       </div>
 
-      {/* نوع الطلب — صف ثابت لا يلتف (نفس المكان في كل الكروت) */}
-      <div className="kitchen-card-tags">
-        {order.order_type && (
-          <span className="kitchen-card-type" style={{ background: hexToRgba(app.color, 0.14), color: app.ink }}>
-            {ORDER_TYPE_LABELS[order.order_type] || order.order_type}
-          </span>
-        )}
-        <DeliveryAppPill app={app} size="sm" />
-      </div>
-
-      {/* رقم الطلب — "طلب" ملاصقة فوق الرقم */}
+      {/* رقم الطلب — كبير في المنتصف */}
       <div className="kitchen-card-order">
-        <span className="kitchen-card-order-lbl">طلب</span>
         <span className="kitchen-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
-      </div>
-
-      {/* الوقت */}
-      <div className="kitchen-card-time">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        {elapsed}
       </div>
 
       {/* الزر: قيد التحضير → "جهز" (أزرق)، جاهز → "تم التسليم" (أخضر)، تم الاستلام → بلا زر */}
