@@ -23,7 +23,56 @@ const DATE_RANGES = [
 ]
 
 // عدد الطلبات المعروضة في صفحة الجدول الواحدة
-const PAGE_SIZE = 100
+const PAGE_SIZE = 50
+
+// حجم الدفعة عند جلب كل الطلبات (أقصى ما تسمح به Supabase = 1000/طلب) — أقل عدد round-trips.
+const FETCH_PAGE = 1000
+
+// أعمدة الجلب: بدل select('*') الذي يسحب raw_qr_data كاملاً (كيلوبايتات/طلب = بطء شديد)،
+// نجلب الأعمدة المطلوبة فقط + مسارات JSON الصغيرة التي تحتاجها دوال resolve* (قيَم نصية صغيرة).
+// الحمولة تنكمش من عدة KB/طلب إلى ~بايتات، فيتحمّل كل السجل في أقل من ثانية.
+const ORDERS_SELECT = [
+  'id', 'status', 'order_id', 'foodics_order_number', 'delivery_app', 'channel_link',
+  'scanned_at', 'created_at', 'ready_at', 'prep_duration_seconds', 'branch_id',
+  'branches(name_ar, name_en)',
+  'rq_app_id:raw_qr_data->foodics_order->>app_id',
+  'rq_reference:raw_qr_data->foodics_order->>reference',
+  'rq_reference_x:raw_qr_data->foodics_order->>reference_x',
+  'rq_external_number:raw_qr_data->foodics_order->meta->>external_number',
+  'rq_channel_link:raw_qr_data->foodics_order->meta->>channelLink',
+  'rq_agg_name:raw_qr_data->foodics_order->aggregator->>name',
+  'rq_agg_ref:raw_qr_data->foodics_order->aggregator->>reference',
+  'rq_del_agg_name:raw_qr_data->foodics_order->delivery->aggregator->>name',
+  'rq_del_co_name:raw_qr_data->foodics_order->delivery_company->>name',
+  'rq_customer_name:raw_qr_data->foodics_order->customer->>name',
+  'rq_tags:raw_qr_data->foodics_order->tags',
+].join(', ')
+
+// يعيد بناء الشكل المتداخل raw_qr_data.foodics_order من المسارات المسطّحة المجلوبة،
+// حتى تعمل دوال resolveDeliveryApp/resolveAppOrderNumber/resolveFoodicsNumber بلا تغيير.
+function hydrateOrder(r) {
+  const {
+    rq_app_id, rq_reference, rq_reference_x, rq_external_number, rq_channel_link,
+    rq_agg_name, rq_agg_ref, rq_del_agg_name, rq_del_co_name, rq_customer_name, rq_tags,
+    ...rest
+  } = r
+  return {
+    ...rest,
+    raw_qr_data: {
+      foodics_order: {
+        app_id: rq_app_id ?? undefined,
+        reference: rq_reference ?? undefined,
+        reference_x: rq_reference_x ?? undefined,
+        meta: { external_number: rq_external_number ?? undefined, channelLink: rq_channel_link ?? undefined },
+        aggregator: { name: rq_agg_name ?? undefined, reference: rq_agg_ref ?? undefined },
+        delivery: { aggregator: { name: rq_del_agg_name ?? undefined } },
+        delivery_company: { name: rq_del_co_name ?? undefined },
+        customer: { name: rq_customer_name ?? undefined },
+        tags: rq_tags ?? undefined,
+      },
+    },
+  }
+}
 
 // خيارات فلتر الحالة (الكل + الحالات الفعّالة فقط — بلا ملغي/جديد)
 const STATUS_OPTIONS = [
@@ -272,29 +321,28 @@ export default function Analytics() {
 
     const fetchOrders = async () => {
       setLoading(true)
-      // نجلب كل الطلبات (بكل الحالات) ضمن الفترة/الفرع — على دفعات 100 لتجاوز حد 1000 صف.
-      // الفلترة بالحالة/التطبيق/الرقم محلية.
+      // نجلب كل الطلبات (بكل الحالات) ضمن الفترة/الفرع — أعمدة مختارة فقط (بلا raw_qr_data
+      // الكامل) على دفعات 1000، فالحمولة صغيرة والتحميل سريع. الفلترة بالحالة/التطبيق/الرقم محلية.
       const data = await fetchAllPaged(() => {
         let q = supabase
           .from('orders')
-          .select('*, branches(name_ar, name_en)')
+          .select(ORDERS_SELECT)
           .gte('created_at', getDateFrom(dateRange))
           .order('created_at', { ascending: false })
         if (selectedBranch) q = q.eq('branch_id', selectedBranch)
         return q
-      })
-      setOrders(data)
+      }, FETCH_PAGE)
+      setOrders(data.map(hydrateOrder))
 
       // مصدر تغيير الحالة: نجلب سجلات scan_logs (ready_scan/second_scan/delivered)
       // ضمن نفس الفترة. وجود السجل = تمّ من نظامنا، وغيابه = تمّ من فوديكس.
-      // على دفعات 100 كذلك لتجاوز حد 1000 صف.
       const logs = await fetchAllPaged(() =>
         supabase
           .from('scan_logs')
           .select('order_id, scan_type')
           .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
           .gte('scanned_at', getDateFrom(dateRange))
-      )
+      , FETCH_PAGE)
       setStatusSources(buildSourceMap(logs))
 
       setLoading(false)

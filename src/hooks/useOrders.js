@@ -7,7 +7,7 @@ export function useOrders(branchId) {
 
   const fetchOrders = useCallback(async () => {
     if (!branchId) return
-    // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها، على دفعات 100 لتجاوز حد 1000 صف.
+    // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها، على دفعات 1000 لتجاوز حد 1000 صف بأقل round-trips.
     const active = await fetchAllPaged(() =>
       supabase
         .from('orders')
@@ -15,7 +15,7 @@ export function useOrders(branchId) {
         .eq('branch_id', branchId)
         .in('status', ['new', 'preparing', 'ready'])
         .order('created_at', { ascending: false })
-    )
+    , 1000)
 
     // الطلبات المكتملة (تم تسليمها) — آخر 50 فقط لقسم "تم تسليمها" في شاشة العميل،
     // حتى لا نحمّل كل التاريخ. الـ Realtime يضيف الجديد تلقائياً.
