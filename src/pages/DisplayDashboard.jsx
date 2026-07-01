@@ -35,8 +35,8 @@ function DisplayDashboardInner() {
   const { branch, loading, error } = useBranch()
   const { preparing, ready, delivered } = useOrders(branch?.id)
   // إعداد الفرع: لو unchecked → نُظهر طلبات تطبيقات التوصيل فقط (نخفي غير-التوصيل).
-  // يتزامن realtime مع شاشة الفرع التي تتحكم فيه.
-  const { showAll } = useBranchDisplaySetting(branch?.id)
+  // displayMode: يتحكم فيما تعرضه الشاشة (الكل/الجاهز/النشط/عمودين) — يُضبط من شاشة الفرع، يتزامن realtime.
+  const { showAll, displayMode } = useBranchDisplaySetting(branch?.id)
   const visPreparing = showAll ? preparing : preparing.filter(isDeliveryAppOrder)
   const visReady = showAll ? ready : ready.filter(isDeliveryAppOrder)
   const visDelivered = showAll ? delivered : delivered.filter(isDeliveryAppOrder)
@@ -134,6 +134,14 @@ function DisplayDashboardInner() {
 
   const totalActive = visPreparing.length + visReady.length
 
+  // تطبيق وضع العرض (يُضبط من شاشة الفرع): الكل / الجاهز / النشط / عمودين
+  const isSplit = displayMode === 'split'
+  const gridReady = displayMode === 'all' || displayMode === 'ready' || isSplit ? visReady : []
+  const gridPreparing = displayMode === 'all' || displayMode === 'preparing' || isSplit ? visPreparing : []
+  const showDelivered = displayMode === 'all'
+  const displayedActive = gridReady.length + gridPreparing.length
+  const emptyTitle = displayMode === 'ready' ? 'لا توجد طلبات جاهزة' : 'لا توجد طلبات نشطة'
+
   /* ── Main Dashboard ── */
   return (
     <div className="display-root">
@@ -184,7 +192,7 @@ function DisplayDashboardInner() {
 
       {/* ── Content ── */}
       <main className="dash-main">
-        {totalActive === 0 && visDelivered.length === 0 ? (
+        {displayedActive === 0 && !(showDelivered && visDelivered.length > 0) ? (
           <div className="dash-empty-wrap">
             <div className="dash-empty">
               <div className="dash-empty-icon">
@@ -192,21 +200,45 @@ function DisplayDashboardInner() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
                 </svg>
               </div>
-              <div className="dash-empty-title">لا توجد طلبات نشطة</div>
+              <div className="dash-empty-title">{emptyTitle}</div>
               <div className="dash-empty-subtitle">
                 <span className="dash-empty-dot" />
                 في انتظار طلبات جديدة...
               </div>
             </div>
           </div>
+        ) : isSplit ? (
+          /* ── وضع العمودين: يمين "جاهز" + يسار "قيد التجهيز" (7 لكل صف) ── */
+          <div className="disp-split">
+            <section className="disp-split-col">
+              <div className="disp-split-head disp-split-head--ready">
+                جاهز <span className="disp-split-count">{gridReady.length}</span>
+              </div>
+              <div className="disp-grid disp-grid--split">
+                {gridReady.map(order => (
+                  <DisplayCard key={order.id} order={order} mode="ready" fading={fadingOrders.has(order.id)} />
+                ))}
+              </div>
+            </section>
+            <section className="disp-split-col">
+              <div className="disp-split-head disp-split-head--preparing">
+                قيد التجهيز <span className="disp-split-count">{gridPreparing.length}</span>
+              </div>
+              <div className="disp-grid disp-grid--split">
+                {gridPreparing.map(order => (
+                  <DisplayCard key={order.id} order={order} mode="preparing" fading={fadingOrders.has(order.id)} />
+                ))}
+              </div>
+            </section>
+          </div>
         ) : (
           <>
-            {totalActive > 0 && (
+            {displayedActive > 0 && (
               <div className="disp-grid">
                 {/* الأولوية للجاهز ثم قيد التحضير */}
                 {[
-                  ...visReady.map(order => ({ order, mode: 'ready' })),
-                  ...visPreparing.map(order => ({ order, mode: 'preparing' })),
+                  ...gridReady.map(order => ({ order, mode: 'ready' })),
+                  ...gridPreparing.map(order => ({ order, mode: 'preparing' })),
                 ].map(({ order, mode }) => (
                   <DisplayCard
                     key={order.id}
@@ -217,8 +249,8 @@ function DisplayDashboardInner() {
                 ))}
               </div>
             )}
-            {/* قسم "تم تسليمها" — مطوي افتراضياً */}
-            <DeliveredColumn orders={visDelivered} />
+            {/* قسم "تم تسليمها" — يظهر فقط في وضع "الكل" */}
+            {showDelivered && <DeliveredColumn orders={visDelivered} />}
           </>
         )}
       </main>

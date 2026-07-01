@@ -129,59 +129,65 @@
     50% { box-shadow: 0 0 0 5px rgba(22, 163, 74, 0); }
 }
 
-/* ── مفتاح "إظهار الكل بالعرض" — سويتش مدمج ── */
-.kt-display-switch {
+/* ── قائمة اختيار وضع شاشة العرض (dropdown) ── */
+.kt-display-select {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     cursor: pointer;
     user-select: none;
     flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
 }
 
-.kt-display-switch input {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.kt-switch-track {
-    width: 38px;
-    height: 22px;
-    border-radius: 999px;
-    background: var(--border-solid);
-    position: relative;
-    transition: background 0.2s ease;
-    flex-shrink: 0;
-}
-
-.kt-switch-thumb {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.kt-display-switch input:checked + .kt-switch-track {
-    background: var(--accent);
-}
-
-.kt-display-switch input:checked + .kt-switch-track .kt-switch-thumb {
-    transform: translateX(-16px);
-}
-
-.kt-switch-label {
-    font-size: 0.78rem;
+.kt-display-select-lbl {
+    font-size: 0.72rem;
     font-weight: 700;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     white-space: nowrap;
+}
+
+.kt-display-select-box {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.kt-display-select-box select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--accent);
+    background: rgba(88, 48, 197, 0.06);
+    border: 1.5px solid rgba(88, 48, 197, 0.25);
+    border-radius: 0.75rem;
+    padding: 0.5rem 2rem 0.5rem 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    outline: none;
+    max-width: 100%;
+}
+
+.kt-display-select-box select:hover {
+    border-color: var(--accent);
+    background: rgba(88, 48, 197, 0.1);
+}
+
+.kt-display-select-box select:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(88, 48, 197, 0.15);
+}
+
+/* السهم — على اليسار لأن الاتجاه RTL والـ padding يسار */
+.kt-display-select-caret {
+    position: absolute;
+    left: 0.6rem;
+    width: 15px;
+    height: 15px;
+    color: var(--accent);
+    pointer-events: none;
 }
 
 /* ── تابات الفلترة — النشطة / الجاهزة / الكل ── */
@@ -847,8 +853,13 @@
         gap: 0.5rem;
     }
 
-    .kt-switch-label {
-        font-size: 0.72rem;
+    .kt-display-select {
+        gap: 0.35rem;
+    }
+
+    .kt-display-select-box select {
+        font-size: 0.78rem;
+        padding: 0.45rem 1.8rem 0.45rem 0.7rem;
     }
 
     .kt-tabs {

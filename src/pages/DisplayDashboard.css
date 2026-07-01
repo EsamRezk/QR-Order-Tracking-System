@@ -471,6 +471,60 @@
     gap: 1.4rem 0.55rem;
 }
 
+/* ══════════════════════════════════
+   SPLIT VIEW (وضع العمودين: يمين جاهز | يسار قيد التجهيز)
+   ══════════════════════════════════ */
+.disp-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.disp-split-col {
+    min-width: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 0.9rem 0.85rem 1.1rem;
+}
+
+.disp-split-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 1.15rem;
+    font-weight: 900;
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--border-solid);
+}
+
+.disp-split-head--ready {
+    color: #2563eb;
+    border-bottom-color: rgba(37, 99, 235, 0.35);
+}
+
+.disp-split-head--preparing {
+    color: #B58100;
+    border-bottom-color: rgba(255, 196, 0, 0.4);
+}
+
+.disp-split-count {
+    font-size: 0.85rem;
+    font-weight: 800;
+    padding: 0.1rem 0.6rem;
+    border-radius: 100px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+}
+
+/* شبكة كل عمود — 7 كروت في الصف (على الشاشات الكبيرة) */
+.disp-grid.disp-grid--split {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1.2rem 0.5rem;
+}
+
 .disp-card {
     position: relative;
     min-width: 0;
@@ -641,6 +695,11 @@
     .dash-controls-area {
         padding-left: 0;
     }
+
+    /* وضع العمودين على التابلت — 4 كروت في الصف لكل عمود */
+    .disp-grid.disp-grid--split {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 768px) {
@@ -689,6 +748,22 @@
     .disp-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 1.6rem 0.7rem;
+    }
+
+    /* وضع العمودين على الجوال — العمودان فوق بعض وكل شبكة عمودين */
+    .disp-split {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .disp-grid.disp-grid--split {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.6rem 0.7rem;
+    }
+
+    .disp-split-head {
+        font-size: 1rem;
+        margin-bottom: 0.9rem;
     }
 
     .disp-card {

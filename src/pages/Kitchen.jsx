@@ -45,8 +45,8 @@ function KitchenInner() {
   const { branch, loading, error } = useBranch()
   // الورك فلو (delivery-driven): الطلب يدخل "قيد التحضير" مباشرة (بلا خطوة استلام).
   const { preparing, ready, delivered } = useOrders(branch?.id)
-  // مفتاح "إظهار كل الطلبات على شاشة العرض" (يتحكم في شاشة العرض فقط)
-  const { showAll, setShowAll } = useBranchDisplaySetting(branch?.id)
+  // وضع عرض الطلبات على شاشة العرض (يتحكم في شاشة العرض فقط، يتزامن realtime)
+  const { displayMode, setDisplayMode } = useBranchDisplaySetting(branch?.id)
   // إظهار/إخفاء قسم "تم الاستلام" (محلي لهذه الشاشة فقط)
   const [showDelivered, setShowDelivered] = useState(false)
   // فلتر شاشة الفرع (محلي فقط): 'all' | 'active' | 'ready'
@@ -148,15 +148,23 @@ function KitchenInner() {
               </div>
             </div>
 
-            {/* مفتاح إظهار كل الطلبات على شاشة العرض (يتزامن realtime) */}
-            <label className="kt-display-switch" title="عند التفعيل: شاشة العرض تُظهر كل الطلبات. عند الإيقاف: تُظهر طلبات التوصيل فقط.">
-              <input
-                type="checkbox"
-                checked={showAll}
-                onChange={e => setShowAll(e.target.checked)}
-              />
-              <span className="kt-switch-track"><span className="kt-switch-thumb" /></span>
-              <span className="kt-switch-label">إظهار الكل بالعرض</span>
+            {/* اختيار وضع شاشة العرض (يتزامن realtime مع شاشة العرض) */}
+            <label className="kt-display-select" title="يتحكم فيما تعرضه شاشة العرض">
+              <span className="kt-display-select-lbl">شاشة العرض</span>
+              <div className="kt-display-select-box">
+                <select
+                  value={displayMode}
+                  onChange={e => setDisplayMode(e.target.value)}
+                >
+                  <option value="all">إظهار الكل</option>
+                  <option value="ready">إظهار الجاهز</option>
+                  <option value="preparing">إظهار النشط</option>
+                  <option value="split">النشط + الجاهز (عمودين)</option>
+                </select>
+                <svg className="kt-display-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                </svg>
+              </div>
             </label>
           </div>
 
