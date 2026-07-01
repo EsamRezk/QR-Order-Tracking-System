@@ -544,6 +544,7 @@
 .disp-card--ready {
     border-color: rgba(37, 99, 235, 0.5);
     background: linear-gradient(150deg, rgba(37, 99, 235, 0.14) 0%, #ffffff 55%);
+    gap: 0.5rem;
 }
 
 .disp-card--fading {
