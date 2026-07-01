@@ -507,10 +507,10 @@
 /* بادج الحالة الملصق أعلى الكرت */
 .disp-card-badge {
     position: absolute;
-    top: 0;
+    top: -5;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.72rem;
+    font-size: 0.6rem;
     font-weight: 900;
     padding: 0.24rem 0.7rem;
     border-radius: 100px;
