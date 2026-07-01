@@ -250,7 +250,6 @@ function DisplayCard({ order, mode, fading = false }) {
       </div>
 
       <div className="disp-card-order">
-        <span className="disp-card-order-lbl">طلب</span>
         <span className="disp-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
       </div>
     </div>

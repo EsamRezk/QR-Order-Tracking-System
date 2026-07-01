@@ -42,15 +42,14 @@ export function formatTime(date) {
 }
 
 export function formatClock() {
+  // ساعة العرض بالأرقام الإنجليزية (12h، بلا AM/PM) — HH:MM:SS
   const now = new Date()
-  const timePart = now.toLocaleTimeString('ar-SA', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  })
-  const timeOnly = timePart.replace(/[صم]/g, '').trim()
-  return timeOnly
+  let h = now.getHours() % 12
+  if (h === 0) h = 12
+  const hh = String(h).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  const ss = String(now.getSeconds()).padStart(2, '0')
+  return `${hh}:${mm}:${ss}`
 }
 
 export function formatDate() {
