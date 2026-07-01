@@ -139,7 +139,6 @@ function KitchenInner() {
           {/* الصف العلوي: البراند يميناً + مفتاح شاشة العرض يساراً */}
           <div className="kt-hdr-top">
             <div className="kt-brand">
-              <div className="kt-logo">{(branch?.name_ar || '').trim().slice(0, 2) || 'فـ'}</div>
               <div className="kt-brand-text">
                 <div className="kt-name">{branch?.name_ar}</div>
                 <div className="kt-status">

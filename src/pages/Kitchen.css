@@ -75,21 +75,6 @@
     min-width: 0;
 }
 
-.kt-logo {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 1.05rem;
-    flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(88, 48, 197, 0.22);
-}
-
 .kt-brand-text {
     min-width: 0;
 }
@@ -829,13 +814,6 @@
 
     .kitchen-main {
         padding: 0.85rem 0.75rem;
-    }
-
-    .kt-logo {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        font-size: 0.9rem;
     }
 
     .kt-name {

@@ -7,27 +7,29 @@ export function useOrders(branchId) {
 
   const fetchOrders = useCallback(async () => {
     if (!branchId) return
-    // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها، على دفعات 1000 لتجاوز حد 1000 صف بأقل round-trips.
-    const active = await fetchAllPaged(() =>
+    // نقرأ من v_orders_display (نفس أعمدة orders لكن raw_qr_data مُقلّم = payload أخف بكثير).
+    // النشط والمكتمل بالتوازي (Promise.all) لتقليل زمن التحميل.
+    const [active, completedRes] = await Promise.all([
+      // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها، على دفعات 1000 لتجاوز حد 1000 صف.
+      fetchAllPaged(() =>
+        supabase
+          .from('v_orders_display')
+          .select('*')
+          .eq('branch_id', branchId)
+          .in('status', ['new', 'preparing', 'ready'])
+          .order('created_at', { ascending: false })
+      , 1000),
+      // الطلبات المكتملة (تم تسليمها) — آخر 50 فقط لقسم "تم تسليمها". Realtime يضيف الجديد.
       supabase
-        .from('orders')
+        .from('v_orders_display')
         .select('*')
         .eq('branch_id', branchId)
-        .in('status', ['new', 'preparing', 'ready'])
-        .order('created_at', { ascending: false })
-    , 1000)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false, nullsFirst: false })
+        .limit(50),
+    ])
 
-    // الطلبات المكتملة (تم تسليمها) — آخر 50 فقط لقسم "تم تسليمها" في شاشة العميل،
-    // حتى لا نحمّل كل التاريخ. الـ Realtime يضيف الجديد تلقائياً.
-    const { data: completed } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('branch_id', branchId)
-      .eq('status', 'completed')
-      .order('completed_at', { ascending: false, nullsFirst: false })
-      .limit(50)
-
-    setOrders([...(active || []), ...(completed || [])])
+    setOrders([...(active || []), ...(completedRes?.data || [])])
   }, [branchId])
 
   useEffect(() => {
