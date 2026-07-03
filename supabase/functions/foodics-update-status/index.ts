@@ -9,6 +9,13 @@
 //        (scope مطلوب: orders.limited.deliver)
 //   2) تحديث القاعدة محلياً عبر RPC مؤمّنة (تتحقق من الجلسة وتسجّل + synced_to_foodics).
 //
+// action='bulk_delivered' (سلة الحذف في هيدر شاشة الفرع):
+//   body: { session_id, action: 'bulk_delivered', branch_id, scope }
+//   scope: 'preparing' | 'ready' | 'both'
+//   الترتيب معكوس عن الأكشن الفردي: المحلي أولاً (rpc_kitchen_bulk_deliver →
+//   الواجهتان تتحدثان فوراً عبر Realtime) ثم PUT فوديكس لكل طلب على دفعات،
+//   ويُرفع synced_to_foodics=true للناجح منها فقط.
+//
 // قاعدة معالجة الأخطاء (حسب الدليل): لو فشل نداء فوديكس، نحدّث المحلي على أي حال
 // (synced_to_foodics=false) حتى لا يتوقف المطبخ، ويُعاد المزامنة لاحقاً.
 //
@@ -52,7 +59,15 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS })
 
   try {
-    const { session_id, order_internal_id, action } = await req.json()
+    const { session_id, order_internal_id, action, branch_id, scope } = await req.json()
+
+    // ── التحويل الجماعي (سلة الحذف) ──
+    if (action === 'bulk_delivered') {
+      if (!session_id || !branch_id || !['preparing', 'ready', 'both'].includes(scope)) {
+        return json({ success: false, error: 'بيانات غير صحيحة' }, 400)
+      }
+      return await handleBulkDelivered(session_id, branch_id, scope, req.headers.get('user-agent') ?? 'kitchen')
+    }
 
     if (!session_id || !order_internal_id || !['ready', 'delivered'].includes(action)) {
       return json({ success: false, error: 'بيانات غير صحيحة' }, 400)
@@ -124,3 +139,88 @@ Deno.serve(async (req) => {
     return json({ success: false, error: (err as Error).message }, 500)
   }
 })
+
+// ═══════════════════════════════════════════════════════════════════
+// التحويل الجماعي إلى "تم الاستلام" (سلة الحذف)
+// 1) rpc_kitchen_bulk_deliver: تتحقق من الجلسة وتحوّل الطلبات المطابقة
+//    محلياً دفعة واحدة (completed) وترجع قائمتها — الواجهتان تتحدثان فوراً.
+// 2) PUT فوديكس delivery_status=5 لكل طلب foodics على دفعات من 5،
+//    ثم رفع synced_to_foodics=true للناجح منها فقط.
+// ═══════════════════════════════════════════════════════════════════
+async function handleBulkDelivered(
+  sessionId: string,
+  branchId: string,
+  scope: string,
+  deviceInfo: string,
+): Promise<Response> {
+  // 1) التحديث المحلي الجماعي عبر RPC مؤمّنة
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('rpc_kitchen_bulk_deliver', {
+    p_session_id: sessionId,
+    p_branch_id: branchId,
+    p_scope: scope,
+    p_device_info: deviceInfo,
+  })
+  if (rpcErr) {
+    console.error('bulk RPC error:', rpcErr)
+    return json({ success: false, error: rpcErr.message }, 500)
+  }
+  if (rpcRes && rpcRes.success === false) {
+    return json({ success: false, error: rpcRes.error }, 200)
+  }
+
+  const orders: { id: string; source: string; foodics_order_id: string | null }[] =
+    rpcRes?.orders ?? []
+  const foodicsOrders = orders.filter(o => o.source === 'foodics' && o.foodics_order_id)
+
+  // 2) مزامنة فوديكس — فشلها لا يفشل العملية (المحلي اتحدّث بالفعل)
+  let syncedCount = 0
+  if (foodicsOrders.length > 0) {
+    const config = await getConfig()
+    if (config?.access_token) {
+      const base = (config.api_base_url || 'https://api.foodics.com/v5').replace(/\/$/, '')
+      const syncedIds: string[] = []
+
+      const BATCH = 5
+      for (let i = 0; i < foodicsOrders.length; i += BATCH) {
+        await Promise.all(foodicsOrders.slice(i, i + BATCH).map(async (o) => {
+          try {
+            const res = await fetch(`${base}${outboundPath(o.foodics_order_id!)}`, {
+              method: 'PUT',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.access_token}`,
+              },
+              body: JSON.stringify(outboundBody('delivered')),
+            })
+            if (res.ok) {
+              syncedIds.push(o.id)
+            } else {
+              console.error('Bulk Foodics PUT failed', res.status, '| order:', o.foodics_order_id, '|', await res.text())
+            }
+          } catch (e) {
+            console.error('Bulk Foodics PUT exception:', o.foodics_order_id, e)
+          }
+        }))
+      }
+
+      syncedCount = syncedIds.length
+      if (syncedIds.length > 0) {
+        const { error: updErr } = await supabase
+          .from('orders')
+          .update({ synced_to_foodics: true })
+          .in('id', syncedIds)
+        if (updErr) console.error('bulk synced flag update error:', updErr)
+      }
+    } else {
+      console.error('foodics_config missing access_token — skipping bulk Foodics sync')
+    }
+  }
+
+  return json({
+    success: true,
+    count: rpcRes?.count ?? orders.length,
+    foodics_total: foodicsOrders.length,
+    foodics_synced: syncedCount,
+  })
+}

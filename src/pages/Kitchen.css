@@ -175,6 +175,46 @@
     pointer-events: none;
 }
 
+/* ── مجموعة أدوات الهيدر: مفتاح شاشة العرض + سلة الحذف ── */
+.kt-hdr-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
+/* زر سلة الحذف — التحويل الجماعي إلى "تم الاستلام" */
+.kt-bulk-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1.5px solid rgba(220, 38, 38, 0.25);
+    border-radius: 0.6rem;
+    background: rgba(220, 38, 38, 0.06);
+    color: #dc2626;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.kt-bulk-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.kt-bulk-btn:hover {
+    border-color: #dc2626;
+    background: rgba(220, 38, 38, 0.12);
+}
+
+.kt-bulk-btn:focus-visible {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
 /* ── تابات الفلترة — النشطة / الجاهزة / الكل ── */
 .kt-tabs {
     display: flex;
@@ -604,6 +644,63 @@
     border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
+.kitchen-modal-icon--bulk {
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+/* ── خيارات سلة الحذف (التحويل الجماعي) ── */
+.kitchen-bulk-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+}
+
+.kitchen-bulk-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
+    border: 1.5px solid var(--border-solid);
+    border-radius: 12px;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-family: 'Tajawal', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: right;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.kitchen-bulk-option:hover:not(:disabled) {
+    border-color: var(--green);
+    background: rgba(34, 197, 94, 0.06);
+}
+
+.kitchen-bulk-option:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.kitchen-bulk-option-count {
+    min-width: 26px;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--green-dark);
+    font-size: 0.78rem;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.kitchen-bulk-option:disabled .kitchen-bulk-option-count {
+    background: var(--border);
+    color: var(--text-muted);
+}
+
 .kitchen-modal-title {
     font-size: 1.1rem;
     font-weight: 800;
@@ -816,6 +913,20 @@
     .kt-display-select-box select {
         font-size: 0.68rem;
         padding: 0.32rem 1.55rem 0.32rem 0.55rem;
+    }
+
+    .kt-hdr-actions {
+        gap: 0.45rem;
+    }
+
+    .kt-bulk-btn {
+        width: 30px;
+        height: 30px;
+    }
+
+    .kt-bulk-btn svg {
+        width: 16px;
+        height: 16px;
     }
 
     .kt-tabs {
