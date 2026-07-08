@@ -58,11 +58,10 @@ e:\My Projects\QR Order Tracking System\
 │   │   └── supabase.js         # Supabase client init
 │   │
 │   ├── context/
-│   │   └── AuthContext.jsx     # سياق المصادقة (login, logout, session, idle)
+│   │   └── AuthContext.jsx     # سياق المصادقة (login, logout, session — لا تنتهي إلا بـ logout)
 │   │
 │   ├── hooks/
 │   │   ├── useBranch.js        # جلب بيانات الفرع من URL param
-│   │   ├── useIdleTimer.js     # مراقبة نشاط المستخدم (12 ساعة timeout)
 │   │   ├── useHeartbeat.js    # تتبع الحضور (heartbeat كل 30 ثانية)
 │   │   ├── useOrders.js        # جلب الطلبات + Realtime subscription
 │   │   ├── useScanner.js       # منطق مسح QR + إنشاء/تحديث الطلبات
@@ -402,13 +401,6 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - يرجع: `{ handleScan, lastResult, clearResult, scanning, history }`
 - `history` يحفظ آخر 10 عمليات مسح
 
-#### `useIdleTimer.js`
-- يراقب نشاط المستخدم (mouse, keyboard, click, touch, scroll)
-- Throttling: يحدّث `lastActivity` كل 30 ثانية فقط
-- فحص دوري كل 60 ثانية لانتهاء الجلسة
-- **12 ساعة** timeout للـ user/admin
-- يتجاهل role = screen (الجلسة لا تنتهي)
-
 #### `useHeartbeat.js`
 - يرسل heartbeat كل 30 ثانية لتتبع الحضور
 - يحدّث الصفحة الحالية في active_sessions table
@@ -426,13 +418,12 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 
 #### `AuthContext.jsx`
 - يدير الجلسة في `localStorage` بمفتاح `kz_session`
-- بنية الجلسة: `{ userId, username, branch, branchCode, branchId, route, role, lastActivity }`
+- بنية الجلسة: `{ sessionId, userId, username, branch, branchCode, branchId, route, role }`
 - `login(username, password)` → يستدعي `authenticate_user` RPC → يحفظ الجلسة → يعيد التوجيه حسب `route`
 - `logout()` → يحذف الحضور من active_sessions → يمسح الجلسة → يوجه لـ `/login`
-- `updateActivity()` → يحدّث `lastActivity` (للـ user/admin فقط)
 - `getDefaultRoute()` → يحسب المسار الافتراضي حسب `route` + `branchCode`
 - مزامنة بين التابات عبر `storage` event
-- session validity: screen لا تنتهي، user/admin تنتهي بعد 12 ساعة
+- session validity: **الجلسة لا تنتهي أبداً** — تبقى حتى يسجّل المستخدم الخروج بنفسه (لا يوجد idle timeout)
 
 ---
 
@@ -465,7 +456,6 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 #### `ProtectedRoute.jsx`
 - يتحقق من `isAuthenticated` → إذا لا → يوجه لـ `/login`
 - يتحقق من `allowedRoles` → إذا الدور غير مسموح → يوجه للمسار الافتراضي
-- يفعّل `useIdleTimer` لتتبع النشاط
 - يفعّل `useHeartbeat` لتتبع الحضور (heartbeat كل 30 ثانية)
 
 #### `LogoutButton.jsx`
@@ -641,7 +631,7 @@ npm run lint      # فحص الكود
 9. **Authentication:** نظام مصادقة مبني على Supabase DB (ليس Supabase Auth) — bcrypt hashing + RPC functions + RLS
 10. **الفرع يُحدد عبر query param** `?branch=CODE`
 11. **الأدوار:** admin (كل الصلاحيات)، user (scan فقط)، screen (display فقط)
-12. **Session:** يحفظ في localStorage — ينتهي بعد 12 ساعة للـ user/admin، لا ينتهي للـ screen
+12. **Session:** يحفظ في localStorage — لا ينتهي أبداً لأي دور، يبقى المستخدم مسجلاً حتى يضغط تسجيل الخروج بنفسه
 
 ---
 
@@ -707,6 +697,8 @@ npm run lint      # فحص الكود
 | 2026-06-29 | **توسيط محتوى الكرت لإزالة الفراغ الجانبي + شاشة الفرع 6 كروت/صف بأزرار أصغر.** (1) **`OrderCard` (شاشة العميل):** عمود المعلومات صار `items-center` وكل صفوفه `justify-center` — الرقم والوقت والشارات تتمركز في المساحة المتبقية بدل التصاقها بجانب اللوجو وترك فراغ كبير على اليسار. (2) **`Kitchen` (شاشة الفرع):** `kitchen-card-info` توسيط (`align-items:center`)؛ `kitchen-grid` من 4 → **6 أعمدة** (fallback 4 عند ≤1280px ثم 3 عند ≤900px)؛ تصغير كل الأزرار (`kitchen-ready/delivered/accept-btn`) padding `0.75rem`→`0.45rem` وخط `1rem`→`0.85rem` (تبقى بعرض الكرت = عرض اللوجو+الرقم). ✅ build ناجح. |
 | 2026-06-29 | **إلصاق اللوجو بالرقم + 4 كروت في الصف + تطبيق نفس التصميم على شاشة الفرع.** (1) **`OrderCard`:** أُلغي `justify-between` (كان يخلق فجوة أفقية كبيرة بين اللوجو والرقم) — اللوجو الآن أول عنصر ملاصق لعمود المعلومات (`flex items-center gap-2.5`، المعلومات `flex-1`). (2) **شاشة العرض (`DisplayDashboard`):** `.dash-columns` صار `flex-direction: column` (قسما قيد التحضير/جاهز فوق بعض)، وشبكتا `PreparingColumn`/`ReadyColumn` من عمودين → **4 أعمدة** (`repeat(4,1fr)`، مع fallback 3 ثم 2 للشاشات الأصغر). (3) **شاشة الفرع (`Kitchen` + `KitchenCard`):** نفس إعادة التصميم — كرت مدمج بصف علوي `kitchen-card-top` (لوجو `lg` ملاصق لـ `kitchen-card-info`)، اسم التطبيق `size="sm"`، `kitchen-grid` → **4 أعمدة** (fallback 3)، تقليل padding/border/خط الرقم (`2.6rem`→`2.1rem`) والشارات. ✅ build ناجح. |
 | 2026-06-28 | **دمج جهازين + اعتماد ورك فلو delivery-driven مع هوية الكروت.** بعد merge فرعين متباعدين: (1) **اعتُمد فلو المطبخ delivery-driven** (قيد التحضير → جاهز → تم التسليم، بلا خطوة استلام) **مع** هوية تطبيقات التوصيل (لوجو/لون) في `Kitchen.jsx` و`OrderCard`. (2) **شاشة العميل** صار بها 3 أقسام: قيد التحضير + جاهزة + **"تم تسليمها" (قسم مطوي `DeliveredColumn`)**؛ `useOrders` يجلب الآن آخر 50 طلباً مكتملاً ويُصدّر `delivered`. (3) **🔑 تجميع كل افتراضات حالات فوديكس في ملف واحد** `supabase/functions/_shared/foodics-status.ts` (أنواع الطلب، أحداث webhook، أرقام `delivery_status`/`status`، جسم الـ PUT الصادر) — كل بند مجهول معلَّم بـ `// ❓ CONFIRM`؛ الدالتان inbound/outbound تستوردان منه. **عند وصول قيم فوديكس الحقيقية: عدّل هذا الملف وحده ثم أعد نشر الـ Functions.** (4) إعادة ترقيم migration المكرر: `020_drop_orders_order_id_branch_unique` + `021_foodics_delivery_flow` (كان كلاهما 019). **النواقص من فوديكس موثّقة في `docs/FOODICS_MEETING_CHECKLIST.md`.** ✅ lint + build نظيف. |
+
+| 2026-07-08 | **إلغاء انتهاء الجلسة (idle timeout) نهائياً — المستخدم يبقى مسجلاً حتى يعمل logout بنفسه.** حذف `useIdleTimer.js` وإزالة استدعائه من `ProtectedRoute.jsx`. في `AuthContext.jsx`: `isSessionValid` تعيد true طالما الجلسة موجودة، وحذف `updateActivity` و`lastActivity` و`IDLE_TIMEOUT_MS`. migration جديدة `026_sessions_never_expire.sql`: default لـ `expires_at` أصبح 10 سنوات + تمديد الجلسات الحالية + إعادة تعريف `get_session_user` بدون sliding-window refresh. ✅ build + lint نظيف. ⚠️ يجب تشغيل الـ migration في Supabase SQL Editor. |
 
 ---
 

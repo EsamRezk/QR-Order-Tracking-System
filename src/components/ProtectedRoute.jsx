@@ -1,6 +1,5 @@
 import { Navigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useIdleTimer } from '../hooks/useIdleTimer'
 import { useHeartbeat } from '../hooks/useHeartbeat'
 
 export default function ProtectedRoute({ children, allowedRoles }) {
@@ -8,8 +7,6 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const [searchParams] = useSearchParams()
   const location = useLocation()
 
-  // Activate idle timer for user/admin
-  useIdleTimer()
   useHeartbeat()
 
   // Not logged in → redirect to login

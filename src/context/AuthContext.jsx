@@ -5,7 +5,6 @@ import { supabase } from '../lib/supabase'
 const AuthContext = createContext(null)
 
 const SESSION_KEY = 'kz_session'
-const IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000 // 12 hours
 
 function getStoredSession() {
   try {
@@ -19,12 +18,8 @@ function getStoredSession() {
 }
 
 function isSessionValid(session) {
-  if (!session) return false
-  // Screen sessions never expire
-  if (session.role === 'screen') return true
-  // User/admin: check 12h inactivity
-  const elapsed = Date.now() - (session.lastActivity || 0)
-  return elapsed < IDLE_TIMEOUT_MS
+  // الجلسة تبقى صالحة حتى يسجّل المستخدم الخروج بنفسه
+  return !!session
 }
 
 export function AuthProvider({ children }) {
@@ -72,7 +67,6 @@ export function AuthProvider({ children }) {
       branchId: user.branchId || null,
       route: user.route,
       role: user.role,
-      lastActivity: Date.now(),
     }
 
     localStorage.setItem(SESSION_KEY, JSON.stringify(newSession))
@@ -106,13 +100,6 @@ export function AuthProvider({ children }) {
     navigate('/login')
   }, [navigate, session])
 
-  const updateActivity = useCallback(() => {
-    if (!session || session.role === 'screen') return
-    const updated = { ...session, lastActivity: Date.now() }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(updated))
-    setSession(updated)
-  }, [session])
-
   const getDefaultRoute = useCallback(() => {
     if (!session) return '/login'
     const route = (session.route && session.route !== '/scan') ? session.route : '/kitchen'
@@ -128,7 +115,6 @@ export function AuthProvider({ children }) {
     isAuthenticated: isSessionValid(session),
     login,
     logout,
-    updateActivity,
     getDefaultRoute,
   }
 
