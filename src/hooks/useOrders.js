@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase, fetchAllPaged } from '../lib/supabase'
 
-export function useOrders(branchId) {
-  const [orders, setOrders] = useState([])
+export function useOrders(branchId, initialOrders) {
+  const [orders, setOrders] = useState(() => initialOrders || [])
   const [newOrderFlag, setNewOrderFlag] = useState(0)
 
   const fetchOrders = useCallback(async () => {
@@ -34,7 +34,14 @@ export function useOrders(branchId) {
 
   useEffect(() => {
     if (!branchId) return
-    fetchOrders()
+
+    // لو وصلت طلبات أولية جاهزة (من bootstrap شاشة الفرع/العرض) نستخدمها
+    // مباشرة بدل رحلة جلب إضافية مكرّرة — راجع rpc_branch_bootstrap.
+    if (initialOrders) {
+      setOrders(initialOrders)
+    } else {
+      fetchOrders()
+    }
 
     const channel = supabase
       .channel(`orders-${branchId}`)
@@ -64,6 +71,9 @@ export function useOrders(branchId) {
       })
 
     return () => supabase.removeChannel(channel)
+    // initialOrders مقصود خارج الاعتماديات: يُستخدم كبذرة مرة واحدة عند تغيّر
+    // branchId نفسه (يصل من نفس bootstrap)، لا كسبب لإعادة تنفيذ الـ effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId, fetchOrders])
 
   const incoming = orders.filter(o => o.status === 'new')

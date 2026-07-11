@@ -7,28 +7,36 @@ import { supabase } from '../lib/supabase'
 //   - شاشة العرض: تقرأها فقط، وتتحدّث realtime فور تغييرها من أي جهاز.
 // التخزين في جدول branch_settings (صف لكل فرع) + Supabase Realtime.
 // ═══════════════════════════════════════════════════════════════════
-export function useBranchDisplaySetting(branchId) {
-  const [showAll, setShowAllState] = useState(false)
+export function useBranchDisplaySetting(branchId, initialSetting) {
+  const [showAll, setShowAllState] = useState(() => initialSetting?.show_all_on_display ?? false)
   // وضع عرض الطلبات على شاشة العرض: 'all' | 'ready' | 'preparing' | 'split'
-  const [displayMode, setDisplayModeState] = useState('all')
+  const [displayMode, setDisplayModeState] = useState(() => initialSetting?.display_mode ?? 'all')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!branchId) return
     let active = true
 
-    const fetchSetting = async () => {
-      const { data } = await supabase
-        .from('branch_settings')
-        .select('show_all_on_display, display_mode')
-        .eq('branch_id', branchId)
-        .maybeSingle()
-      if (!active) return
-      setShowAllState(data?.show_all_on_display ?? false)
-      setDisplayModeState(data?.display_mode ?? 'all')
+    // لو وصل إعداد أولي جاهز (من bootstrap شاشة الفرع/العرض) نستخدمه مباشرة
+    // بدل رحلة جلب إضافية مكرّرة — راجع rpc_branch_bootstrap.
+    if (initialSetting) {
+      setShowAllState(initialSetting.show_all_on_display ?? false)
+      setDisplayModeState(initialSetting.display_mode ?? 'all')
       setLoading(false)
+    } else {
+      const fetchSetting = async () => {
+        const { data } = await supabase
+          .from('branch_settings')
+          .select('show_all_on_display, display_mode')
+          .eq('branch_id', branchId)
+          .maybeSingle()
+        if (!active) return
+        setShowAllState(data?.show_all_on_display ?? false)
+        setDisplayModeState(data?.display_mode ?? 'all')
+        setLoading(false)
+      }
+      fetchSetting()
     }
-    fetchSetting()
 
     const channel = supabase
       .channel(`branch_settings-${branchId}`)
@@ -44,6 +52,9 @@ export function useBranchDisplaySetting(branchId) {
       .subscribe()
 
     return () => { active = false; supabase.removeChannel(channel) }
+    // initialSetting مقصود خارج الاعتماديات: يُستخدم كبذرة مرة واحدة عند تغيّر
+    // branchId نفسه (يصل من نفس bootstrap)، لا كسبب لإعادة تنفيذ الـ effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId])
 
   // كتابة القيمة (upsert) — تُستدعى من شاشة الفرع

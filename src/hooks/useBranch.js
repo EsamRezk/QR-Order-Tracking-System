@@ -7,6 +7,8 @@ const DEFAULT_BRANCH = import.meta.env.VITE_DEFAULT_BRANCH || 'Erqaa-01'
 export function useBranch() {
   const [searchParams] = useSearchParams()
   const [branch, setBranch] = useState(null)
+  const [initialOrders, setInitialOrders] = useState(null)
+  const [initialDisplaySetting, setInitialDisplaySetting] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -19,30 +21,38 @@ export function useBranch() {
       return
     }
 
-    const fetchBranch = async () => {
+    let cancelled = false
+
+    const fetchBootstrap = async () => {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
-        .from('branches')
-        .select('*')
-        .eq('code', branchCode)
-        .eq('is_active', true)
-        .single()
+      // رحلة واحدة تُرجع الفرع + الطلبات + إعداد شاشة العرض معاً بدل ثلاث
+      // رحلات متتالية (كل رحلة على الإنتاج ~700ms-1s بغض النظر عن حجم البيانات)
+      const { data, error: fetchError } = await supabase.rpc('rpc_branch_bootstrap', {
+        p_branch_code: branchCode,
+      })
 
-      if (fetchError || !data) {
+      if (cancelled) return
+
+      if (fetchError || !data?.branch) {
         setError('الفرع غير موجود')
         setBranch(null)
+        setInitialOrders(null)
+        setInitialDisplaySetting(null)
       } else {
-        setBranch(data)
+        setBranch(data.branch)
+        setInitialOrders(data.orders || [])
+        setInitialDisplaySetting(data.display_setting || { show_all_on_display: false, display_mode: 'all' })
       }
       setLoading(false)
     }
 
-    fetchBranch()
+    fetchBootstrap()
+    return () => { cancelled = true }
   }, [branchCode])
 
-  return { branch, loading, error, branchCode }
+  return { branch, loading, error, branchCode, initialOrders, initialDisplaySetting }
 }
 
 export async function resolveBranchByLocation(location) {

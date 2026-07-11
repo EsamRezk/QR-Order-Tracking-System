@@ -41,11 +41,11 @@ export default function Kitchen() {
 
 function KitchenInner() {
   const { session } = useAuth()
-  const { branch, loading, error } = useBranch()
+  const { branch, loading, error, initialOrders, initialDisplaySetting } = useBranch()
   // الورك فلو (delivery-driven): الطلب يدخل "قيد التحضير" مباشرة (بلا خطوة استلام).
-  const { preparing, ready, delivered, refetch } = useOrders(branch?.id)
+  const { preparing, ready, delivered, refetch } = useOrders(branch?.id, initialOrders)
   // وضع عرض الطلبات على شاشة العرض (يتحكم في شاشة العرض فقط، يتزامن realtime)
-  const { displayMode, setDisplayMode } = useBranchDisplaySetting(branch?.id)
+  const { displayMode, setDisplayMode } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
   // إظهار/إخفاء قسم "تم الاستلام" (محلي لهذه الشاشة فقط)
   const [showDelivered, setShowDelivered] = useState(false)
   // فلتر شاشة الفرع (محلي فقط): 'all' | 'active' | 'ready'

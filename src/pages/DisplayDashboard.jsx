@@ -32,11 +32,11 @@ export default function DisplayDashboard() {
 
 function DisplayDashboardInner() {
   const { session } = useAuth()
-  const { branch, loading, error } = useBranch()
-  const { preparing, ready, delivered } = useOrders(branch?.id)
+  const { branch, loading, error, initialOrders, initialDisplaySetting } = useBranch()
+  const { preparing, ready, delivered } = useOrders(branch?.id, initialOrders)
   // إعداد الفرع: لو unchecked → نُظهر طلبات تطبيقات التوصيل فقط (نخفي غير-التوصيل).
   // displayMode: يتحكم فيما تعرضه الشاشة (الكل/الجاهز/النشط/عمودين) — يُضبط من شاشة الفرع، يتزامن realtime.
-  const { showAll, displayMode } = useBranchDisplaySetting(branch?.id)
+  const { showAll, displayMode } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
   const visPreparing = showAll ? preparing : preparing.filter(isDeliveryAppOrder)
   const visReady = showAll ? ready : ready.filter(isDeliveryAppOrder)
   const visDelivered = showAll ? delivered : delivered.filter(isDeliveryAppOrder)

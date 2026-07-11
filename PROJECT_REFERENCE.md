@@ -393,11 +393,12 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 
 #### `useBranch.js`
 - يقرأ `?branch=CODE` من URL
-- يجلب بيانات الفرع من Supabase (`branches` table)
-- يرجع: `{ branch, loading, error, branchCode }`
-- يصدّر أيضاً: `resolveBranchByLocation(location)` — يبحث بالـ `location_label`
+- يستدعي RPC واحدة **`rpc_branch_bootstrap(p_branch_code)`** (migration 028) ترجع الفرع + الطلبات + إعداد شاشة العرض معاً برحلة شبكة واحدة (بدل جلب الفرع وحده ثم انتظاره لجلب الباقي)
+- يرجع: `{ branch, loading, error, branchCode, initialOrders, initialDisplaySetting }` — آخر اتنين بذرة أولية تُمرَّر لـ `useOrders`/`useBranchDisplaySetting` لتفادي رحلة جلب مكرّرة
+- يصدّر أيضاً: `resolveBranchByLocation(location)` — يبحث بالـ `location_label` (لا يستخدم الـ RPC، غير مستخدم حالياً في الواجهة)
 
 #### `useOrders.js`
+- `useOrders(branchId, initialOrders?)` — لو وصلت `initialOrders` (من `useBranch`) تُستخدم كبذرة مباشرة بدل جلب منفصل؛ غير ذلك يجلب بنفسه
 - يجلب الطلبات بحالة `preparing` أو `ready` للفرع
 - **Realtime Subscription** عبر `postgres_changes`:
   - `INSERT` → يضيف الطلب ويرفع `newOrderFlag`
@@ -722,6 +723,7 @@ npm run lint      # فحص الكود
 
 | 2026-07-08 | **إلغاء انتهاء الجلسة (idle timeout) نهائياً — المستخدم يبقى مسجلاً حتى يعمل logout بنفسه.** حذف `useIdleTimer.js` وإزالة استدعائه من `ProtectedRoute.jsx`. في `AuthContext.jsx`: `isSessionValid` تعيد true طالما الجلسة موجودة، وحذف `updateActivity` و`lastActivity` و`IDLE_TIMEOUT_MS`. migration جديدة `026_sessions_never_expire.sql`: default لـ `expires_at` أصبح 10 سنوات + تمديد الجلسات الحالية + إعادة تعريف `get_session_user` بدون sliding-window refresh. ✅ build + lint نظيف. ⚠️ يجب تشغيل الـ migration في Supabase SQL Editor. |
 | 2026-07-11 | **🐞 إصلاح "تعلّق" الفرع للأدمن على شاشة الفرع/شاشة العرض + قائمة تبديل فرع في القائمة الجانبية.** **السبب:** `AdminSidebar.jsx` كان يشتق `branchCode` روابط `needsBranch` من `searchParams.get('branch')` **الحالي فقط** — فبمجرد فتح `/kitchen?branch=A` أو `/display?branch=A`، أي رابط تاني في القائمة يعيد نفس الفرع A دائماً، ولا سبيل لتغييره إلا بزيارة صفحة بلا `?branch=` (مثل التحليلات) ثم الرجوع (عندها `branchCode` يفرغ فتظهر `BranchSelect` من جديد). **الحل:** (1) hook جديد `useAdminBranch.js` يحفظ الفرع المختار في `localStorage` (`kz_admin_branch`) بحيث يبقى ثابتاً بين كل الصفحات لا مرتبطاً بالـ URL الحالي فقط. (2) `AdminSidebar.jsx`: أُضيفت قائمة `<select>` "الفرع الحالي" أسفل اسم المستخدم في الهيدر (تجلب الفروع النشطة) — تغييرها يحفظ الاختيار عبر `useAdminBranch` فوراً، وإن كان الأدمن واقفاً على `/kitchen` أو `/display` يحدّث `?branch=` في نفس الصفحة عبر `setSearchParams` (بلا تنقّل، شاشة الفرع/العرض تتحدّث لحظياً). `branchCode` المستخدم لبناء الروابط صار `urlBranchCode || savedBranchCode || session.branchCode` بدل الاعتماد على الرابط الحالي وحده. (3) `isActive`/التنقّل صارا عبر `useLocation()` الرسمي بدل الاعتماد الضمني على `window.location` العام. ✅ lint + build نظيف. |
+| 2026-07-12 | **⚡ إلغاء waterfall التحميل عند فتح شاشة الفرع/شاشة العرض (نفس روح إصلاح التحليلات — migration 027 — لكن السبب هنا عدد الرحلات لا ضخامة الـ payload).** **السبب:** فتح `/kitchen` أو `/display` كان يشغّل 3 نداءات Supabase **متتالية**: `useBranch` يجلب صف الفرع بالـ code أولاً، وبعدها فقط (لأنهما يحتاجان `branch.id`) ينطلق `useOrders` ثم `useBranchDisplaySetting`. كل رحلة على شبكة الإنتاج قِيست فعلياً **~700ms-1s ثابتة بغض النظر عن حجم البيانات** (حتى استعلام تافه على جدول فروع بـ10 صفوف)، فمجموع الانتظار قبل ظهور أول طلب كان يتجاوز ثانية-ثانتين، وأي إجراء لاحق (زر جاهز/تسليم) يضيف نفس التأخير الثابت لأنه نداء شبكة مستقل — هذا الجزء (زمن الرحلة الواحدة) عائد لموقع/بنية مشروع Supabase وليس شيئاً يُصلَح بالكود. **الحل (الجزء القابل للإصلاح بالكود = عدد الرحلات):** (1) migration جديدة **`028_branch_bootstrap.sql`** — RPC `rpc_branch_bootstrap(p_branch_code)` ترجع **الفرع + الطلبات (بنفس تقليم `v_orders_display`) + إعداد شاشة العرض معاً في رحلة واحدة**. (2) `useBranch.js` صار يستدعي هذه الـ RPC بدل `.from('branches').select()` المباشر، ويُرجع أيضاً `initialOrders`/`initialDisplaySetting`. (3) `useOrders(branchId, initialOrders)` و`useBranchDisplaySetting(branchId, initialSetting)`: صارا يقبلان بذرة أولية اختيارية — لو وصلت يُبذر بها الـ state مباشرة **بدل رحلة جلب إضافية مكرّرة**؛ الـ Realtime subscriptions تبقى تعمل كالمعتاد فور معرفة `branch.id`. (4) `Kitchen.jsx`/`DisplayDashboard.jsx`: تمرير `initialOrders`/`initialDisplaySetting` من `useBranch()` للـ hooks التانية. **النتيجة:** رحلة شبكة واحدة بدل ثلاث متتالية لأول ظهور للطلبات. ✅ lint + build نظيف. **⚠️ يلزم تشغيل `028_branch_bootstrap.sql` في Supabase SQL Editor قبل النشر — بدونها الشاشتان ستعرضان "الفرع غير موجود" فوراً (تأكّدت الـ RPC غير موجودة بعد بفحص مباشر على مشروع الإنتاج).** |
 
 ---
 
