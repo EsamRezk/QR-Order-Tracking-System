@@ -139,7 +139,12 @@ e:\My Projects\QR Order Tracking System\
         ├── 020_drop_orders_order_id_branch_unique.sql
         ├── 021_foodics_delivery_flow.sql
         ├── 022_seed_foodics_branch_mapping_prod.sql  # ربط فروع الإنتاج الـ10 (B01..B10) بمعرّفات Foodics الحقيقية
-        └── 023_bulk_deliver.sql               # rpc_kitchen_bulk_deliver — سلة الحذف (تحويل جماعي لتم الاستلام)
+        ├── 023_bulk_deliver.sql               # rpc_kitchen_bulk_deliver — سلة الحذف (تحويل جماعي لتم الاستلام)
+        ├── 023_branch_display_settings.sql    # إعدادات شاشة العرض للفرع
+        ├── 024_branch_display_mode.sql        # display_mode لشاشة العرض
+        ├── 025_orders_display_view.sql        # v_orders_display (raw_qr_data مُقلّم) + فهارس
+        ├── 026_sessions_never_expire.sql
+        └── 027_analytics_server_side.sql      # التحليلات في القاعدة: أعمدة delivery_app/app_number/foodics_ref (trigger) + فهارس created_at + rpc_analytics_summary
 ```
 
 > **Edge Functions:** `supabase/functions/foodics-webhook` (inbound — القناة الرسمية) · `foodics-update-status` (outbound — المزامنة العكسية) · `test-foodics-webhook` (alias للتوافق).
@@ -200,8 +205,14 @@ order_source            INTEGER                    -- 1=POS, 2=API, 3=Call Cente
 foodics_delivery_status INTEGER                    -- آخر delivery_status من فوديكس (1,2,5,6)
 synced_to_foodics       BOOLEAN DEFAULT false      -- هل آخر تحديث وصل فوديكس؟
 accepted_at/accepted_by                            -- (موقوف) تتبع خطوة الاستلام
+-- أعمدة التحليلات المحسوبة (migration 027 — يملؤها trigger orders_analytics_fields
+-- عند INSERT/UPDATE OF raw_qr_data/channel_link، بمنطق مطابق لـ deliveryApps.js):
+delivery_app            TEXT                       -- keeta|hungerstation|jahez|chefz|ninja|mrsool|toyou|direct
+app_number              TEXT                       -- رقم الطلب داخل التطبيق (external_number بعد ":")
+foodics_ref             TEXT                       -- رقم فوديكس المرجعي (raw.foodics_order.reference)
 UNIQUE(order_id, branch_id)
 ```
+- ⚠️ عند تعديل أسماء/aliases التطبيقات في `deliveryApps.js` يجب تحديث `kz_resolve_delivery_app` في القاعدة وإعادة الـ backfill (migration 027).
 - `prep_duration_seconds` محسوب تلقائيًا: `EXTRACT(EPOCH FROM (ready_at - scanned_at))`
 
 ### جدول `scan_logs` (سجل المسح)
@@ -253,6 +264,7 @@ started_at      TIMESTAMPTZ DEFAULT now()
 | `rpc_kitchen_mark_ready_synced(p_session_id, p_order_internal_id, p_device_info, p_synced)` | زر "جاهز": preparing→ready + ختم المزامنة | admin/user |
 | `rpc_kitchen_mark_delivered(p_session_id, p_order_internal_id, p_device_info, p_synced)` | زر "تم التسليم": ready→completed | admin/user |
 | `rpc_kitchen_bulk_deliver(p_session_id, p_branch_id, p_scope, p_device_info)` | سلة الحذف: تحويل جماعي (preparing/ready/both) → completed + scan_logs، ترجع قائمة الطلبات لمزامنة فوديكس | admin/user |
+| `rpc_analytics_summary(p_from, p_branch_id)` | ملخص التحليلات في رحلة واحدة: `{total, avg, fastest, slowest, by_branch[], hourly[]}` — تجميع في القاعدة بلا JSONB (صفحة التحليلات) | anon/authenticated |
 
 ### RLS Policies
 - `orders`: open access (all operations) for anon
@@ -515,13 +527,15 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 
 #### `Analytics.jsx` (التحليلات)
 - **URL:** `/analytics`
-- **الجلب:** كل الطلبات (بكل الحالات) ضمن الفترة/الفرع، `.limit(1000)`، مرتّبة `created_at desc`
-- **فلاتر (بحث واحد فقط):** الفرع + الفترة الزمنية (اليوم / 7 / 30) **تقود الجلب**؛ والحالة + التطبيق + الرقم **فلاتر محلية على الجدول** (state `statusFilter`/`appFilter`/`numberFilter` → `filteredOrders` memo). الفرع والحالة والتطبيق كلها عبر قائمة منسدلة مخصّصة موحّدة `Dropdown` (التطبيق يعرض اللوجو)؛ الحالة = الفعّالة فقط (قيد التحضير/جاهز/مكتمل)؛ حقل الرقم يبحث بالرقمين معاً (فوديكس reference + رقم التطبيق). **لا يوجد شريط بحث علوي منفصل** (أُزيل لتفادي التكرار).
-- **مصدر التحديث:** عمود يبيّن مصدر كل انتقال حالة (النظام/فوديكس) بالاستدلال من وجود/غياب `scan_logs` (`buildSourceMap` + `statusSources`)
-- KPI Cards: إجمالي الطلبات، متوسط وقت التحضير، أسرع/أبطأ طلب (المتوسط/الأسرع/الأبطأ على الطلبات ذات `prep_duration_seconds` فقط)
-- **Charts (Recharts):** BarChart متوسط التحضير/فرع (على المكتمل فقط) + AreaChart الطلبات/ساعة
-- **جدول السجل (`OrderRow` + `OrdersTableHead`):** أعمدة = التطبيق (لوجو `DeliveryAppLogo` + اسم بلون الهوية عبر `resolveDeliveryApp`) · رقم بالتطبيق (`resolveAppOrderNumber`) · رقم فوديكس (`resolveFoodicsNumber`) · الفرع · الحالة (بادج لكل الحالات) · وقت الطلب · وقت الجاهزية · مدة التحضير — يُعاد استخدامه في جدول البحث أيضاً
-- زر تصدير **Excel (.xlsx)** عبر `exportOrdersToExcel(filteredOrders, branchName, statusSources)` — يصدّر **الجدول بعد الفلترة** بنفس أعمدته (التطبيق/رقم بالتطبيق/رقم فوديكس/الحالة/مصدر التحديث/…)، ملف منسّق بلوجو وألوان واتجاه RTL
+- **⚡ كل الحساب والفلترة في القاعدة (migration 027) — لا يُجلب كل طلبات الفترة إلى المتصفح إطلاقاً:**
+  - **الملخص (KPIs + الرسمان):** `rpc_analytics_summary(p_from, p_branch_id)` — رحلة واحدة ترجع `{total, avg, fastest, slowest, by_branch[{name,avg}], hourly[{hour,count}]}` (تجميع على أعمدة صغيرة مفهرسة، التوزيع الساعي بتوقيت الرياض).
+  - **جدول السجل:** تُجلب **الصفحة الظاهرة فقط** (50 صف، `ORDERS_SELECT` بمسارات JSON مسطّحة + `hydrateOrder`) عبر `buildOrdersQuery` + `.range()` + `count: 'exact'`؛ الفلاتر (الحالة/التطبيق/الرقم) شروط SQL: `status`، `delivery_app`، و`or(ilike)` على `app_number`/`foodics_ref`/`foodics_order_number`/`order_id` (أعمدة محسوبة بالـ trigger). حقل الرقم بـ **debounce 400ms** (`numberQuery`).
+  - **مصدر التحديث (النظام/فوديكس):** `scan_logs` لصفوف الصفحة الظاهرة فقط (`.in('order_id', ids)`) → `buildSourceMap`.
+  - **تصدير Excel:** عند الضغط فقط (`handleExport` + حالة `exporting`) — يجلب كل صفوف الفلترة الحالية على دفعات 1000 (`fetchAllPaged` مع `throwOnError` + تنبيه عند الفشل) + سجلات الفترة، ثم `exportOrdersToExcel`.
+- **فلاتر:** الفرع + الفترة (اليوم/7/30) تقود الملخص والجدول؛ الحالة/التطبيق/الرقم تقود الجدول والتصدير. `Dropdown` مخصّصة موحّدة (التطبيق باللوجو)؛ الحالة = الفعّالة فقط.
+- KPI Cards: إجمالي الطلبات، متوسط وقت التحضير، أسرع/أبطأ طلب (على `prep_duration_seconds > 0` فقط)
+- **Charts (Recharts):** BarChart متوسط التحضير/فرع (بلا فرع محدد: كل الفروع النشطة حتى بمتوسط 0) + AreaChart الطلبات/ساعة
+- **جدول السجل (`OrderRow` + `OrdersTableHead`):** أعمدة = التطبيق (لوجو `DeliveryAppLogo` + اسم بلون الهوية عبر `resolveDeliveryApp`) · رقم بالتطبيق (`resolveAppOrderNumber`) · رقم فوديكس (`resolveFoodicsNumber`) · الفرع · الحالة (بادج لكل الحالات) · مصدر التحديث · وقت الطلب · وقت الجاهزية · مدة التحضير
 
 #### `Admin.jsx` (إدارة الفروع)
 - **URL:** `/admin`
@@ -639,6 +653,7 @@ npm run lint      # فحص الكود
 
 | التاريخ | الوصف |
 |---------|-------|
+| 2026-07-11 | **🚨 إصلاح جذري لانهيار صفحة التحليلات على البرودكشن (57014 statement timeout ⇒ 500 ⇒ أصفار).** **السبب الجذري:** الصفحة كانت تجلب *كل* طلبات الفترة (+6000 وتتزايد آلافاً يومياً) عبر `fetchAllPaged` لتحسب KPIs/الرسوم/الفلترة محلياً — بلا فهرس على `created_at` وحده فكل صفحة offset تعيد فحص/فرز الجدول كاملاً + استخراج ~11 مسار JSON من `raw_qr_data` الضخم (detoast) لآلاف الصفوف ⇒ تجاوز `statement_timeout` (8 ثوانٍ للـ anon) ⇒ خطأ 57014 يبتلعه `fetchAllPaged` بصمت. **الحل (يُحسب عند الكتابة ويُجمَّع في القاعدة):** migration **`027_analytics_server_side.sql`** — (أ) أعمدة محسوبة على `orders`: `delivery_app`/`app_number`/`foodics_ref` يملؤها trigger `orders_analytics_fields` (دوال `kz_resolve_delivery_app`/`kz_extract_app_number` بمنطق مطابق لـ `deliveryApps.js`) + backfill؛ (ب) فهارس `idx_orders_created_at`، `idx_orders_branch_created`، `idx_scan_logs_order_id`، `idx_scan_logs_scanned_at`؛ (ج) RPC **`rpc_analytics_summary(p_from, p_branch_id)`** ترجع `{total, avg, fastest, slowest, by_branch[], hourly[]}` في رحلة واحدة (بلا JSONB، توقيت الرياض للساعات). **`Analytics.jsx`:** الملخص من الـ RPC؛ الجدول صفحة-بصفحة (50 صف) بفلاتر SQL (`buildOrdersQuery`: status/delivery_app/or-ilike على أعمدة الأرقام) + `count: 'exact'` + debounce 400ms لحقل الرقم + إلغاء الاستجابات المتأخرة (cancelled flag)؛ `scan_logs` لصفوف الصفحة فقط؛ **التصدير عند الطلب** على دفعات 1000 (كل دفعة استعلام مستقل سريع) مع `throwOnError` جديد في `fetchAllPaged` (يرمي بدل ملف ناقص بصمت) وزر "جاري التصدير...". النتيجة: التحميل من ~ميجابايتات + timeout إلى 3 طلبات صغيرة (ملخص + 50 صف + مصادرها) بأجزاء الثانية، ويتحمّل النمو لعشرات آلاف الطلبات. ✅ lint + build نظيف. **⚠️ نشر: طبّق `027` على قاعدتي التيست والبرود قبل نشر الواجهة** (الواجهة الجديدة تعتمد على الأعمدة والـ RPC). |
 | 2026-07-03 | **🗑️ سلة الحذف في هيدر شاشة الفرع — تحويل جماعي إلى "تم الاستلام" (3 نطاقات).** حسب الطلب: زر سلة أحمر (`.kt-bulk-btn`) في هيدر `Kitchen` بجوار dropdown شاشة العرض → مودال بـ**3 خيارات** بعدّادات (يتعطّل الخيار لو عدّاده 0): تحويل **"قيد التحضير"** / **"الجاهز"** / **الاثنين معاً** إلى تم الاستلام، ثم **خطوة تأكيد** (عدد الطلبات + تنبيه أنها ستختفي من الشاشتين وتُزامَن لفوديكس). **Backend:** migration **`023_bulk_deliver.sql`** — RPC `rpc_kitchen_bulk_deliver(p_session_id, p_branch_id, p_scope, p_device_info)` (SECURITY DEFINER، أدوار admin/user): تحوّل دفعة واحدة (atomic CTE) كل طلبات الفرع المطابقة للنطاق إلى `completed` (+`delivered_at`/`completed_at`/`ready_at` إن كانت فارغة/`foodics_delivery_status=5`/`synced_to_foodics=false`) + `scan_logs('delivered')` لكل طلب، وترجع `{count, orders[{id,source,foodics_order_id}]}`. **Edge Function `foodics-update-status`:** action جديد **`bulk_delivered`** (body: `session_id, branch_id, scope`) — ينفّذ الـ RPC أولاً (المحلي فوري ⇒ الشاشتان تتحدثان عبر Realtime) ثم `PUT delivery_status=5` لفوديكس لكل طلب foodics **على دفعات من 5**، ويرفع `synced_to_foodics=true` للناجح فقط (فشل فوديكس لا يوقف العملية — نفس القاعدة). **الواجهة:** `Kitchen.jsx` (state `bulkOpen`/`bulkScope`/`bulkWorking` + `handleBulkConfirm` + `refetch()` بعد النجاح كضمان للدفعات الكبيرة) + أنماط `Kitchen.css` (`.kt-hdr-actions`/`.kt-bulk-btn`/`.kitchen-bulk-option*` + جوال). **شاشة العرض بلا تعديل** — تنعكس تلقائياً لأن الحالة تتغير في القاعدة. ✅ lint + build نظيف. **⚠️ نشر:** طبّق `023_bulk_deliver.sql` + أعد نشر `foodics-update-status` على مشروعي التيست + البرود. |
 | 2026-07-01 | **🎴 توحيد كرت شاشة الفرع (`KitchenCard`) ليطابق كرت شاشة العرض (`DisplayCard`) بالظبط + أزرار الإجراء.** حسب الطلب: صار كرت شاشة الفرع بنفس تصميم كرت شاشة العرض تماماً — بادج الحالة أعلى الكرت + **لوجو التطبيق يملأ عرض الكرت** (بلا صندوق: `.kitchen-card-logo .app-logo { width:100%; aspect-ratio:1/1; background/border/box-shadow:none }` + `.app-logo-img{padding:0}`، size `md`→`lg`) + **رقم كبير في المنتصف** (`2.1rem`→`3rem`) + `border-radius 14px`→`18px` و`padding`/`gap`/بادج مطابقة لـ `disp-card`. **الفرق الوحيد = زر الإجراء أسفل الكرت** (قيد التحضير→"جهز" أزرق، جاهز→"تم التسليم" أخضر). **إزالة من `KitchenCard`:** صف نوع الطلب + اسم التطبيق (`kitchen-card-tags`/`kitchen-card-type`) + كلمة "طلب" (`kitchen-card-order-lbl`) + **عدّاد الوقت** (`kitchen-card-time` + منطق `formatElapsed`/`useEffect`) — وحُذفت أنماطها + الاستيرادات غير المستخدمة (`useEffect`, `formatElapsed`, `DeliveryAppPill`, `ORDER_TYPE_LABELS`). تحديث قواعد الجوال (حذف override اللوجو الثابت 50px + أنماط التاجات، الرقم `1.7rem`→`2.2rem`). **تعديل `Kitchen.jsx` + `Kitchen.css` فقط — بلا مسّ لشاشة العرض/الـ hooks/DB.** ✅ lint + build نظيف. |
 | 2026-07-01 | **⚡ إصلاح جذري لبطء تحميل شاشتي الفرع والعرض — View خفيف بـ `raw_qr_data` مُقلّم + جلب متوازٍ + فهارس.** **السبب الجذري:** `useOrders` كان `select('*')` على `orders` فيجرّ عمود `raw_qr_data` (JSONB = payload فوديكس الخام الكامل: items/products/customer/payments...) لكل طلب، ومع تراكم مئات/آلاف الطلبات النشطة (فوديكس لا يُغلقها تلقائياً) ⇒ ميجابايتات تُنقل وتُحلَّل ⇒ بطء شديد، رغم أن الواجهة تقرأ فقط حقولاً نصية صغيرة (`meta.external_number`/`app_id`/`aggregator`...). **الحل:** migration **`025_orders_display_view.sql`** — view `v_orders_display` يُرجع نفس أعمدة `orders` لكن `raw_qr_data` **مُقلّم** لِما يقرأه `deliveryApps.js` فقط: `foodics_order.{app_id, meta(channelLink+external_number فقط), aggregator, delivery(aggregator.name فقط), delivery_company, customer.name, tags, reference, reference_x}` عبر `jsonb_build_object`، فيحذف المصفوفات الضخمة (products/payments/…) و**bloat الـ `meta`** (`receipt_qr` base64 + `products_kitchen`) **دون تغيير شكل البيانات** ⇒ كود الواجهة بلا تعديل. **تأكيد الأسماء:** روجعت مقابل payload فوديكس حقيقي + `foodics-webhook/index.ts` (السطر `raw_qr_data: { foodics_order: order }`) — المسار والأسماء مطابقة. + `GRANT SELECT` لـ anon/authenticated + فهرسان (`branch_id,status,created_at` و partial على `completed`). **`useOrders`:** القراءة من `v_orders_display` بدل `orders`، واستعلاما النشط/المكتمل صارا **بالتوازي (`Promise.all`)** بدل تتابع. الـ Realtime يبقى على جدول `orders` (صفوف مفردة، والـ resolve يقرأ نفس الحقول). النتيجة: payload أخف 80–95%. ✅ lint + build نظيف. **⚠️ نشر:** طبّق `025` على التيست + البرود (يُنشئ الـ view والفهارس). *(اختياري لاحقاً: توجيه `Analytics.jsx` لنفس الـ view.)* |

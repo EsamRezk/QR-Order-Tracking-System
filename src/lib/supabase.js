@@ -18,9 +18,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
  *   دالة تُنشئ الاستعلام الأساسي (select + الفلاتر + order) من جديد في كل نداء —
  *   لازم دالة وليست كائن الاستعلام نفسه، لأن الـ builder لا يُعاد استخدامه بعد await.
  * @param {number} pageSize حجم الصفحة (افتراضي 100).
+ * @param {{throwOnError?: boolean}} [opts] throwOnError: يرمي الخطأ بدل إرجاع
+ *   نتيجة ناقصة بصمت — مطلوب حيث النقص أسوأ من الفشل (مثل تصدير Excel).
  * @returns {Promise<any[]>} كل الصفوف مجمّعة.
  */
-export async function fetchAllPaged(buildQuery, pageSize = 100) {
+export async function fetchAllPaged(buildQuery, pageSize = 100, { throwOnError = false } = {}) {
   const all = []
   let from = 0
   // حماية من حلقة لا نهائية في حال خطأ غير متوقع
@@ -28,6 +30,7 @@ export async function fetchAllPaged(buildQuery, pageSize = 100) {
     const { data, error } = await buildQuery().range(from, from + pageSize - 1)
     if (error) {
       console.error('fetchAllPaged error:', error)
+      if (throwOnError) throw error
       break
     }
     if (!data || data.length === 0) break

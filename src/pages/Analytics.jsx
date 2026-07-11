@@ -22,10 +22,11 @@ const DATE_RANGES = [
   { label: 'آخر 30 يوم', days: 30, icon: '📊' },
 ]
 
-// عدد الطلبات المعروضة في صفحة الجدول الواحدة
+// عدد الطلبات المعروضة في صفحة الجدول الواحدة — يُجلب من القاعدة صفحة-بصفحة
 const PAGE_SIZE = 50
 
-// حجم الدفعة عند جلب كل الطلبات (أقصى ما تسمح به Supabase = 1000/طلب) — أقل عدد round-trips.
+// حجم الدفعة عند التصدير فقط (أقصى ما تسمح به Supabase = 1000/طلب) — كل دفعة
+// استعلام مستقل سريع بالفهرس فلا يقترب أي منها من statement_timeout.
 const FETCH_PAGE = 1000
 
 // أعمدة الجلب: بدل select('*') الذي يسحب raw_qr_data كاملاً (كيلوبايتات/طلب = بطء شديد)،
@@ -74,6 +75,31 @@ function hydrateOrder(r) {
       },
     },
   }
+}
+
+// يبني استعلام الطلبات بفلاتر SQL (تاريخ/فرع/حالة/تطبيق/رقم) — لصفحة الجدول وللتصدير.
+// الفلترة بالتطبيق والرقم على الأعمدة المحسوبة delivery_app/app_number/foodics_ref
+// (migration 027 — تُحسب بالـ trigger عند الكتابة، فلا JSON يُفكّك أثناء الفلترة).
+function buildOrdersQuery({ dateFrom, branchId, status, app, number, withCount = false }) {
+  let q = supabase
+    .from('orders')
+    .select(ORDERS_SELECT, withCount ? { count: 'exact' } : undefined)
+    .gte('created_at', dateFrom)
+    .order('created_at', { ascending: false })
+  if (branchId) q = q.eq('branch_id', branchId)
+  if (status && status !== 'all') q = q.eq('status', status)
+  if (app && app !== 'all') q = q.eq('delivery_app', app)
+  // تعقيم مدخل البحث من رموز صيغة or() في PostgREST (أرقام الطلبات أرقام عملياً)
+  const num = (number || '').replace(/[,()%*'"\\]/g, '').trim()
+  if (num) {
+    q = q.or([
+      `app_number.ilike.*${num}*`,
+      `foodics_ref.ilike.*${num}*`,
+      `foodics_order_number.ilike.*${num}*`,
+      `order_id.ilike.*${num}*`,
+    ].join(','))
+  }
+  return q
 }
 
 // خيارات فلتر الحالة (الكل + الحالات الفعّالة فقط — بلا ملغي/جديد)
@@ -290,17 +316,25 @@ function ChartTooltip({ active, payload, label, unit }) {
 export default function Analytics() {
   const { session } = useAuth()
   const isUserRole = session?.role === 'user'
-  const [orders, setOrders] = useState([])
   const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState(null)
   const [dateRange, setDateRange] = useState(7)
   const [loading, setLoading] = useState(true)
-  // فلاتر جدول السجل (تُطبّق محلياً على الطلبات المجلوبة)
+  // ملخص التحليلات المحسوب في القاعدة (rpc_analytics_summary):
+  // {total, avg, fastest, slowest, by_branch, hourly} — رحلة واحدة بلا جلب صفوف.
+  const [summary, setSummary] = useState(null)
+  // فلاتر جدول السجل — تُنفَّذ في القاعدة (WHERE) وليس محلياً
   const [statusFilter, setStatusFilter] = useState('all')
   const [appFilter, setAppFilter] = useState('all')
   const [numberFilter, setNumberFilter] = useState('')
-  // ترقيم صفحات جدول السجل — 100 طلب في الصفحة
+  // النسخة المؤجّلة (debounce) من حقل الرقم — استعلام واحد بعد توقف الكتابة
+  const [numberQuery, setNumberQuery] = useState('')
+  // ترقيم صفحات جدول السجل — تُجلب الصفحة الظاهرة فقط من القاعدة
   const [page, setPage] = useState(1)
+  const [pageRows, setPageRows] = useState([])
+  const [filteredCount, setFilteredCount] = useState(0)
+  const [tableLoading, setTableLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   // مصدر تغيير الحالة لكل طلب: { [orderId]: { ready: bool, delivered: bool } }
   // وجود سجل scan_log (ready_scan/delivered) = التغيير تمّ من نظامنا؛ غيابه = من فوديكس.
   const [statusSources, setStatusSources] = useState({})
@@ -317,107 +351,122 @@ export default function Analytics() {
     fetchBranches()
   }, [isUserRole, session.branchId])
 
+  // debounce حقل الرقم (400ms)
+  useEffect(() => {
+    const t = setTimeout(() => setNumberQuery(numberFilter.trim()), 400)
+    return () => clearTimeout(t)
+  }, [numberFilter])
+
+  // ملخص التحليلات: KPIs + متوسط الفروع + التوزيع الساعي — تجميع واحد في القاعدة
+  // (أعمدة صغيرة مفهرسة، بلا raw_qr_data) بدل جلب كل طلبات الفترة إلى المتصفح.
   useEffect(() => {
     // Wait for branch to be set before fetching for user role
     if (isUserRole && !selectedBranch) return
-
-    const fetchOrders = async () => {
+    let cancelled = false
+    const fetchSummary = async () => {
       setLoading(true)
-      // نجلب كل الطلبات (بكل الحالات) ضمن الفترة/الفرع — أعمدة مختارة فقط (بلا raw_qr_data
-      // الكامل) على دفعات 1000، فالحمولة صغيرة والتحميل سريع. الفلترة بالحالة/التطبيق/الرقم محلية.
-      const data = await fetchAllPaged(() => {
-        let q = supabase
-          .from('orders')
-          .select(ORDERS_SELECT)
-          .gte('created_at', getDateFrom(dateRange))
-          .order('created_at', { ascending: false })
-        if (selectedBranch) q = q.eq('branch_id', selectedBranch)
-        return q
-      }, FETCH_PAGE)
-      setOrders(data.map(hydrateOrder))
+      const { data, error } = await supabase.rpc('rpc_analytics_summary', {
+        p_from: getDateFrom(dateRange),
+        p_branch_id: selectedBranch || null,
+      })
+      if (cancelled) return
+      if (error) console.error('rpc_analytics_summary error:', error)
+      setSummary(error ? null : data)
+      setLoading(false)
+    }
+    fetchSummary()
+    return () => { cancelled = true }
+  }, [selectedBranch, dateRange, isUserRole])
 
-      // مصدر تغيير الحالة: نجلب سجلات scan_logs (ready_scan/second_scan/delivered)
-      // ضمن نفس الفترة. وجود السجل = تمّ من نظامنا، وغيابه = تمّ من فوديكس.
+  // نرجع للصفحة الأولى عند تغيّر الفلاتر/الفترة/الفرع
+  useEffect(() => { setPage(1) }, [statusFilter, appFilter, numberQuery, dateRange, selectedBranch])
+
+  // صفحة الجدول الظاهرة فقط (50 صف): الفلترة والعدّ والترتيب في القاعدة.
+  // استخراج مسارات raw_qr_data (ORDERS_SELECT) يتم لـ50 صفاً فقط = رخيص.
+  useEffect(() => {
+    if (isUserRole && !selectedBranch) return
+    let cancelled = false
+    const fetchPage = async () => {
+      setTableLoading(true)
+      const { data, count, error } = await buildOrdersQuery({
+        dateFrom: getDateFrom(dateRange),
+        branchId: selectedBranch,
+        status: statusFilter,
+        app: appFilter,
+        number: numberQuery,
+        withCount: true,
+      }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
+      if (cancelled) return
+      if (error) {
+        console.error('orders page error:', error)
+        setPageRows([])
+        setFilteredCount(0)
+        setStatusSources({})
+      } else {
+        setPageRows((data || []).map(hydrateOrder))
+        setFilteredCount(count ?? 0)
+        // مصدر تغيير الحالة لصفوف الصفحة الظاهرة فقط (بالـ id) بدل كل سجلات الفترة
+        const ids = (data || []).map(r => r.id)
+        if (ids.length) {
+          const { data: logs } = await supabase
+            .from('scan_logs')
+            .select('order_id, scan_type')
+            .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
+            .in('order_id', ids)
+          if (cancelled) return
+          setStatusSources(buildSourceMap(logs))
+        } else {
+          setStatusSources({})
+        }
+      }
+      setTableLoading(false)
+    }
+    fetchPage()
+    return () => { cancelled = true }
+  }, [selectedBranch, dateRange, statusFilter, appFilter, numberQuery, page, isUserRole])
+
+  // تصدير Excel: يجلب كل صفوف الفلترة الحالية عند الطلب فقط، على دفعات 1000
+  // (كل دفعة استعلام مستقل سريع بالفهرس) + سجلات المصدر للفترة، ثم يولّد الملف.
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const rows = await fetchAllPaged(() => buildOrdersQuery({
+        dateFrom: getDateFrom(dateRange),
+        branchId: selectedBranch,
+        status: statusFilter,
+        app: appFilter,
+        number: numberQuery,
+      }), FETCH_PAGE, { throwOnError: true })
       const logs = await fetchAllPaged(() =>
         supabase
           .from('scan_logs')
           .select('order_id, scan_type')
           .in('scan_type', ['ready_scan', 'second_scan', 'delivered'])
           .gte('scanned_at', getDateFrom(dateRange))
-      , FETCH_PAGE)
-      setStatusSources(buildSourceMap(logs))
-
-      setLoading(false)
+          .order('scanned_at', { ascending: false })
+      , FETCH_PAGE, { throwOnError: true })
+      const branchName = isUserRole
+        ? session.branch
+        : branches.find(b => b.id === selectedBranch)?.name_ar || null
+      await exportOrdersToExcel(rows.map(hydrateOrder), branchName, buildSourceMap(logs))
+    } catch (e) {
+      console.error('export error:', e)
+      alert('فشل تصدير الملف — أعد المحاولة')
+    } finally {
+      setExporting(false)
     }
-    fetchOrders()
-  }, [selectedBranch, dateRange, isUserRole, session.branchId])
+  }
 
-  // الطلبات بعد تطبيق فلاتر الجدول (الحالة + التطبيق + الرقم)
-  const filteredOrders = useMemo(() => {
-    const num = numberFilter.trim().toLowerCase()
-    return orders.filter(o => {
-      if (statusFilter !== 'all' && o.status !== statusFilter) return false
-      if (appFilter !== 'all' && resolveDeliveryApp(o).key !== appFilter) return false
-      if (num) {
-        // الفلترة بالرقمين معاً: رقم فوديكس (reference) + رقم التطبيق
-        const haystack = [
-          resolveFoodicsNumber(o),
-          resolveAppOrderNumber(o),
-        ].filter(Boolean).join(' ').toLowerCase()
-        if (!haystack.includes(num)) return false
-      }
-      return true
-    })
-  }, [orders, statusFilter, appFilter, numberFilter])
-
-  // ── ترقيم صفحات الجدول (100/صفحة) ──
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
-  // نرجع للصفحة الأولى عند تغيّر الفلاتر/الفترة/الفرع
-  useEffect(() => { setPage(1) }, [statusFilter, appFilter, numberFilter, dateRange, selectedBranch])
-  const currentPage = Math.min(page, totalPages)
-  const pagedOrders = useMemo(
-    () => filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filteredOrders, currentPage]
+  const stats = summary || { total: 0, avg: 0, fastest: 0, slowest: 0 }
+  const branchChartData = summary?.by_branch || []
+  const hourlyData = useMemo(
+    () => (summary?.hourly || []).map(h => ({ hour: `${h.hour}:00`, count: h.count })),
+    [summary]
   )
 
-  const stats = useMemo(() => {
-    if (orders.length === 0) return { total: 0, avg: 0, fastest: 0, slowest: 0 }
-    const durations = orders.map(o => o.prep_duration_seconds).filter(Boolean)
-    return {
-      total: orders.length,
-      avg: durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0,
-      fastest: durations.length ? Math.min(...durations) : 0,
-      slowest: durations.length ? Math.max(...durations) : 0,
-    }
-  }, [orders])
-
-  const branchChartData = useMemo(() => {
-    const map = {}
-    // عند عدم تحديد فرع: نُظهر كل الفروع حتى لو بلا طلبات مكتملة (متوسط = 0)
-    if (!selectedBranch) {
-      branches.forEach(b => { map[b.name_ar] = { name: b.name_ar, total: 0, sum: 0 } })
-    }
-    orders.forEach(o => {
-      if (!o.prep_duration_seconds) return // متوسط التحضير يُحسب فقط على الطلبات المكتملة
-      const name = o.branches?.name_ar || 'غير معروف'
-      if (!map[name]) map[name] = { name, total: 0, sum: 0 }
-      map[name].total++
-      map[name].sum += o.prep_duration_seconds
-    })
-    return Object.values(map).map(b => ({
-      name: b.name,
-      avg: b.total ? Math.round(b.sum / b.total / 60 * 10) / 10 : 0,
-    }))
-  }, [orders, branches, selectedBranch])
-
-  const hourlyData = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => ({ hour: `${i}:00`, count: 0 }))
-    orders.forEach(o => {
-      const h = new Date(o.created_at).getHours()
-      hours[h].count++
-    })
-    return hours
-  }, [orders])
+  // ── ترقيم صفحات الجدول ──
+  const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
 
 
   const kpiCards = [
@@ -445,19 +494,14 @@ export default function Analytics() {
 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <button
-                onClick={() => {
-                  const branchName = isUserRole
-                    ? session.branch
-                    : branches.find(b => b.id === selectedBranch)?.name_ar || null
-                  exportOrdersToExcel(filteredOrders, branchName, statusSources)
-                }}
+                onClick={handleExport}
                 className="export-btn"
-                disabled={filteredOrders.length === 0}
+                disabled={filteredCount === 0 || exporting}
               >
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                تصدير Excel
+                {exporting ? 'جاري التصدير...' : 'تصدير Excel'}
               </button>
               <LogoutButton />
             </div>
@@ -639,30 +683,30 @@ export default function Analytics() {
                   <span className="chart-title-icon">📋</span>
                   سجل الطلبات
                 </div>
-                {filteredOrders.length > 0 && (
+                {filteredCount > 0 && (
                   <span className="table-count">
-                    {filteredOrders.length}{filteredOrders.length !== orders.length ? ` من ${orders.length}` : ''} طلب
+                    {filteredCount}{summary && filteredCount !== summary.total ? ` من ${summary.total}` : ''} طلب
                   </span>
                 )}
               </div>
 
-              {filteredOrders.length === 0 ? (
+              {filteredCount === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">📭</div>
                   <div className="empty-text">
-                    {orders.length === 0 ? 'لا توجد بيانات للفترة المحددة' : 'لا توجد طلبات مطابقة للفلاتر'}
+                    {(summary?.total ?? 0) === 0 ? 'لا توجد بيانات للفترة المحددة' : 'لا توجد طلبات مطابقة للفلاتر'}
                   </div>
                   <div className="empty-subtext">
-                    {orders.length === 0 ? 'جرّب تغيير الفترة الزمنية أو الفرع' : 'جرّب تغيير الحالة أو التطبيق أو الرقم'}
+                    {(summary?.total ?? 0) === 0 ? 'جرّب تغيير الفترة الزمنية أو الفرع' : 'جرّب تغيير الحالة أو التطبيق أو الرقم'}
                   </div>
                 </div>
               ) : (
                 <>
-                  <div className="table-wrapper">
+                  <div className="table-wrapper" style={{ opacity: tableLoading ? 0.5 : 1, transition: 'opacity 0.15s' }}>
                     <table className="data-table">
                       <OrdersTableHead />
                       <tbody>
-                        {pagedOrders.map(o => (
+                        {pageRows.map(o => (
                           <OrderRow key={o.id} order={o} sources={statusSources} />
                         ))}
                       </tbody>
