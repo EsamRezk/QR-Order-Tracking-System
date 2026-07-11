@@ -62,6 +62,7 @@ e:\My Projects\QR Order Tracking System\
 │   │
 │   ├── hooks/
 │   │   ├── useBranch.js        # جلب بيانات الفرع من URL param
+│   │   ├── useAdminBranch.js   # حفظ الفرع المختار من الأدمن في localStorage (يظل ثابتاً بين الصفحات)
 │   │   ├── useHeartbeat.js    # تتبع الحضور (heartbeat كل 30 ثانية)
 │   │   ├── useOrders.js        # جلب الطلبات + Realtime subscription
 │   │   ├── useScanner.js       # منطق مسح QR + إنشاء/تحديث الطلبات
@@ -424,6 +425,11 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - يحمّل `/notification.mp3` lazily
 - يرجع: `{ play, loadSound }`
 
+#### `useAdminBranch.js`
+- يحفظ "الفرع المختار من الأدمن" في `localStorage` (`kz_admin_branch`) ليبقى ثابتاً بين الصفحات
+- يرجع: `{ branchCode, selectBranch }`
+- يُستخدم في `AdminSidebar.jsx` لحل مشكلة "تعلّق" الفرع (راجع سجل التغييرات 2026-07-11)
+
 ---
 
 ### 8.5 Context
@@ -489,6 +495,7 @@ VITE_SCAN_COOLDOWN_MS=2000           # فترة التبريد بين المسح
 - (رابط "ماسح الطلبات" `/scan` معطّل/مُعلّق حالياً في الكود)
 - زر toggle ثابت أعلى اليمين + overlay عند الفتح
 - الروابط التي تحتاج فرع (`needsBranch`) تضيف `?branch=CODE` تلقائياً
+- **قائمة "الفرع الحالي" (`<select>`) في هيدر القائمة** (تحت اسم المستخدم): تعرض كل الفروع النشطة وتستخدم `useAdminBranch` (localStorage) لحفظ اختيار الأدمن بين الصفحات. تغيير الفرع من هنا يحدّث فوراً `?branch=` لو الأدمن واقف على `/kitchen` أو `/display` (بلا تنقّل)، ويضبط الفرع المستخدم في روابط `needsBranch` القادمة. يحل مشكلة كان الفرع فيها "يعلق" بعد أول اختيار حتى يزور صفحة بلا فرع (مثل التحليلات) ويرجع.
 
 #### `UserSidebar.jsx`
 - شريط جانبي للمستخدم العادي (`role: user`) — يحتوي شاشة المطبخ + تسجيل الخروج
@@ -714,6 +721,7 @@ npm run lint      # فحص الكود
 | 2026-06-28 | **دمج جهازين + اعتماد ورك فلو delivery-driven مع هوية الكروت.** بعد merge فرعين متباعدين: (1) **اعتُمد فلو المطبخ delivery-driven** (قيد التحضير → جاهز → تم التسليم، بلا خطوة استلام) **مع** هوية تطبيقات التوصيل (لوجو/لون) في `Kitchen.jsx` و`OrderCard`. (2) **شاشة العميل** صار بها 3 أقسام: قيد التحضير + جاهزة + **"تم تسليمها" (قسم مطوي `DeliveredColumn`)**؛ `useOrders` يجلب الآن آخر 50 طلباً مكتملاً ويُصدّر `delivered`. (3) **🔑 تجميع كل افتراضات حالات فوديكس في ملف واحد** `supabase/functions/_shared/foodics-status.ts` (أنواع الطلب، أحداث webhook، أرقام `delivery_status`/`status`، جسم الـ PUT الصادر) — كل بند مجهول معلَّم بـ `// ❓ CONFIRM`؛ الدالتان inbound/outbound تستوردان منه. **عند وصول قيم فوديكس الحقيقية: عدّل هذا الملف وحده ثم أعد نشر الـ Functions.** (4) إعادة ترقيم migration المكرر: `020_drop_orders_order_id_branch_unique` + `021_foodics_delivery_flow` (كان كلاهما 019). **النواقص من فوديكس موثّقة في `docs/FOODICS_MEETING_CHECKLIST.md`.** ✅ lint + build نظيف. |
 
 | 2026-07-08 | **إلغاء انتهاء الجلسة (idle timeout) نهائياً — المستخدم يبقى مسجلاً حتى يعمل logout بنفسه.** حذف `useIdleTimer.js` وإزالة استدعائه من `ProtectedRoute.jsx`. في `AuthContext.jsx`: `isSessionValid` تعيد true طالما الجلسة موجودة، وحذف `updateActivity` و`lastActivity` و`IDLE_TIMEOUT_MS`. migration جديدة `026_sessions_never_expire.sql`: default لـ `expires_at` أصبح 10 سنوات + تمديد الجلسات الحالية + إعادة تعريف `get_session_user` بدون sliding-window refresh. ✅ build + lint نظيف. ⚠️ يجب تشغيل الـ migration في Supabase SQL Editor. |
+| 2026-07-11 | **🐞 إصلاح "تعلّق" الفرع للأدمن على شاشة الفرع/شاشة العرض + قائمة تبديل فرع في القائمة الجانبية.** **السبب:** `AdminSidebar.jsx` كان يشتق `branchCode` روابط `needsBranch` من `searchParams.get('branch')` **الحالي فقط** — فبمجرد فتح `/kitchen?branch=A` أو `/display?branch=A`، أي رابط تاني في القائمة يعيد نفس الفرع A دائماً، ولا سبيل لتغييره إلا بزيارة صفحة بلا `?branch=` (مثل التحليلات) ثم الرجوع (عندها `branchCode` يفرغ فتظهر `BranchSelect` من جديد). **الحل:** (1) hook جديد `useAdminBranch.js` يحفظ الفرع المختار في `localStorage` (`kz_admin_branch`) بحيث يبقى ثابتاً بين كل الصفحات لا مرتبطاً بالـ URL الحالي فقط. (2) `AdminSidebar.jsx`: أُضيفت قائمة `<select>` "الفرع الحالي" أسفل اسم المستخدم في الهيدر (تجلب الفروع النشطة) — تغييرها يحفظ الاختيار عبر `useAdminBranch` فوراً، وإن كان الأدمن واقفاً على `/kitchen` أو `/display` يحدّث `?branch=` في نفس الصفحة عبر `setSearchParams` (بلا تنقّل، شاشة الفرع/العرض تتحدّث لحظياً). `branchCode` المستخدم لبناء الروابط صار `urlBranchCode || savedBranchCode || session.branchCode` بدل الاعتماد على الرابط الحالي وحده. (3) `isActive`/التنقّل صارا عبر `useLocation()` الرسمي بدل الاعتماد الضمني على `window.location` العام. ✅ lint + build نظيف. |
 
 ---
 

@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { NavLink, useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { NavLink, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useAdminBranch } from '../hooks/useAdminBranch'
+import { supabase } from '../lib/supabase'
 
 const NAV_ITEMS = [
   {
@@ -65,11 +67,36 @@ const NAV_ITEMS = [
 export default function AdminSidebar() {
   const { session, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(true)
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
+  const { branchCode: savedBranchCode, selectBranch } = useAdminBranch()
+  const [branches, setBranches] = useState([])
+
+  const urlBranchCode = searchParams.get('branch')
+
+  // أي فرع يُفتح فعلياً (عبر رابط أو صفحة اختيار الفرع) يصبح هو الفرع المحفوظ للأدمن
+  useEffect(() => {
+    if (urlBranchCode && urlBranchCode !== savedBranchCode) {
+      selectBranch(urlBranchCode)
+    }
+  }, [urlBranchCode, savedBranchCode, selectBranch])
+
+  useEffect(() => {
+    if (!session || session.role !== 'admin') return
+    const fetchBranches = async () => {
+      const { data } = await supabase
+        .from('branches')
+        .select('code, name_ar')
+        .eq('is_active', true)
+        .order('name_ar')
+      setBranches(data || [])
+    }
+    fetchBranches()
+  }, [session])
 
   if (!session || session.role !== 'admin') return null
 
-  const branchCode = searchParams.get('branch') || session.branchCode || ''
+  const branchCode = urlBranchCode || savedBranchCode || session.branchCode || ''
 
   const getPath = (item) => {
     if (item.needsBranch && branchCode) {
@@ -80,6 +107,16 @@ export default function AdminSidebar() {
 
   const isActive = (item) => {
     return location.pathname === item.path
+  }
+
+  // تبديل الفرع من القائمة الجانبية: يُحفظ للتنقلات القادمة، ولو الأدمن
+  // واقف بالفعل على شاشة الفرع أو شاشة العرض يُحدَّث الرابط فوراً بلا تنقّل
+  const handleBranchChange = (e) => {
+    const code = e.target.value
+    selectBranch(code)
+    if (['/kitchen', '/display'].includes(location.pathname) && code) {
+      setSearchParams({ branch: code })
+    }
   }
 
   return (
@@ -174,6 +211,36 @@ export default function AdminSidebar() {
           <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: 2 }}>
             مرحباً، {session.username}
           </div>
+
+          {/* تبديل الفرع — يتحكم في شاشة الفرع وشاشة العرض من مكان واحد */}
+          {branches.length > 0 && (
+            <div style={{ marginTop: '0.9rem' }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#6B7280', marginBottom: 4 }}>
+                الفرع الحالي
+              </label>
+              <select
+                value={branchCode}
+                onChange={handleBranchChange}
+                style={{
+                  width: '100%',
+                  padding: '0.55rem 0.65rem',
+                  borderRadius: 8,
+                  border: '1px solid #e5e7eb',
+                  background: '#f9fafb',
+                  color: '#2E2D2C',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  fontFamily: "'Tajawal', sans-serif",
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="" disabled>اختر الفرع</option>
+                {branches.map((b) => (
+                  <option key={b.code} value={b.code}>{b.name_ar}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Nav Items */}
