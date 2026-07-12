@@ -44,8 +44,8 @@ function KitchenInner() {
   const { branch, loading, error, initialOrders, initialDisplaySetting } = useBranch()
   // الورك فلو (delivery-driven): الطلب يدخل "قيد التحضير" مباشرة (بلا خطوة استلام).
   const { preparing, ready, delivered, refetch } = useOrders(branch?.id, initialOrders)
-  // وضع عرض الطلبات على شاشة العرض (يتحكم في شاشة العرض فقط، يتزامن realtime)
-  const { displayMode, setDisplayMode } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
+  // وضع عرض الطلبات + إظهار هيدر شاشة العرض (يتحكمان في شاشة العرض فقط، يتزامنان realtime)
+  const { displayMode, setDisplayMode, showHeader, setShowHeader } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
   // إظهار/إخفاء قسم "تم الاستلام" (محلي لهذه الشاشة فقط)
   const [showDelivered, setShowDelivered] = useState(false)
   // فلتر شاشة الفرع (محلي فقط): 'all' | 'active' | 'ready'
@@ -208,6 +208,19 @@ function KitchenInner() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
                   </svg>
                 </div>
+              </label>
+
+              {/* توجل إظهار/إخفاء هيدر شاشة العرض (يتزامن realtime مع شاشة العرض) */}
+              <label className="kt-header-toggle" title="إظهار أو إخفاء الهيدر في شاشة العرض">
+                <span className="kt-display-select-lbl">الهيدر</span>
+                <input
+                  type="checkbox"
+                  checked={showHeader}
+                  onChange={e => setShowHeader(e.target.checked)}
+                />
+                <span className="kt-header-toggle-track" aria-hidden="true">
+                  <span className="kt-header-toggle-thumb" />
+                </span>
               </label>
 
               {/* سلة الحذف — تحويل جماعي إلى "تم الاستلام" */}

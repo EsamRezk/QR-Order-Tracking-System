@@ -11,6 +11,8 @@ export function useBranchDisplaySetting(branchId, initialSetting) {
   const [showAll, setShowAllState] = useState(() => initialSetting?.show_all_on_display ?? false)
   // وضع عرض الطلبات على شاشة العرض: 'all' | 'ready' | 'preparing' | 'split'
   const [displayMode, setDisplayModeState] = useState(() => initialSetting?.display_mode ?? 'all')
+  // إظهار/إخفاء هيدر شاشة العرض (يُضبط من شاشة الفرع)
+  const [showHeader, setShowHeaderState] = useState(() => initialSetting?.show_header ?? true)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -22,17 +24,19 @@ export function useBranchDisplaySetting(branchId, initialSetting) {
     if (initialSetting) {
       setShowAllState(initialSetting.show_all_on_display ?? false)
       setDisplayModeState(initialSetting.display_mode ?? 'all')
+      setShowHeaderState(initialSetting.show_header ?? true)
       setLoading(false)
     } else {
       const fetchSetting = async () => {
         const { data } = await supabase
           .from('branch_settings')
-          .select('show_all_on_display, display_mode')
+          .select('show_all_on_display, display_mode, show_header')
           .eq('branch_id', branchId)
           .maybeSingle()
         if (!active) return
         setShowAllState(data?.show_all_on_display ?? false)
         setDisplayModeState(data?.display_mode ?? 'all')
+        setShowHeaderState(data?.show_header ?? true)
         setLoading(false)
       }
       fetchSetting()
@@ -46,6 +50,7 @@ export function useBranchDisplaySetting(branchId, initialSetting) {
           if (payload.new) {
             setShowAllState(payload.new.show_all_on_display)
             setDisplayModeState(payload.new.display_mode ?? 'all')
+            setShowHeaderState(payload.new.show_header ?? true)
           }
         }
       )
@@ -83,5 +88,18 @@ export function useBranchDisplaySetting(branchId, initialSetting) {
     if (error) console.error('فشل حفظ وضع شاشة العرض:', error)
   }, [branchId])
 
-  return { showAll, setShowAll, displayMode, setDisplayMode, loading }
+  // كتابة إظهار/إخفاء الهيدر (upsert) — تُستدعى من شاشة الفرع، تتزامن مع شاشة العرض
+  const setShowHeader = useCallback(async (value) => {
+    if (!branchId) return
+    setShowHeaderState(value) // تحديث تفاؤلي فوري
+    const { error } = await supabase
+      .from('branch_settings')
+      .upsert(
+        { branch_id: branchId, show_header: value, updated_at: new Date().toISOString() },
+        { onConflict: 'branch_id' },
+      )
+    if (error) console.error('فشل حفظ إعداد هيدر شاشة العرض:', error)
+  }, [branchId])
+
+  return { showAll, setShowAll, displayMode, setDisplayMode, showHeader, setShowHeader, loading }
 }

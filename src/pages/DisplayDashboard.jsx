@@ -36,7 +36,8 @@ function DisplayDashboardInner() {
   const { preparing, ready, delivered } = useOrders(branch?.id, initialOrders)
   // إعداد الفرع: لو unchecked → نُظهر طلبات تطبيقات التوصيل فقط (نخفي غير-التوصيل).
   // displayMode: يتحكم فيما تعرضه الشاشة (الكل/الجاهز/النشط/عمودين) — يُضبط من شاشة الفرع، يتزامن realtime.
-  const { showAll, displayMode } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
+  // showHeader: توجل من شاشة الفرع يُظهر/يُخفي هيدر هذه الشاشة realtime.
+  const { showAll, displayMode, showHeader } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
   const visPreparing = showAll ? preparing : preparing.filter(isDeliveryAppOrder)
   const visReady = showAll ? ready : ready.filter(isDeliveryAppOrder)
   const visDelivered = showAll ? delivered : delivered.filter(isDeliveryAppOrder)
@@ -145,7 +146,8 @@ function DisplayDashboardInner() {
   /* ── Main Dashboard ── */
   return (
     <div className="display-root">
-      {/* ── Header ── */}
+      {/* ── Header (يُخفى عبر توجل "الهيدر" في شاشة الفرع) ── */}
+      {showHeader && (
       <header className="dash-header">
         <div className="dash-header-inner">
           <div className="dash-brand">
@@ -189,6 +191,7 @@ function DisplayDashboardInner() {
           </div>
         </div>
       </header>
+      )}
 
       {/* ── Content ── */}
       <main className="dash-main">
