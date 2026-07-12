@@ -123,6 +123,14 @@ body {
   }
 }
 
+/* شاشة العرض وهيدرها مخفي (توجل "الهيدر" من شاشة الفرع):
+   نخفي معه العناصر العائمة العامة — اللوجو + زر القائمة الجانبية —
+   فتصير الشاشة طلبات فقط. الـ class تُدار من DisplayDashboard على body. */
+body.kz-display-header-hidden .kz-fixed-logo,
+body.kz-display-header-hidden .kz-sidebar-toggle {
+  display: none !important;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

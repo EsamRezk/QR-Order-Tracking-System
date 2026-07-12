@@ -83,6 +83,13 @@ function DisplayDashboardInner() {
     return () => clearInterval(interval)
   }, [ready, fadingOrders, completeOrder])
 
+  // لما الهيدر مخفي: class على body تخفي معه العناصر العائمة العامة
+  // (لوجو كبة زون + زر القائمة الجانبية) — تعيش خارج هذه الصفحة في App.jsx.
+  useEffect(() => {
+    document.body.classList.toggle('kz-display-header-hidden', !showHeader)
+    return () => document.body.classList.remove('kz-display-header-hidden')
+  }, [showHeader])
+
   // Live clock
   useEffect(() => {
     const interval = setInterval(() => {

@@ -123,6 +123,7 @@ export default function AdminSidebar() {
     <>
       {/* Toggle Button - always visible */}
       <button
+        className="kz-sidebar-toggle"
         onClick={() => setCollapsed(!collapsed)}
         style={{
           position: 'fixed',

@@ -60,6 +60,7 @@ export default function UserSidebar() {
     <>
       {/* Toggle Button */}
       <button
+        className="kz-sidebar-toggle"
         onClick={() => setCollapsed(!collapsed)}
         style={{
           position: 'fixed',
