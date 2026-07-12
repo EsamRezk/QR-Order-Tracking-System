@@ -50,9 +50,11 @@
   background-image: linear-gradient(135deg, #5830C508 0%, transparent 50%);
   border-bottom: 1px solid var(--border);
   padding: 1rem 0 0.9rem;
-  /* أعلى من المحتوى (z-index:1 من .analytics-root > *) حتى تظهر قوائم الفلاتر
-     المنسدلة فوق سكشن الكروت بدل ما تنفتح تحته */
-  position: relative;
+  /* ثابت أعلى الصفحة أثناء السكرول (يلتف حول اللوجو وزر السايدبار بدل ما
+     يفضلوا عائمين لوحدهم فوق المحتوى)، وأعلى من المحتوى (z-index:1 من
+     .analytics-root > *) حتى تظهر قوائم الفلاتر المنسدلة فوق سكشن الكروت */
+  position: sticky;
+  top: 0;
   z-index: 30;
 }
 
