@@ -18,9 +18,11 @@
   --yellow: #f7941d;
 
   font-family: 'Tajawal', sans-serif;
-  /* الصفحة كلها منطقة التمرير: الهيدر يطلع لفوق ويختفي، ورأس الجدول وحده يثبت (sticky) */
-  height: 100vh;
-  overflow-y: auto;
+  /* تمرير الصفحة الطبيعي (body/html) بدل حاوية تمرير داخلية منفصلة —
+     حاوية overflow-y:auto مستقلة كانت تكسر ثبات position:fixed (اللوجو وزر
+     السايدبار) على بعض المتصفحات لأنها تفصل سياق التمرير عن نافذة العرض.
+     رأس الجدول يبقى sticky بالنسبة للنافذة الحقيقية الآن. */
+  min-height: 100vh;
   background: var(--bg-deep);
   color: var(--text-primary);
   direction: rtl;
