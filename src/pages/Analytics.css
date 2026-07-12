@@ -703,6 +703,97 @@
   .charts-grid { grid-template-columns: 1fr; }
 }
 
+/* ── أعلى المنتجات مبيعاً ── */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .products-grid { grid-template-columns: 1fr; }
+}
+
+/* شبكة كروت "أعلى منتج في كل فرع" داخل بطاقة الشارت */
+.branch-top-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.branch-top-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.7rem 0.9rem;
+  transition: all 0.2s;
+}
+
+.branch-top-card:hover {
+  border-color: var(--border-hover);
+  transform: translateX(-2px);
+}
+
+.branch-top-rank {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.branch-top-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.branch-top-branch {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.branch-top-product {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.branch-top-qty {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.branch-top-qty-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.branch-top-qty-unit {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
 .chart-card {
   background: var(--bg-card);
   border: 1px solid var(--border);

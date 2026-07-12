@@ -3,6 +3,7 @@ import { NavLink, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useAdminBranch } from '../hooks/useAdminBranch'
 import { supabase } from '../lib/supabase'
+import Dropdown from './Dropdown'
 
 const NAV_ITEMS = [
   {
@@ -111,8 +112,7 @@ export default function AdminSidebar() {
 
   // تبديل الفرع من القائمة الجانبية: يُحفظ للتنقلات القادمة، ولو الأدمن
   // واقف بالفعل على شاشة الفرع أو شاشة العرض يُحدَّث الرابط فوراً بلا تنقّل
-  const handleBranchChange = (e) => {
-    const code = e.target.value
+  const handleBranchChange = (code) => {
     selectBranch(code)
     if (['/kitchen', '/display'].includes(location.pathname) && code) {
       setSearchParams({ branch: code })
@@ -218,27 +218,13 @@ export default function AdminSidebar() {
               <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#6B7280', marginBottom: 4 }}>
                 الفرع الحالي
               </label>
-              <select
+              <Dropdown
                 value={branchCode}
                 onChange={handleBranchChange}
-                style={{
-                  width: '100%',
-                  padding: '0.55rem 0.65rem',
-                  borderRadius: 8,
-                  border: '1px solid #e5e7eb',
-                  background: '#f9fafb',
-                  color: '#2E2D2C',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  fontFamily: "'Tajawal', sans-serif",
-                  cursor: 'pointer',
-                }}
-              >
-                <option value="" disabled>اختر الفرع</option>
-                {branches.map((b) => (
-                  <option key={b.code} value={b.code}>{b.name_ar}</option>
-                ))}
-              </select>
+                ariaLabel="الفرع الحالي"
+                placeholder="اختر الفرع"
+                options={branches.map((b) => ({ value: b.code, label: b.name_ar }))}
+              />
             </div>
           )}
         </div>

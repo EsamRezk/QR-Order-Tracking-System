@@ -25,6 +25,13 @@ const DATE_RANGES = [
 // عدد الطلبات المعروضة في صفحة الجدول الواحدة — يُجلب من القاعدة صفحة-بصفحة
 const PAGE_SIZE = 50
 
+// عدد المنتجات في قائمة "الأكثر مبيعاً إجمالاً"
+const TOP_PRODUCTS_LIMIT = 10
+
+// 🔒 شارت "قيمة المبيعات (بالفلوس)" مخفي من الكود بالكامل حالياً بطلب صاحب المشروع.
+// لإظهاره لاحقاً: غيّر القيمة إلى true (لا حاجة لأي تعديل آخر — البيانات مجلوبة أصلاً).
+const SHOW_REVENUE_PRODUCTS_CHART = false
+
 // حجم الدفعة عند التصدير فقط (أقصى ما تسمح به Supabase = 1000/طلب) — كل دفعة
 // استعلام مستقل سريع بالفهرس فلا يقترب أي منها من statement_timeout.
 const FETCH_PAGE = 1000
@@ -323,6 +330,9 @@ export default function Analytics() {
   // ملخص التحليلات المحسوب في القاعدة (rpc_analytics_summary):
   // {total, avg, fastest, slowest, by_branch, hourly} — رحلة واحدة بلا جلب صفوف.
   const [summary, setSummary] = useState(null)
+  // أعلى المنتجات مبيعاً: { overall:[{name,qty,revenue}], by_branch:[{branch,name,qty,revenue}] }
+  // محسوبة في القاعدة (rpc_top_products) من جدول order_items المسطّح — بلا لمس raw_qr_data.
+  const [topProducts, setTopProducts] = useState(null)
   // فلاتر جدول السجل — تُنفَّذ في القاعدة (WHERE) وليس محلياً
   const [statusFilter, setStatusFilter] = useState('all')
   const [appFilter, setAppFilter] = useState('all')
@@ -375,6 +385,24 @@ export default function Analytics() {
       setLoading(false)
     }
     fetchSummary()
+    return () => { cancelled = true }
+  }, [selectedBranch, dateRange, isUserRole])
+
+  // أعلى المنتجات مبيعاً (إجمالاً + لكل فرع) — تجميع واحد في القاعدة على نفس فلتري الفترة والفرع.
+  useEffect(() => {
+    if (isUserRole && !selectedBranch) return
+    let cancelled = false
+    const fetchTopProducts = async () => {
+      const { data, error } = await supabase.rpc('rpc_top_products', {
+        p_from: getDateFrom(dateRange),
+        p_branch_id: selectedBranch || null,
+        p_limit: TOP_PRODUCTS_LIMIT,
+      })
+      if (cancelled) return
+      if (error) console.error('rpc_top_products error:', error)
+      setTopProducts(error ? null : data)
+    }
+    fetchTopProducts()
     return () => { cancelled = true }
   }, [selectedBranch, dateRange, isUserRole])
 
@@ -459,6 +487,9 @@ export default function Analytics() {
 
   const stats = summary || { total: 0, avg: 0, fastest: 0, slowest: 0 }
   const branchChartData = summary?.by_branch || []
+  const topOverall = topProducts?.overall || []
+  // أعلى منتج لكل فرع — نُسقِط الفروع التي لا مبيعات لها (name فارغة)
+  const topByBranch = (topProducts?.by_branch || []).filter(b => b.name)
   const hourlyData = useMemo(
     () => (summary?.hourly || []).map(h => ({ hour: `${h.hour}:00`, count: h.count })),
     [summary]
@@ -673,6 +704,136 @@ export default function Analytics() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* ── أعلى المنتجات مبيعاً ── */}
+            <div className="products-grid">
+              {/* أعلى 10 منتجات على كل الفروع (بالكمية) */}
+              <div className="chart-card">
+                <div className="chart-header">
+                  <div className="chart-title">
+                    <span className="chart-title-icon">🏆</span>
+                    أعلى 10 منتجات مبيعاً (بالكمية)
+                  </div>
+                </div>
+                {topOverall.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={Math.max(280, topOverall.length * 42)}>
+                    <BarChart data={topOverall} layout="vertical" margin={{ left: 12, right: 24 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        stroke="#9CA3AF"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        allowDecimals={false}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        stroke="#6B7280"
+                        fontSize={12}
+                        fontWeight={500}
+                        tickLine={false}
+                        axisLine={false}
+                        width={160}
+                      />
+                      <Tooltip content={<ChartTooltip unit="قطعة" />} cursor={{ fill: '#5830C508' }} />
+                      <defs>
+                        <linearGradient id="productBarGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#5830C5" />
+                          <stop offset="100%" stopColor="#7B5CD6" />
+                        </linearGradient>
+                      </defs>
+                      <Bar dataKey="qty" fill="url(#productBarGradient)" radius={[0, 8, 8, 0]} maxBarSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="empty-state" style={{ padding: '3rem 2rem' }}>
+                    <div className="empty-icon">🍽️</div>
+                    <div className="empty-text">لا توجد مبيعات منتجات للفترة المحددة</div>
+                  </div>
+                )}
+              </div>
+
+              {/* 🔒 شارت قيمة المبيعات (بالفلوس) — مخفي بالكود، يظهر عند SHOW_REVENUE_PRODUCTS_CHART=true */}
+              {SHOW_REVENUE_PRODUCTS_CHART && (
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <div className="chart-title">
+                      <span className="chart-title-icon">💰</span>
+                      أعلى 10 منتجات مبيعاً (بقيمة المبيعات)
+                    </div>
+                  </div>
+                  {topOverall.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={Math.max(280, topOverall.length * 42)}>
+                      <BarChart
+                        data={[...topOverall].sort((a, b) => b.revenue - a.revenue)}
+                        layout="vertical"
+                        margin={{ left: 12, right: 24 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                        <XAxis type="number" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          stroke="#6B7280"
+                          fontSize={12}
+                          fontWeight={500}
+                          tickLine={false}
+                          axisLine={false}
+                          width={160}
+                        />
+                        <Tooltip content={<ChartTooltip unit="ر.س" />} cursor={{ fill: '#5830C508' }} />
+                        <defs>
+                          <linearGradient id="productRevenueGradient" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#f7941d" />
+                            <stop offset="100%" stopColor="#fbbf24" />
+                          </linearGradient>
+                        </defs>
+                        <Bar dataKey="revenue" fill="url(#productRevenueGradient)" radius={[0, 8, 8, 0]} maxBarSize={30} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="empty-state" style={{ padding: '3rem 2rem' }}>
+                      <div className="empty-icon">🍽️</div>
+                      <div className="empty-text">لا توجد مبيعات منتجات للفترة المحددة</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* أعلى منتج في كل فرع */}
+              <div className="chart-card">
+                <div className="chart-header">
+                  <div className="chart-title">
+                    <span className="chart-title-icon">🥇</span>
+                    أعلى منتج مبيعاً في كل فرع
+                  </div>
+                </div>
+                {topByBranch.length > 0 ? (
+                  <div className="branch-top-grid">
+                    {topByBranch.map((b, i) => (
+                      <div className="branch-top-card" key={`${b.branch}-${i}`}>
+                        <div className="branch-top-rank">#{i + 1}</div>
+                        <div className="branch-top-body">
+                          <span className="branch-top-branch">{b.branch}</span>
+                          <span className="branch-top-product">{b.name}</span>
+                        </div>
+                        <div className="branch-top-qty">
+                          <span className="branch-top-qty-num">{b.qty}</span>
+                          <span className="branch-top-qty-unit">قطعة</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state" style={{ padding: '3rem 2rem' }}>
+                    <div className="empty-icon">🍽️</div>
+                    <div className="empty-text">لا توجد مبيعات منتجات للفترة المحددة</div>
+                  </div>
+                )}
               </div>
             </div>
 
