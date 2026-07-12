@@ -775,6 +775,121 @@
   text-overflow: ellipsis;
 }
 
+.branch-top-modifiers {
+  font-size: 0.75rem;
+  color: var(--accent-light);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── قائمة الترتيب (بارات CSS للأكثر مبيعاً) ── */
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.rank-badge {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.72rem;
+}
+
+.rank-row:nth-child(1) .rank-badge { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #fff; }
+.rank-row:nth-child(2) .rank-badge { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: #fff; }
+.rank-row:nth-child(3) .rank-badge { background: linear-gradient(135deg, #d8a17a, #b45309); color: #fff; }
+
+.rank-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.rank-names {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.rank-product {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-modifiers {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-bar-track {
+  height: 7px;
+  border-radius: 6px;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+.rank-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+.rank-bar-fill--qty {
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%);
+}
+
+.rank-bar-fill--revenue {
+  background: linear-gradient(90deg, #f7941d 0%, #fbbf24 100%);
+}
+
+.rank-qty {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  min-width: 46px;
+}
+
+.rank-qty-num {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-qty-unit {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
 .branch-top-qty {
   flex-shrink: 0;
   display: flex;

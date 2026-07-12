@@ -319,6 +319,41 @@ function ChartTooltip({ active, payload, label, unit }) {
   )
 }
 
+/* ── قائمة ترتيب أفقية (بارات CSS) — تقرأ صح في RTL وتستوعب الأسماء الطويلة ──
+   metric: 'qty' | 'revenue' — يحدّد القيمة المعروضة وعرض البار. */
+function RankList({ items, metric, unit }) {
+  const max = items.reduce((m, x) => Math.max(m, Number(x[metric]) || 0), 0) || 1
+  return (
+    <div className="rank-list">
+      {items.map((p, i) => {
+        const val = Number(p[metric]) || 0
+        const pct = Math.max(4, Math.round((val / max) * 100))
+        const display = metric === 'revenue'
+          ? Math.round(val).toLocaleString('en-US')
+          : (Number.isInteger(val) ? val : val.toFixed(1))
+        return (
+          <div className="rank-row" key={`${p.name}-${p.modifiers}-${i}`}>
+            <div className="rank-badge">#{i + 1}</div>
+            <div className="rank-main">
+              <div className="rank-names">
+                <span className="rank-product">{p.name}</span>
+                {p.modifiers ? <span className="rank-modifiers">{p.modifiers}</span> : null}
+              </div>
+              <div className="rank-bar-track">
+                <div className={`rank-bar-fill rank-bar-fill--${metric}`} style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+            <div className="rank-qty">
+              <span className="rank-qty-num">{display}</span>
+              <span className="rank-qty-unit">{unit}</span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ── Main Component ── */
 export default function Analytics() {
   const { session } = useAuth()
@@ -330,7 +365,7 @@ export default function Analytics() {
   // ملخص التحليلات المحسوب في القاعدة (rpc_analytics_summary):
   // {total, avg, fastest, slowest, by_branch, hourly} — رحلة واحدة بلا جلب صفوف.
   const [summary, setSummary] = useState(null)
-  // أعلى المنتجات مبيعاً: { overall:[{name,qty,revenue}], by_branch:[{branch,name,qty,revenue}] }
+  // أعلى المنتجات مبيعاً: { overall:[{name,modifiers,qty,revenue}], by_branch:[{branch,name,modifiers,qty,revenue}] }
   // محسوبة في القاعدة (rpc_top_products) من جدول order_items المسطّح — بلا لمس raw_qr_data.
   const [topProducts, setTopProducts] = useState(null)
   // فلاتر جدول السجل — تُنفَّذ في القاعدة (WHERE) وليس محلياً
@@ -718,37 +753,7 @@ export default function Analytics() {
                   </div>
                 </div>
                 {topOverall.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(280, topOverall.length * 42)}>
-                    <BarChart data={topOverall} layout="vertical" margin={{ left: 12, right: 24 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                      <XAxis
-                        type="number"
-                        stroke="#9CA3AF"
-                        fontSize={11}
-                        tickLine={false}
-                        axisLine={false}
-                        allowDecimals={false}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        stroke="#6B7280"
-                        fontSize={12}
-                        fontWeight={500}
-                        tickLine={false}
-                        axisLine={false}
-                        width={160}
-                      />
-                      <Tooltip content={<ChartTooltip unit="قطعة" />} cursor={{ fill: '#5830C508' }} />
-                      <defs>
-                        <linearGradient id="productBarGradient" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#5830C5" />
-                          <stop offset="100%" stopColor="#7B5CD6" />
-                        </linearGradient>
-                      </defs>
-                      <Bar dataKey="qty" fill="url(#productBarGradient)" radius={[0, 8, 8, 0]} maxBarSize={30} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <RankList items={topOverall} metric="qty" unit="قطعة" />
                 ) : (
                   <div className="empty-state" style={{ padding: '3rem 2rem' }}>
                     <div className="empty-icon">🍽️</div>
@@ -757,7 +762,7 @@ export default function Analytics() {
                 )}
               </div>
 
-              {/* 🔒 شارت قيمة المبيعات (بالفلوس) — مخفي بالكود، يظهر عند SHOW_REVENUE_PRODUCTS_CHART=true */}
+              {/* 🔒 قائمة قيمة المبيعات (بالفلوس) — مخفية بالكود، تظهر عند SHOW_REVENUE_PRODUCTS_CHART=true */}
               {SHOW_REVENUE_PRODUCTS_CHART && (
                 <div className="chart-card">
                   <div className="chart-header">
@@ -767,34 +772,11 @@ export default function Analytics() {
                     </div>
                   </div>
                   {topOverall.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={Math.max(280, topOverall.length * 42)}>
-                      <BarChart
-                        data={[...topOverall].sort((a, b) => b.revenue - a.revenue)}
-                        layout="vertical"
-                        margin={{ left: 12, right: 24 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                        <XAxis type="number" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          stroke="#6B7280"
-                          fontSize={12}
-                          fontWeight={500}
-                          tickLine={false}
-                          axisLine={false}
-                          width={160}
-                        />
-                        <Tooltip content={<ChartTooltip unit="ر.س" />} cursor={{ fill: '#5830C508' }} />
-                        <defs>
-                          <linearGradient id="productRevenueGradient" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#f7941d" />
-                            <stop offset="100%" stopColor="#fbbf24" />
-                          </linearGradient>
-                        </defs>
-                        <Bar dataKey="revenue" fill="url(#productRevenueGradient)" radius={[0, 8, 8, 0]} maxBarSize={30} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <RankList
+                      items={[...topOverall].sort((a, b) => (b.revenue - a.revenue))}
+                      metric="revenue"
+                      unit="ر.س"
+                    />
                   ) : (
                     <div className="empty-state" style={{ padding: '3rem 2rem' }}>
                       <div className="empty-icon">🍽️</div>
@@ -820,6 +802,7 @@ export default function Analytics() {
                         <div className="branch-top-body">
                           <span className="branch-top-branch">{b.branch}</span>
                           <span className="branch-top-product">{b.name}</span>
+                          {b.modifiers ? <span className="branch-top-modifiers">{b.modifiers}</span> : null}
                         </div>
                         <div className="branch-top-qty">
                           <span className="branch-top-qty-num">{b.qty}</span>
