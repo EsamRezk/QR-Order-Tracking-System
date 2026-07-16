@@ -38,6 +38,9 @@ export const HANDLED_EVENTS = new Set<string>([
   // مقبولة دفاعياً طالما الـ payload يحمل delivery_status:
   'order.created',
   'order.updated',
+  // صيغ الجمع (حسب إيميل فوديكس 2026-06-29: المشترك orders.created/orders.updated):
+  'orders.created',
+  'orders.updated',
 ])
 
 // ───────────────────────────────────────────────────────────────────
@@ -117,17 +120,27 @@ export function foodicsUtcNow(): string {
   return new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
 
+// تحويل timestamptz (ISO من القاعدة) إلى صيغة فوديكس — يُستخدم في إعادة المزامنة
+// المتأخرة (resync) كي يصل فوديكس وقتُ التسليم الحقيقي لا وقتُ إعادة المحاولة.
+export function toFoodicsUtc(iso: string | null | undefined): string | undefined {
+  if (!iso) return undefined
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return undefined
+  return d.toISOString().slice(0, 19).replace('T', ' ')
+}
+
 export type OutboundAction = 'ready' | 'delivered'
 
 // جسم طلب الـ PUT المرسل لفوديكس لكل زر.
-export function outboundBody(action: OutboundAction): Record<string, unknown> {
+// deliveredAtUtc (اختياري): وقت تسليم مخزّن بصيغة فوديكس — للـ resync المتأخر.
+export function outboundBody(action: OutboundAction, deliveredAtUtc?: string): Record<string, unknown> {
   if (action === 'ready') {
     return { delivery_status: FOODICS_DELIVERY_STATUS.READY } // ✅ 2 (Ready)
   }
   // delivered (5) → التوقيت الصحيح للتسليم للعميل هو delivered_at (حسب التوثيق)
   return {
     delivery_status: FOODICS_DELIVERY_STATUS.DELIVERED, // ✅ 5 (Delivered)
-    delivered_at: foodicsUtcNow(),                      // ✅ حقل التسليم
+    delivered_at: deliveredAtUtc ?? foodicsUtcNow(),    // ✅ حقل التسليم
   }
 }
 

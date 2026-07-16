@@ -9,7 +9,24 @@ import { resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/d
 import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
+import Toast from '../components/Toast'
 import './Kitchen.css'
+
+// نداء الـ Edge Function مع إعادة محاولة واحدة تلقائية عند خطأ الشبكة
+// (آمنة: الـ RPC محمية بشرط الحالة — التكرار لا يكرر التحديث).
+async function invokeUpdateStatus(body) {
+  const call = () => supabase.functions.invoke('foodics-update-status', { body })
+  let { data, error } = await call()
+  if (error) {
+    await new Promise(r => setTimeout(r, 500))
+    ;({ data, error } = await call())
+  }
+  if (error) throw error
+  if (data && data.success === false) {
+    throw new Error(data.error || 'فشلت العملية')
+  }
+  return data
+}
 
 // نصوص ولون البادج الملصق أعلى الكارت لكل حالة
 const STATE_BADGE = {
@@ -43,7 +60,10 @@ function KitchenInner() {
   const { session } = useAuth()
   const { branch, loading, error, initialOrders, initialDisplaySetting } = useBranch()
   // الورك فلو (delivery-driven): الطلب يدخل "قيد التحضير" مباشرة (بلا خطوة استلام).
-  const { preparing, ready, delivered, refetch } = useOrders(branch?.id, initialOrders)
+  const {
+    preparing, ready, delivered, refetch,
+    markOrderLocal, confirmOrderLocal, revertOrderLocal, isOrderPending,
+  } = useOrders(branch?.id, initialOrders)
   // وضع عرض الطلبات + إظهار هيدر شاشة العرض (يتحكمان في شاشة العرض فقط، يتزامنان realtime)
   const { displayMode, setDisplayMode, showHeader, setShowHeader } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
   // إظهار/إخفاء قسم "تم الاستلام" (محلي لهذه الشاشة فقط)
@@ -54,12 +74,15 @@ function KitchenInner() {
   const [pendingFilter, setPendingFilter] = useState(null)
   // confirm = { order, action: 'ready' | 'delivered' }
   const [confirm, setConfirm] = useState(null)
-  const [working, setWorking] = useState(false)
   // سلة الحذف (التحويل الجماعي): فتح قائمة الخيارات + النطاق المنتظر تأكيده
   const [bulkOpen, setBulkOpen] = useState(false)
   // bulkScope: 'preparing' | 'ready' | 'both' | null
   const [bulkScope, setBulkScope] = useState(null)
-  const [bulkWorking, setBulkWorking] = useState(false)
+  // تنبيه عائم (بديل alert المعطِّل): { key, message, type } | null
+  const [toast, setToast] = useState(null)
+  const showToast = useCallback((message, type = 'error') => {
+    setToast({ key: Date.now(), message, type })
+  }, [])
 
   // اختيار تاب الفلتر: "الكل" فوري بلا تأكيد، "النشطة"/"الجاهزة" تتطلب تأكيداً
   const selectFilter = useCallback((mode) => {
@@ -78,67 +101,74 @@ function KitchenInner() {
     })
   }, [])
 
-  const handleConfirm = useCallback(async () => {
-    if (!confirm || !session?.sessionId) return
-    const { order, action } = confirm
-    setWorking(true)
+  // المزامنة الخلفية لأكشن فردي: القاعدة تتحدث عبر الـ Edge Function (داتابيز
+  // أولاً — فوديكس في خلفيتها هي). النجاح يثبّت الكارت، الفشل يرجعه مع تنبيه.
+  const syncOrderAction = useCallback(async (order, action) => {
     try {
-      // المزامنة العكسية لفوديكس + تحديث القاعدة محلياً عبر Edge Function واحدة
-      const { data, error } = await supabase.functions.invoke('foodics-update-status', {
-        body: {
-          session_id: session.sessionId,
-          order_internal_id: order.id,
-          action, // 'ready' | 'delivered'
-        },
+      await invokeUpdateStatus({
+        session_id: session.sessionId,
+        order_internal_id: order.id,
+        action, // 'ready' | 'delivered'
       })
-
-      if (error) throw error
-      if (data && data.success === false) {
-        throw new Error(data.error || 'فشلت العملية')
-      }
-
-      // الانتقال بين الأقسام يتم تلقائياً عبر Realtime (preparing → ready → completed).
-      setConfirm(null)
+      // القاعدة تأكدت — نثبت الحالة (لا ننتظر Realtime كي لا يرتد الكارت
+      // بانتهاء مهلة الأمان لو كان الاتصال اللحظي منقطعاً).
+      confirmOrderLocal(order.id, action)
     } catch (err) {
       console.error('Kitchen action error:', err)
-      alert('حدث خطأ: ' + (err.message || 'فشل الاتصال'))
-      setConfirm(null)
-    } finally {
-      setWorking(false)
+      // لو Realtime أكّد التحديث قبل وصول الخطأ (سباق أجهزة) لا يحدث رجوع ولا تنبيه
+      const reverted = revertOrderLocal(order.id)
+      if (reverted) {
+        showToast(`تعذر تحديث الطلب #${resolveDisplayNumber(order)} — أعد المحاولة`)
+      }
     }
-  }, [confirm, session?.sessionId])
+  }, [session?.sessionId, confirmOrderLocal, revertOrderLocal, showToast])
 
-  // تنفيذ التحويل الجماعي (سلة الحذف): محلي فوري + مزامنة فوديكس عبر Edge Function
+  const handleConfirm = useCallback(() => {
+    if (!confirm || !session?.sessionId) return
+    const { order, action } = confirm
+    // ١) فوري (صفر شبكة): الموديل يقفل والكارت ينتقل في نفس اللحظة
+    markOrderLocal(order.id, action)
+    setConfirm(null)
+    // ٢) الخلفية: تحديث القاعدة ثم فوديكس (لا ينتظرها أحد)
+    syncOrderAction(order, action)
+  }, [confirm, session?.sessionId, markOrderLocal, syncOrderAction])
+
+  // تنفيذ التحويل الجماعي (سلة الحذف): تفاؤلي فوري + القاعدة ثم فوديكس في الخلفية
   const handleBulkConfirm = useCallback(async () => {
     if (!bulkScope || !session?.sessionId || !branch?.id) return
-    setBulkWorking(true)
+    // الطلبات المتأثرة بالنطاق المختار — نحركها كلها فوراً
+    const scopeOrders =
+      bulkScope === 'preparing' ? [...preparing]
+      : bulkScope === 'ready' ? [...ready]
+      : [...preparing, ...ready]
+
+    // ١) فوري: الموديل يقفل وكل الكروت تنتقل لـ"تم الاستلام"
+    scopeOrders.forEach(o => markOrderLocal(o.id, 'delivered'))
+    setBulkScope(null)
+    setBulkOpen(false)
+
+    // ٢) الخلفية: RPC جماعية (داخل الـ Edge Function) ثم مزامنة فوديكس في خلفيتها
     try {
-      const { data, error } = await supabase.functions.invoke('foodics-update-status', {
-        body: {
-          session_id: session.sessionId,
-          action: 'bulk_delivered',
-          branch_id: branch.id,
-          scope: bulkScope, // 'preparing' | 'ready' | 'both'
-        },
+      await invokeUpdateStatus({
+        session_id: session.sessionId,
+        action: 'bulk_delivered',
+        branch_id: branch.id,
+        scope: bulkScope, // 'preparing' | 'ready' | 'both'
       })
-
-      if (error) throw error
-      if (data && data.success === false) {
-        throw new Error(data.error || 'فشلت العملية')
-      }
-
+      scopeOrders.forEach(o => confirmOrderLocal(o.id, 'delivered'))
       // Realtime يحرّك الطلبات تلقائياً — الـ refetch ضمان إضافي للدفعات الكبيرة
       refetch()
-      setBulkScope(null)
-      setBulkOpen(false)
     } catch (err) {
       console.error('Kitchen bulk action error:', err)
-      alert('حدث خطأ: ' + (err.message || 'فشل الاتصال'))
-      setBulkScope(null)
-    } finally {
-      setBulkWorking(false)
+      const revertedAny = scopeOrders
+        .map(o => revertOrderLocal(o.id))
+        .some(Boolean)
+      if (revertedAny) {
+        showToast('تعذر التحويل الجماعي — أعد المحاولة')
+      }
     }
-  }, [bulkScope, session?.sessionId, branch?.id, refetch])
+  }, [bulkScope, session?.sessionId, branch?.id, preparing, ready,
+      markOrderLocal, confirmOrderLocal, revertOrderLocal, refetch, showToast])
 
   // عدد الطلبات المتأثرة بكل خيار من خيارات سلة الحذف
   const bulkCounts = {
@@ -308,6 +338,7 @@ function KitchenInner() {
                       key={order.id}
                       order={order}
                       mode={mode}
+                      busy={isOrderPending(order.id)}
                       onAction={() =>
                         setConfirm({ order, action: mode === 'preparing' ? 'ready' : 'delivered' })
                       }
@@ -349,7 +380,7 @@ function KitchenInner() {
 
       {/* Confirmation Modal */}
       {confirm && (
-        <div className="kitchen-modal-overlay" onClick={() => !working && setConfirm(null)}>
+        <div className="kitchen-modal-overlay" onClick={() => setConfirm(null)}>
           <div className="kitchen-modal" onClick={e => e.stopPropagation()}>
             <div className={`kitchen-modal-icon ${confirm.action === 'delivered' ? 'kitchen-modal-icon--delivered' : 'kitchen-modal-icon--ready'}`}>
               {confirm.action === 'ready' ? '✓' : '🚗'}
@@ -370,14 +401,12 @@ function KitchenInner() {
               <button
                 className={confirm.action === 'delivered' ? 'kitchen-modal-confirm kitchen-modal-confirm--delivered' : 'kitchen-modal-confirm kitchen-modal-confirm--ready'}
                 onClick={handleConfirm}
-                disabled={working}
               >
-                {working ? 'جاري التنفيذ...' : 'تأكيد'}
+                تأكيد
               </button>
               <button
                 className="kitchen-modal-cancel"
                 onClick={() => setConfirm(null)}
-                disabled={working}
               >
                 إلغاء
               </button>
@@ -391,7 +420,6 @@ function KitchenInner() {
         <div
           className="kitchen-modal-overlay"
           onClick={() => {
-            if (bulkWorking) return
             setBulkScope(null)
             setBulkOpen(false)
           }}
@@ -441,14 +469,12 @@ function KitchenInner() {
                   <button
                     className="kitchen-modal-confirm kitchen-modal-confirm--delivered"
                     onClick={handleBulkConfirm}
-                    disabled={bulkWorking}
                   >
-                    {bulkWorking ? 'جاري التنفيذ...' : 'تأكيد'}
+                    تأكيد
                   </button>
                   <button
                     className="kitchen-modal-cancel"
                     onClick={() => setBulkScope(null)}
-                    disabled={bulkWorking}
                   >
                     رجوع
                   </button>
@@ -458,6 +484,9 @@ function KitchenInner() {
           </div>
         </div>
       )}
+
+      {/* تنبيه عائم غير معطِّل (فشل مزامنة/رجوع كارت) */}
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
       {/* Filter Confirmation Modal — تأكيد فلتر شاشة الفرع */}
       {pendingFilter && (
@@ -481,7 +510,7 @@ function KitchenInner() {
   )
 }
 
-function KitchenCard({ order, mode, onAction }) {
+function KitchenCard({ order, mode, onAction, busy = false }) {
   // هوية تطبيق التوصيل: تُحدّد لون كارت "قيد التحضير" فقط. (جاهز=أزرق، تم الاستلام=أخضر عبر CSS)
   const app = resolveDeliveryApp(order)
 
@@ -510,14 +539,15 @@ function KitchenCard({ order, mode, onAction }) {
         <span className="kitchen-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
       </div>
 
-      {/* الزر: قيد التحضير → "جهز" (أزرق)، جاهز → "تم التسليم" (أخضر)، تم الاستلام → بلا زر */}
+      {/* الزر: قيد التحضير → "جهز" (أزرق)، جاهز → "تم التسليم" (أخضر)، تم الاستلام → بلا زر.
+          busy = تحديث معلق قيد التأكيد (يمنع النقر المزدوج/أكشن فوق أكشن لم يتأكد بعد) */}
       {mode === 'preparing' && (
-        <button className="kitchen-ready-btn" onClick={onAction}>
+        <button className="kitchen-ready-btn" onClick={onAction} disabled={busy}>
           ✓ جهز
         </button>
       )}
       {mode === 'ready' && (
-        <button className="kitchen-delivered-btn" onClick={onAction}>
+        <button className="kitchen-delivered-btn" onClick={onAction} disabled={busy}>
           🚗 تم التسليم
         </button>
       )}

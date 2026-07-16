@@ -127,18 +127,29 @@ Deno.serve(async (req) => {
       '| order.source:', orderSource, '| branch:', foodicsBranchId, '| #', foodicsOrderNumber,
     )
 
-    // الطلب الموجود محلياً (idempotency + forward-only)
+    // الطلب الموجود محلياً (idempotency + forward-only + تأكيد المزامنة)
     const { data: existing } = await supabase
       .from('orders')
-      .select('id, status')
+      .select('id, status, foodics_delivery_status, synced_to_foodics')
       .eq('foodics_order_id', orderId)
       .maybeSingle()
 
     // 1) إلغاء: declined / void → cancelled  (الأرقام في foodics-status.ts)
     if (isCancelledOrderStatus(orderStatus)) {
       if (existing) {
+        // حماية البيانات: طلب مكتمل (مُسلَّم فعلاً) أو ملغى بالفعل لا يُمَس —
+        // لا نفقد سجل التسليم وتوقيتاته بسبب إلغاء متأخر من فوديكس.
+        if (existing.status === 'completed' || existing.status === 'cancelled') {
+          console.log('Skipping cancel on terminal order', existing.id, '| status:', existing.status)
+          return json({ status: 'skipped_cancel_terminal', from: existing.status, order_id: existing.id })
+        }
         await supabase.from('orders')
-          .update({ status: 'cancelled', foodics_delivery_status: deliveryStatus })
+          .update({
+            status: 'cancelled',
+            foodics_delivery_status: deliveryStatus,
+            // الإلغاء جاء من فوديكس نفسها → فوديكس تعرفه بالفعل، لا مزامنة عكسية مطلوبة
+            synced_to_foodics: true,
+          })
           .eq('id', existing.id)
         return json({ status: 'cancelled', order_id: existing.id })
       }
@@ -152,17 +163,40 @@ Deno.serve(async (req) => {
       return json({ status: 'no_actionable_delivery_status', delivery_status: deliveryStatus, foodics_order_id: orderId })
     }
 
-    // forward-only: لا نُرجِع الحالة للخلف
-    if (existing && STATUS_RANK[targetStatus] < STATUS_RANK[existing.status]) {
-      console.log('Skipping backward transition', existing.status, '→', targetStatus)
+    // الحالة نفسها بالفعل → no-op (غالباً صدى الـ PUT الصادر منا):
+    //   - لا نعيد ختم ready_at/completed_at (كان يفسد prep_duration_seconds)
+    //   - نستغل الصدى كتأكيد مزامنة مجاني: إن طابق delivery_status ما هو مخزّن
+    //     نرفع synced_to_foodics فيتخطى الـ sweeper هذا الطلب.
+    if (existing && existing.status === targetStatus) {
+      if (
+        deliveryStatus !== null &&
+        Number(existing.foodics_delivery_status) === deliveryStatus &&
+        existing.synced_to_foodics === false
+      ) {
+        await supabase.from('orders')
+          .update({ synced_to_foodics: true })
+          .eq('id', existing.id)
+          .eq('synced_to_foodics', false)
+        console.log('Echo confirmed sync:', existing.id, '| delivery_status:', deliveryStatus)
+        return json({ status: 'echo_sync_confirmed', order_id: existing.id })
+      }
+      return json({ status: 'noop_same_status', order_id: existing.id, at: targetStatus })
+    }
+
+    // forward-only صارم: لا نُرجِع الحالة للخلف، ولا نقفز بين الحالات النهائية
+    // (completed ↔ cancelled لهما نفس الرتبة — الانتقال بينهما محجوب حفاظاً على السجل)
+    if (existing && STATUS_RANK[targetStatus] <= STATUS_RANK[existing.status]) {
+      console.log('Skipping non-forward transition', existing.status, '→', targetStatus)
       return json({ status: 'skipped_backward', from: existing.status, to: targetStatus, order_id: existing.id })
     }
 
     if (existing) {
-      // تحديث طلب موجود (delivery.updated)
+      // تحديث طلب موجود (delivery.updated) — التغيير قادم من فوديكس نفسها،
+      // إذن فوديكس تعرفه بالفعل: synced_to_foodics=true (يمنع PUT ارتدادي من الـ sweeper)
       const patch: Record<string, any> = {
         status: targetStatus,
         foodics_delivery_status: deliveryStatus,
+        synced_to_foodics: true,
       }
       if (targetStatus === 'ready') patch.ready_at = new Date().toISOString()
       if (targetStatus === 'completed') patch.completed_at = new Date().toISOString()
@@ -204,6 +238,9 @@ Deno.serve(async (req) => {
         foodics_order_number: foodicsOrderNumber,
         order_type: orderType,
         foodics_delivery_status: deliveryStatus,
+        // الطلب قادم من فوديكس نفسها → حالته الحالية معروفة لديها بالفعل،
+        // لا مزامنة عكسية مطلوبة (يمنع الـ sweeper من PUT ارتدادي بلا داعٍ)
+        synced_to_foodics: true,
         raw_qr_data: { foodics_order: order },
       })
       .select('id')
