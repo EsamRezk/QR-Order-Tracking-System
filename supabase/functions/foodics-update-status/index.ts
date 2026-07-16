@@ -152,6 +152,7 @@ async function syncRowToFoodics(config: FoodicsConfig, row: SyncRow): Promise<st
           console.log('Reopened sync after stale PUT | order:', row.id)
         }
       }
+      console.log('Foodics synced ✓ | order:', row.id, '| delivery_status:', target)
       return 'synced'
     }
 
@@ -323,6 +324,9 @@ Deno.serve(async (req) => {
     if (rpcRes && rpcRes.success === false) {
       return json({ success: false, error: rpcRes.error }, 200)
     }
+
+    // نجاح تحديث القاعدة (المطبخ) — سطر مقتضب لرؤية النشاط في الـ logs
+    console.log('Kitchen', action, '✓ | order:', order_internal_id)
 
     // 2) الرد فوراً — 3) فوديكس في الخلفية (ترسل آخر حالة مخزّنة)
     background(syncOrderById(order_internal_id))
