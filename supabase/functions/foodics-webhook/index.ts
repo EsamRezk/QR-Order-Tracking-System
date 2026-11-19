@@ -14,7 +14,9 @@
 // بلا أي نداء API (يتجنّب مشكلة الصلاحيات + حدّ المعدّل). مسار احتياطي: GET /orders.
 //
 // قواعد الموثوقية: idempotency على foodics_order_id، forward-only (لا تراجع للحالة)،
-// الرد دائماً 200 خلال ثوانٍ، تخزين الـ payload الخام في raw_qr_data.
+// الرد 200 فوراً قبل أي نداء للقاعدة (المعالجة في الخلفية عبر EdgeRuntime.waitUntil)،
+// تخزين الطلب الخام في raw_qr_data. ⚠️ ثمن الرد الفوري: لو فشلت المعالجة الخلفية
+// فوديكس لن تعيد الإرسال — الحدث التالي لنفس الطلب (orders.updated) يعوّضه غالباً.
 //
 // ملاحظة أمان: فوديكس لا ترسل توقيع HMAC (غير موثّق في دليل الـ API) — لا تحقق توقيع.
 //
@@ -67,31 +69,26 @@ async function fetchOrder(baseUrl: string, token: string, orderId: string) {
   return { ok: true, status: 200, order: order as Record<string, any> }
 }
 
-Deno.serve(async (req) => {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+// تنفيذ مهمة بعد إرسال الرد (Supabase background tasks). لو البيئة لا تدعم
+// waitUntil (تشغيل محلي قديم) نكتفي بإطلاق الـ Promise بلا انتظار.
+function background(task: Promise<unknown>) {
+  const rt = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime
+  if (rt?.waitUntil) {
+    rt.waitUntil(task)
+  } else {
+    task.catch((e) => console.error('background task error:', e))
   }
+}
 
+type WebhookResult = Record<string, unknown> & { status: string }
+
+// المعالجة الفعلية (قاعدة البيانات + جلب احتياطي من فوديكس) — تعمل في الخلفية
+// بعد الرد على فوديكس، فلا تؤثر على مهلة الـ 4 ثوانٍ مهما تأخرت القاعدة.
+async function processOrder(
+  embeddedOrder: Record<string, any> | null,
+  orderId: string,
+): Promise<WebhookResult> {
   try {
-    const payload = await req.json()
-    console.log('RAW WEBHOOK PAYLOAD:', JSON.stringify(payload))
-
-    const event = payload?.event
-    if (event && !HANDLED_EVENTS.has(event)) {
-      return json({ status: 'ignored', event })
-    }
-
-    // هل الـ webhook يحمل الطلب كاملاً؟ (المتوقع لأحداث delivery)
-    const embeddedOrder =
-      payload?.order && typeof payload.order === 'object' ? payload.order : null
-
-    const orderId =
-      embeddedOrder?.id ?? payload?.entity?.id ?? payload?.data?.id ?? payload?.id
-    if (!orderId) {
-      console.error('No order id in webhook payload')
-      return json({ status: 'no_order_id' })
-    }
-
     // الحصول على تفاصيل الطلب: (أ) مضمّن في الـ webhook، أو (ب) جلب احتياطي
     let order: Record<string, any> | null = null
     let usedSource = 'webhook'
@@ -102,16 +99,16 @@ Deno.serve(async (req) => {
       const config = await getConfig()
       if (!config?.access_token) {
         console.error('foodics_config not set (missing access_token)')
-        return json({ status: 'config_missing' })
+        return ({ status: 'config_missing' })
       }
       const fetched = await fetchOrder(config.api_base_url, config.access_token, orderId)
       if (!fetched.ok || !fetched.order) {
         console.error('Failed to fetch order from Foodics', orderId, 'status:', fetched.status)
-        return json({ status: 'fetch_failed', http_status: fetched.status, foodics_order_id: orderId })
+        return ({ status: 'fetch_failed', http_status: fetched.status, foodics_order_id: orderId })
       }
       order = fetched.order
     }
-    if (!order) return json({ status: 'no_order_data', foodics_order_id: orderId })
+    if (!order) return ({ status: 'no_order_data', foodics_order_id: orderId })
 
     // استخراج الحقول
     const orderStatus = Number(order.status)            // 1..8
@@ -141,7 +138,7 @@ Deno.serve(async (req) => {
         // لا نفقد سجل التسليم وتوقيتاته بسبب إلغاء متأخر من فوديكس.
         if (existing.status === 'completed' || existing.status === 'cancelled') {
           console.log('Skipping cancel on terminal order', existing.id, '| status:', existing.status)
-          return json({ status: 'skipped_cancel_terminal', from: existing.status, order_id: existing.id })
+          return ({ status: 'skipped_cancel_terminal', from: existing.status, order_id: existing.id })
         }
         await supabase.from('orders')
           .update({
@@ -151,16 +148,16 @@ Deno.serve(async (req) => {
             synced_to_foodics: true,
           })
           .eq('id', existing.id)
-        return json({ status: 'cancelled', order_id: existing.id })
+        return ({ status: 'cancelled', order_id: existing.id })
       }
-      return json({ status: 'ignored_cancelled_unknown', foodics_order_id: orderId })
+      return ({ status: 'ignored_cancelled_unknown', foodics_order_id: orderId })
     }
 
     // تحديد الحالة المحلية المستهدفة من delivery_status (الخريطة في foodics-status.ts)
     // delivery_status = null أو قيم وسيطة (Assigned/Enroute تتولاها فوديكس) → لا تغيير حالة
     const targetStatus = deliveryStatusToLocal(deliveryStatus)
     if (!targetStatus) {
-      return json({ status: 'no_actionable_delivery_status', delivery_status: deliveryStatus, foodics_order_id: orderId })
+      return ({ status: 'no_actionable_delivery_status', delivery_status: deliveryStatus, foodics_order_id: orderId })
     }
 
     // الحالة نفسها بالفعل → no-op (غالباً صدى الـ PUT الصادر منا):
@@ -178,16 +175,16 @@ Deno.serve(async (req) => {
           .eq('id', existing.id)
           .eq('synced_to_foodics', false)
         console.log('Echo confirmed sync:', existing.id, '| delivery_status:', deliveryStatus)
-        return json({ status: 'echo_sync_confirmed', order_id: existing.id })
+        return ({ status: 'echo_sync_confirmed', order_id: existing.id })
       }
-      return json({ status: 'noop_same_status', order_id: existing.id, at: targetStatus })
+      return ({ status: 'noop_same_status', order_id: existing.id, at: targetStatus })
     }
 
     // forward-only صارم: لا نُرجِع الحالة للخلف، ولا نقفز بين الحالات النهائية
     // (completed ↔ cancelled لهما نفس الرتبة — الانتقال بينهما محجوب حفاظاً على السجل)
     if (existing && STATUS_RANK[targetStatus] <= STATUS_RANK[existing.status]) {
       console.log('Skipping non-forward transition', existing.status, '→', targetStatus)
-      return json({ status: 'skipped_backward', from: existing.status, to: targetStatus, order_id: existing.id })
+      return ({ status: 'skipped_backward', from: existing.status, to: targetStatus, order_id: existing.id })
     }
 
     if (existing) {
@@ -202,17 +199,17 @@ Deno.serve(async (req) => {
       if (targetStatus === 'completed') patch.completed_at = new Date().toISOString()
       await supabase.from('orders').update(patch).eq('id', existing.id)
       console.log('Order updated:', existing.id, '→', targetStatus)
-      return json({ status: 'updated', order_id: existing.id, to: targetStatus })
+      return ({ status: 'updated', order_id: existing.id, to: targetStatus })
     }
 
     // إنشاء طلب جديد — فقط عندما يدخل المطبخ (preparing). الحالات اللاحقة بلا سجل سابق نتجاهلها.
     if (targetStatus !== 'preparing') {
-      return json({ status: 'ignored_unknown_order', to: targetStatus, foodics_order_id: orderId })
+      return ({ status: 'ignored_unknown_order', to: targetStatus, foodics_order_id: orderId })
     }
 
     if (!foodicsBranchId) {
       console.error('Order has no branch id', orderId)
-      return json({ status: 'missing_branch', foodics_order_id: orderId })
+      return ({ status: 'missing_branch', foodics_order_id: orderId })
     }
 
     const { data: mapping, error: mapErr } = await supabase
@@ -222,7 +219,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
     if (mapErr || !mapping) {
       console.error('Branch mapping not found:', foodicsBranchId, mapErr)
-      return json({ status: 'branch_not_found', foodics_branch_id: foodicsBranchId })
+      return ({ status: 'branch_not_found', foodics_branch_id: foodicsBranchId })
     }
 
     const { data: newOrder, error: insErr } = await supabase
@@ -249,13 +246,55 @@ Deno.serve(async (req) => {
     if (insErr) {
       // تكرار تسابقي محتمل (unique index) — نعتبره نجاحاً صامتاً
       console.error('Insert error:', insErr)
-      return json({ status: 'insert_error', message: insErr.message })
+      return ({ status: 'insert_error', message: insErr.message })
     }
 
     console.log('Order created (preparing):', newOrder.id, '| foodics:', orderId)
-    return json({ status: 'created', order_id: newOrder.id })
+    return ({ status: 'created', order_id: newOrder.id })
   } catch (err) {
-    console.error('Webhook error:', err)
-    return json({ status: 'error', message: (err as Error).message })
+    console.error('Webhook error:', orderId, err)
+    return ({ status: 'error', message: (err as Error).message })
   }
+}
+
+// ── نقطة الدخول: رد فوري (2xx) ثم المعالجة في الخلفية ──
+// طلب فوديكس (إيميل 2026-11): الرد خلال ~4 ثوانٍ وإلا يُحتسب فشلاً ويُعاد
+// الإرسال (يضاعف الحمل). لذلك لا نلمس القاعدة قبل الرد إطلاقاً.
+// ⚠️ لا نطبع الـ payload كاملاً: كان سبب تجاوز حصة السجلات (Log Ingestion).
+Deno.serve(async (req) => {
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 })
+  }
+
+  let payload: Record<string, any>
+  try {
+    payload = await req.json()
+  } catch {
+    return json({ status: 'invalid_json' }, 400)
+  }
+
+  const event = payload?.event
+  if (event && !HANDLED_EVENTS.has(event)) {
+    return json({ status: 'ignored', event })
+  }
+
+  // هل الـ webhook يحمل الطلب كاملاً؟ (المتوقع لأحداث delivery)
+  const embeddedOrder =
+    payload?.order && typeof payload.order === 'object' ? payload.order : null
+
+  const orderId =
+    embeddedOrder?.id ?? payload?.entity?.id ?? payload?.data?.id ?? payload?.id
+  if (!orderId) {
+    console.error('No order id in webhook payload | event:', event)
+    return json({ status: 'no_order_id' })
+  }
+
+  const startedAt = Date.now()
+  background(
+    processOrder(embeddedOrder, String(orderId)).then((result) => {
+      console.log('webhook done', event ?? '-', orderId, result.status, `${Date.now() - startedAt}ms`)
+    }),
+  )
+
+  return json({ status: 'accepted', foodics_order_id: orderId })
 })

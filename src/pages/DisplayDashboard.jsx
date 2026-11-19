@@ -32,7 +32,7 @@ export default function DisplayDashboard() {
 
 function DisplayDashboardInner() {
   const { session } = useAuth()
-  const { branch, loading, error, initialOrders, initialDisplaySetting } = useBranch()
+  const { branch, loading, error, errorHint, initialOrders, initialDisplaySetting } = useBranch()
   const { preparing, ready, delivered } = useOrders(branch?.id, initialOrders)
   // إعداد الفرع: لو unchecked → نُظهر طلبات تطبيقات التوصيل فقط (نخفي غير-التوصيل).
   // displayMode: يتحكم فيما تعرضه الشاشة (الكل/الجاهز/النشط/عمودين) — يُضبط من شاشة الفرع، يتزامن realtime.
@@ -134,7 +134,7 @@ function DisplayDashboardInner() {
         <div className="display-error-card">
           <div className="display-error-icon">⚠️</div>
           <div className="display-error-title">{error}</div>
-          <div className="display-error-subtitle">تحقق من رابط الفرع</div>
+          <div className="display-error-subtitle">{errorHint || 'تحقق من رابط الفرع'}</div>
         </div>
       </div>
     )

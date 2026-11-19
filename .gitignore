@@ -34,3 +34,7 @@ Thumbs.db
 *.tmp
 
 .vercel
+
+# Foodics / ERP tokens (secrets — never commit)
+*_prd_token*.txt
+*token*.txt

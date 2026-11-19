@@ -58,7 +58,7 @@ export default function Kitchen() {
 
 function KitchenInner() {
   const { session } = useAuth()
-  const { branch, loading, error, initialOrders, initialDisplaySetting } = useBranch()
+  const { branch, loading, error, errorHint, initialOrders, initialDisplaySetting } = useBranch()
   // الورك فلو (delivery-driven): الطلب يدخل "قيد التحضير" مباشرة (بلا خطوة استلام).
   const {
     preparing, ready, delivered, refetch,
@@ -198,7 +198,7 @@ function KitchenInner() {
         <div className="display-error-card">
           <div className="display-error-icon">⚠️</div>
           <div className="display-error-title">{error}</div>
-          <div className="display-error-subtitle">تحقق من رابط الفرع</div>
+          <div className="display-error-subtitle">{errorHint || 'تحقق من رابط الفرع'}</div>
         </div>
       </div>
     )
