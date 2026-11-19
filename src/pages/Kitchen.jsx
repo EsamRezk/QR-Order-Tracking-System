@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
 import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
@@ -83,6 +84,17 @@ function KitchenInner() {
   const showToast = useCallback((message, type = 'error') => {
     setToast({ key: Date.now(), message, type })
   }, [])
+  // تنبيهات الموبايل (Web Push): طلب جديد يصل حتى والتطبيق مقفول
+  const push = usePushNotifications(session?.sessionId, branch?.id)
+  const [pushOpen, setPushOpen] = useState(false)
+  const runPush = useCallback(async (fn, okMessage) => {
+    const res = await fn()
+    if (res.ok) {
+      if (okMessage) showToast(okMessage, 'success')
+    } else {
+      showToast(res.error)
+    }
+  }, [showToast])
 
   // اختيار تاب الفلتر: "الكل" فوري بلا تأكيد، "النشطة"/"الجاهزة" تتطلب تأكيداً
   const selectFilter = useCallback((mode) => {
@@ -252,6 +264,20 @@ function KitchenInner() {
                   <span className="kt-header-toggle-thumb" />
                 </span>
               </label>
+
+              {/* تنبيهات الموبايل — تفعيل/تجربة/إيقاف */}
+              <button
+                type="button"
+                className={`kt-push-btn ${push.status === 'on' ? 'kt-push-btn--on' : ''}`}
+                title={push.status === 'on' ? 'التنبيهات مفعّلة' : 'تفعيل تنبيهات الطلبات الجديدة'}
+                aria-label="تنبيهات الطلبات الجديدة"
+                onClick={() => setPushOpen(true)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                {push.status === 'on' && <span className="kt-push-dot" aria-hidden="true" />}
+              </button>
 
               {/* سلة الحذف — تحويل جماعي إلى "تم الاستلام" */}
               <button
@@ -485,6 +511,23 @@ function KitchenInner() {
         </div>
       )}
 
+      {/* نافذة تنبيهات الموبايل — المحتوى حسب حالة الجهاز */}
+      {pushOpen && (
+        <div className="kitchen-modal-overlay" onClick={() => setPushOpen(false)}>
+          <div className="kitchen-modal" onClick={e => e.stopPropagation()}>
+            <div className="kitchen-modal-icon kitchen-modal-icon--ready">🔔</div>
+            <PushPanel
+              push={push}
+              branchName={branch?.name_ar}
+              onEnable={() => runPush(push.enable, 'تم تفعيل التنبيهات على هذا الجهاز')}
+              onTest={() => runPush(push.sendTest, 'تم إرسال تنبيه تجريبي — هيوصلك خلال ثواني')}
+              onDisable={() => runPush(push.disable, 'تم إيقاف التنبيهات على هذا الجهاز')}
+              onClose={() => setPushOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* تنبيه عائم غير معطِّل (فشل مزامنة/رجوع كارت) */}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
@@ -507,6 +550,92 @@ function KitchenInner() {
         </div>
       )}
     </div>
+  )
+}
+
+// محتوى نافذة التنبيهات حسب حالة الجهاز (راجع usePushNotifications)
+function PushPanel({ push, branchName, onEnable, onTest, onDisable, onClose }) {
+  const closeBtn = (
+    <button className="kitchen-modal-cancel" onClick={onClose}>إغلاق</button>
+  )
+
+  if (push.status === 'on') {
+    return (
+      <>
+        <div className="kitchen-modal-title">التنبيهات مفعّلة على هذا الجهاز</div>
+        <div className="kitchen-modal-subtitle">
+          هيوصلك تنبيه بكل طلب جديد{branchName ? ` في فرع ${branchName}` : ''} حتى لو التطبيق مقفول
+        </div>
+        <div className="kitchen-modal-actions">
+          <button className="kitchen-modal-confirm kitchen-modal-confirm--ready" onClick={onTest} disabled={push.busy}>
+            إرسال تنبيه تجريبي
+          </button>
+          {closeBtn}
+        </div>
+        <button className="kt-push-off-link" onClick={onDisable} disabled={push.busy}>
+          إيقاف التنبيهات على هذا الجهاز
+        </button>
+      </>
+    )
+  }
+
+  if (push.status === 'off' || push.status === 'checking') {
+    return (
+      <>
+        <div className="kitchen-modal-title">تفعيل تنبيهات الطلبات الجديدة</div>
+        <div className="kitchen-modal-subtitle">
+          فعّل التنبيهات عشان يوصلك تنبيه بكل طلب جديد{branchName ? ` في فرع ${branchName}` : ''}، حتى لو التطبيق مقفول أو الموبايل مقفول
+        </div>
+        <div className="kitchen-modal-actions">
+          <button
+            className="kitchen-modal-confirm kitchen-modal-confirm--ready"
+            onClick={onEnable}
+            disabled={push.busy || push.status === 'checking'}
+          >
+            تفعيل التنبيهات
+          </button>
+          {closeBtn}
+        </div>
+      </>
+    )
+  }
+
+  if (push.status === 'ios-needs-install') {
+    return (
+      <>
+        <div className="kitchen-modal-title">على الآيفون: ثبّت التطبيق الأول</div>
+        <ol className="kt-push-steps">
+          <li>افتح الموقع من متصفح سفاري</li>
+          <li>اضغط زر المشاركة (المربع اللي فيه سهم لفوق) تحت الشاشة</li>
+          <li>اختار «إضافة إلى الشاشة الرئيسية»</li>
+          <li>افتح التطبيق من الأيقونة الجديدة، وادخل على شاشة الفرع، واضغط زر الجرس تاني</li>
+        </ol>
+        <div className="kitchen-modal-actions">{closeBtn}</div>
+      </>
+    )
+  }
+
+  if (push.status === 'denied') {
+    return (
+      <>
+        <div className="kitchen-modal-title">التنبيهات مرفوضة على هذا الجهاز</div>
+        <div className="kitchen-modal-subtitle">
+          اتعمل رفض لإذن التنبيهات قبل كده. فعّله من إعدادات الموبايل، من قسم الإشعارات الخاص بالتطبيق أو المتصفح، وبعدين ارجع هنا واضغط الجرس تاني
+        </div>
+        <div className="kitchen-modal-actions">{closeBtn}</div>
+      </>
+    )
+  }
+
+  // unsupported
+  return (
+    <>
+      <div className="kitchen-modal-title">الجهاز ده مش بيدعم التنبيهات</div>
+      <div className="kitchen-modal-subtitle">
+        على أندرويد افتح الموقع من متصفح كروم. على الآيفون لازم يكون النظام ١٦٫٤ أو أحدث، والتطبيق متثبّت على الشاشة الرئيسية
+      </div>
+      <div className="kitchen-modal-actions">{closeBtn}</div>
+    </>
   )
 }
 

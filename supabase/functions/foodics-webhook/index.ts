@@ -33,6 +33,7 @@ import {
   isCancelledOrderStatus,
   deliveryStatusToLocal,
 } from '../_shared/foodics-status.ts'
+import { notifyBranch, deliveryAppName } from '../_shared/push.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -240,7 +241,8 @@ async function processOrder(
         synced_to_foodics: true,
         raw_qr_data: { foodics_order: order },
       })
-      .select('id')
+      // delivery_app / app_number يملؤهما trigger orders_analytics_fields (migration 027)
+      .select('id, delivery_app, app_number')
       .single()
 
     if (insErr) {
@@ -250,6 +252,27 @@ async function processOrder(
     }
 
     console.log('Order created (preparing):', newOrder.id, '| foodics:', orderId)
+
+    // تنبيه موبايلات الفرع (Web Push — migration 035). فشله لا يؤثر على الطلب.
+    try {
+      const { data: br } = await supabase
+        .from('branches')
+        .select('name_ar, code')
+        .eq('id', mapping.branch_id)
+        .maybeSingle()
+      const appName = deliveryAppName(newOrder.delivery_app)
+      const displayNumber = newOrder.app_number || foodicsOrderNumber
+      const push = await notifyBranch(supabase, mapping.branch_id, {
+        title: `طلب جديد #${displayNumber}`,
+        body: [appName, br?.name_ar ? `فرع ${br.name_ar}` : null].filter(Boolean).join(' — ') || 'كبة زون',
+        url: br?.code ? `/kitchen?branch=${br.code}` : '/',
+        tag: `order-${newOrder.id}`,
+      })
+      if (push.sent || push.failed || push.removed) console.log('push', newOrder.id, JSON.stringify(push))
+    } catch (pushErr) {
+      console.error('push error', newOrder.id, pushErr)
+    }
+
     return ({ status: 'created', order_id: newOrder.id })
   } catch (err) {
     console.error('Webhook error:', orderId, err)

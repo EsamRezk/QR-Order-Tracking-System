@@ -267,6 +267,79 @@
     box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
+/* زر تنبيهات الموبايل (الجرس) — رمادي = غير مفعّل، أزرق + نقطة خضراء = مفعّل */
+.kt-push-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1.5px solid rgba(100, 116, 139, 0.3);
+    border-radius: 0.6rem;
+    background: rgba(100, 116, 139, 0.06);
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.kt-push-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.kt-push-btn:hover,
+.kt-push-btn:focus-visible {
+    outline: none;
+    border-color: var(--blue);
+    color: var(--blue);
+}
+
+.kt-push-btn--on {
+    border-color: rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--blue);
+}
+
+.kt-push-dot {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 2px #fff;
+}
+
+/* خطوات تثبيت التطبيق على الآيفون داخل نافذة التنبيهات */
+.kt-push-steps {
+    text-align: right;
+    margin: 0 0 1.5rem;
+    padding-right: 1.25rem;
+    font-size: 0.85rem;
+    line-height: 1.9;
+    color: var(--text-muted);
+}
+
+/* رابط "إيقاف التنبيهات" أسفل النافذة — ثانوي عمداً */
+.kt-push-off-link {
+    margin-top: 1rem;
+    border: none;
+    background: none;
+    color: #dc2626;
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.kt-push-off-link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ── تابات الفلترة — النشطة / الجاهزة / الكل ── */
 .kt-tabs {
     display: flex;
@@ -971,12 +1044,14 @@
         gap: 0.45rem;
     }
 
-    .kt-bulk-btn {
+    .kt-bulk-btn,
+    .kt-push-btn {
         width: 30px;
         height: 30px;
     }
 
-    .kt-bulk-btn svg {
+    .kt-bulk-btn svg,
+    .kt-push-btn svg {
         width: 16px;
         height: 16px;
     }
