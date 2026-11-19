@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import './Login.css'
 
 export default function Login() {
   const { login, isAuthenticated, getDefaultRoute } = useAuth()
+  const location = useLocation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  // سبب الخروج القسري (مثلاً جلسة رفضتها القاعدة) — يمرّره logout(notice)
+  const [error, setError] = useState(location.state?.notice || '')
   const [loading, setLoading] = useState(false)
 
   // Already logged in → redirect to default route

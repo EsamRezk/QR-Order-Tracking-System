@@ -6,6 +6,11 @@ const AuthContext = createContext(null)
 
 const SESSION_KEY = 'kz_session'
 
+// النص الذي ترجعه كل دوال القاعدة المحمية (rpc_*_secure) عندما لا تجد جلسة
+// صالحة للمستخدم أو لا يملك الصلاحية المطلوبة.
+export const UNAUTHORIZED_ERROR = 'غير مصرح'
+export const SESSION_REJECTED_NOTICE = 'انتهت جلسة الدخول أو لا تملك صلاحية لهذه الصفحة — سجّل الدخول مرة أخرى'
+
 function getStoredSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
@@ -84,7 +89,8 @@ export function AuthProvider({ children }) {
     return { success: true }
   }, [navigate])
 
-  const logout = useCallback(async () => {
+  // notice (اختياري): رسالة تعرضها صفحة الدخول تشرح سبب الخروج (مثلاً جلسة مرفوضة)
+  const logout = useCallback(async (notice) => {
     // Remove presence before clearing session
     if (session?.sessionId) {
       try {
@@ -97,7 +103,7 @@ export function AuthProvider({ children }) {
     }
     localStorage.removeItem(SESSION_KEY)
     setSession(null)
-    navigate('/login')
+    navigate('/login', typeof notice === 'string' ? { state: { notice } } : undefined)
   }, [navigate, session])
 
   const getDefaultRoute = useCallback(() => {

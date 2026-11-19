@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
+import { useAuth, UNAUTHORIZED_ERROR, SESSION_REJECTED_NOTICE } from '../context/AuthContext'
 import LogoutButton from '../components/LogoutButton'
 import LoadingScreen from '../components/LoadingScreen'
 import './AddUser.css'
@@ -29,7 +29,7 @@ const ROUTE_OPTIONS = {
 }
 
 export default function AddUser() {
-  const { session } = useAuth()
+  const { session, logout } = useAuth()
   const [form, setForm] = useState(EMPTY_FORM)
   const [branches, setBranches] = useState([])
   const [users, setUsers] = useState([])
@@ -38,6 +38,16 @@ export default function AddUser() {
   const [message, setMessage] = useState(null) // { type: 'success'|'error', text }
   const [editingUser, setEditingUser] = useState(null) // null = add mode, { id } = edit mode
   const [deleteTarget, setDeleteTarget] = useState(null) // { id, username } for confirm modal
+
+  // القاعدة رفضت الجلسة (غير موجودة/منتهية/ليست مدير) → لا فائدة من البقاء في
+  // الصفحة: نسجّل الخروج ونرجع لصفحة الدخول مع سبب واضح بدل رسالة "غير مصرح".
+  const rejectIfUnauthorized = (data) => {
+    if (data?.success === false && data?.error === UNAUTHORIZED_ERROR) {
+      logout(SESSION_REJECTED_NOTICE)
+      return true
+    }
+    return false
+  }
 
   const fetchBranches = async () => {
     const { data } = await supabase
@@ -56,6 +66,7 @@ export default function AddUser() {
         setMessage({ type: 'error', text: `RPC Error: ${error.message}` })
         return
       }
+      if (rejectIfUnauthorized(data)) return
       if (data?.success) {
         setUsers(data.users || [])
       } else {
@@ -93,6 +104,7 @@ export default function AddUser() {
         p_role: form.role,
       })
 
+      if (rejectIfUnauthorized(data)) return
       if (data?.success) {
         setMessage({ type: 'success', text: `تم تعديل المستخدم "${form.username}" بنجاح` })
         setForm(EMPTY_FORM)
@@ -112,6 +124,7 @@ export default function AddUser() {
         p_role: form.role,
       })
 
+      if (rejectIfUnauthorized(data)) return
       if (data?.success) {
         setMessage({ type: 'success', text: `تم إضافة المستخدم "${form.username}" بنجاح` })
         setForm(EMPTY_FORM)
@@ -157,6 +170,7 @@ export default function AddUser() {
       p_target_user_id: id,
     })
 
+    if (rejectIfUnauthorized(data)) return
     if (data?.success) {
       setMessage({ type: 'success', text: `تم حذف المستخدم "${username}"` })
       fetchUsers()
