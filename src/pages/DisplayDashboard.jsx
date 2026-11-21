@@ -8,6 +8,7 @@ import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
 import { useSound } from '../hooks/useSound'
 import { useAuth } from '../context/AuthContext'
 import { formatClock, formatDate } from '../utils/formatTime'
+import { sortByLatest } from '../utils/orderSort'
 import { supabase } from '../lib/supabase'
 import DeliveredColumn from '../components/DeliveredColumn'
 import BranchSelect from './BranchSelect'
@@ -18,6 +19,20 @@ const READY_TIMEOUT_MS = (parseInt(import.meta.env.VITE_READY_TIMEOUT_MINUTES, 1
 
 // نص البادج العلوي لكل حالة على شاشة العرض (حالتان فقط)
 const DISP_BADGE = { preparing: 'قيد التحضير', ready: 'جاهز' }
+
+/**
+ * كثافة الشبكة حسب عدد الطلبات — حتى تبقى كل الطلبات ظاهرة على شاشة التلفاز
+ * (1920×1080 بلا تمرير) وبأكبر رقم ممكن: طلبات قليلة = كروت وأرقام أكبر.
+ * l / m / s / xs — الأعمدة والمقاسات الفعلية في DisplayDashboard.css (≥1200px فقط).
+ * وضع العمودين: كل عمود نصف الشاشة، فالعتبات أصغر (حسب العمود الأكثر طلبات).
+ */
+function gridDensity(count, split = false) {
+  const [l, m, s] = split ? [6, 12, 15] : [12, 24, 40]
+  if (count <= l) return 'l'
+  if (count <= m) return 'm'
+  if (count <= s) return 's'
+  return 'xs'
+}
 
 export default function DisplayDashboard() {
   const [searchParams] = useSearchParams()
@@ -144,11 +159,15 @@ function DisplayDashboardInner() {
 
   // تطبيق وضع العرض (يُضبط من شاشة الفرع): الكل / الجاهز / النشط / عمودين
   const isSplit = displayMode === 'split'
-  const gridReady = displayMode === 'all' || displayMode === 'ready' || isSplit ? visReady : []
-  const gridPreparing = displayMode === 'all' || displayMode === 'preparing' || isSplit ? visPreparing : []
+  // الأحدث أولاً (= على اليمين في RTL): طلب جديد أو طلب صار جاهزاً ينزل يميناً
+  const gridReady = displayMode === 'all' || displayMode === 'ready' || isSplit ? sortByLatest(visReady) : []
+  const gridPreparing = displayMode === 'all' || displayMode === 'preparing' || isSplit ? sortByLatest(visPreparing) : []
   const showDelivered = displayMode === 'all'
   const displayedActive = gridReady.length + gridPreparing.length
   const emptyTitle = displayMode === 'ready' ? 'لا توجد طلبات جاهزة' : 'لا توجد طلبات نشطة'
+  const density = isSplit
+    ? gridDensity(Math.max(gridReady.length, gridPreparing.length), true)
+    : gridDensity(displayedActive)
 
   /* ── Main Dashboard ── */
   return (
@@ -224,7 +243,7 @@ function DisplayDashboardInner() {
               <div className="disp-split-head disp-split-head--ready">
                 جاهز <span className="disp-split-count">{gridReady.length}</span>
               </div>
-              <div className="disp-grid disp-grid--split">
+              <div className="disp-grid disp-grid--split" data-density={density}>
                 {gridReady.map(order => (
                   <DisplayCard key={order.id} order={order} mode="ready" fading={fadingOrders.has(order.id)} />
                 ))}
@@ -234,7 +253,7 @@ function DisplayDashboardInner() {
               <div className="disp-split-head disp-split-head--preparing">
                 قيد التجهيز <span className="disp-split-count">{gridPreparing.length}</span>
               </div>
-              <div className="disp-grid disp-grid--split">
+              <div className="disp-grid disp-grid--split" data-density={density}>
                 {gridPreparing.map(order => (
                   <DisplayCard key={order.id} order={order} mode="preparing" fading={fadingOrders.has(order.id)} />
                 ))}
@@ -244,12 +263,12 @@ function DisplayDashboardInner() {
         ) : (
           <>
             {displayedActive > 0 && (
-              <div className="disp-grid">
-                {/* الأولوية للجاهز ثم قيد التحضير */}
-                {[
+              <div className="disp-grid" data-density={density}>
+                {/* خط زمني واحد بالأحدث: أي طلب جديد أو تحديث (صار جاهزاً) ينزل على اليمين */}
+                {sortByLatest([
                   ...gridReady.map(order => ({ order, mode: 'ready' })),
                   ...gridPreparing.map(order => ({ order, mode: 'preparing' })),
-                ].map(({ order, mode }) => (
+                ], x => x.order).map(({ order, mode }) => (
                   <DisplayCard
                     key={order.id}
                     order={order}
@@ -260,7 +279,7 @@ function DisplayDashboardInner() {
               </div>
             )}
             {/* قسم "تم تسليمها" — يظهر فقط في وضع "الكل" */}
-            {showDelivered && <DeliveredColumn orders={visDelivered} />}
+            {showDelivered && <DeliveredColumn orders={sortByLatest(visDelivered)} />}
           </>
         )}
       </main>
@@ -292,7 +311,10 @@ function DisplayCard({ order, mode, fading = false }) {
       </div>
 
       <div className="disp-card-order">
-        <span className="disp-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
+        {/* "#" أصغر من الرقم: يوفّر عرضاً فيكبر الرقم نفسه (المهم للعميل من بعيد) */}
+        <span className="disp-card-id" style={mode === 'preparing' ? { color: app.ink } : undefined}>
+          <span className="disp-card-hash">#</span>{resolveDisplayNumber(order)}
+        </span>
       </div>
     </div>
   )

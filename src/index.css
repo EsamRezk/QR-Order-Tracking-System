@@ -22,6 +22,15 @@
   box-sizing: border-box;
 }
 
+/* منع التمرير الأفقي: القائمة الجانبية المطوية (fixed + translateX خارج الشاشة)
+   كانت توسّع عرض الصفحة على الجوال فيصغُر المحتوى ويتزحلق يميناً/يساراً.
+   clip (وليس hidden) لا يحوّل الصفحة لحاوية تمرير، فالهيدر sticky يبقى شغالاً. */
+html,
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 body {
   font-family: 'Tajawal', sans-serif;
   direction: rtl;

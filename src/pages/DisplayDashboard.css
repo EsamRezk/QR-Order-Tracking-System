@@ -630,6 +630,19 @@
     overflow-wrap: anywhere;
 }
 
+.disp-card--ready .disp-card-id {
+    color: #1d4ed8;
+}
+
+/* "#" أصغر وأخف من الرقم نفسه */
+.disp-card-hash {
+    font-size: 0.6em;
+    font-weight: 800;
+    opacity: 0.55;
+    margin-left: 0.04em;
+    vertical-align: 0.28em;
+}
+
 @keyframes display-enter {
     from {
         opacity: 0;
@@ -675,16 +688,193 @@
         padding: 1rem 1.5rem 1.5rem;
     }
 
-    /* شاشات كبيرة / تلفاز — 12 طلب في الصف الواحد */
-    /* minmax(0,1fr) ضروري: يمنع تمدد الأعمدة فوق عرض الشاشة (overflow-x) */
-    .disp-grid {
-        grid-template-columns: repeat(12, minmax(0, 1fr));
-        gap: 1.5rem 0.55rem;
+}
+
+/* ══════════════════════════════════
+   تلفاز / شاشة كبيرة (50 بوصة) — ≥1200px
+   العميل يقرأ رقمه من 3–5 أمتار: الرقم هو العنصر الأكبر في الكرت،
+   واللوجو أصغر منه. كل المقاسات بوحدة vw حتى تتناسب مع أي دقة
+   (Full HD أو 4K بدون تكبير) بنفس الشكل.
+   الكثافة (data-density من الـ JSX) تختار عدد الأعمدة حسب عدد الطلبات
+   فتظهر كلها في شاشة واحدة بلا تمرير:
+     l  ≤12 طلب  →  6 أعمدة (أكبر رقم)
+     m  ≤24 طلب  →  8 أعمدة
+     s  ≤40 طلب  → 10 أعمدة
+     xs >40 طلب  → 12 عمود
+   ══════════════════════════════════ */
+@media (min-width: 1200px) {
+    /* ── هيدر مقروء من بعيد ── */
+    .dash-header-inner {
+        padding: 0.55vw 2vw;
+        padding-right: 72px;
+        padding-left: 150px;
     }
 
-    /* الرقم يتكيّف مع عرض العمود حتى لا يفيض داخل الكرت */
+    .dash-logo {
+        width: 2.6vw;
+        height: 2.6vw;
+        border-radius: 0.7vw;
+    }
+
+    .dash-logo svg {
+        width: 1.45vw;
+        height: 1.45vw;
+    }
+
+    .dash-branch-name {
+        font-size: 1.75vw;
+    }
+
+    .dash-branch-sub {
+        font-size: 0.85vw;
+    }
+
+    .dash-clock {
+        font-size: 2.3vw;
+    }
+
+    .dash-date {
+        font-size: 0.85vw;
+    }
+
+    .dash-status-text {
+        font-size: 0.95vw;
+    }
+
+    .dash-status-dot {
+        width: 0.55vw;
+        height: 0.55vw;
+    }
+
+    .dash-sound-toggle {
+        width: 2.4vw;
+        height: 2.4vw;
+        border-radius: 0.6vw;
+    }
+
+    .dash-main {
+        padding: 1.6vw 1.25vw 1vw;
+    }
+
+    /* ── مقاسات الكثافة (متغيرات) ── */
+    .disp-grid {
+        --cols: 8;
+        --num: 3.9vw;
+        --logo: 48%;
+        --badge: 0.95vw;
+        --pad: 0.6vw;
+        grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+        gap: 1.9vw 0.75vw;
+    }
+
+    .disp-grid[data-density="l"] {
+        --cols: 6;
+        --num: 5vw;
+        --logo: 46%;
+        --badge: 1.15vw;
+        --pad: 0.8vw;
+        gap: 2.3vw 1vw;
+    }
+
+    .disp-grid[data-density="s"] {
+        --cols: 10;
+        --num: 3.05vw;
+        --logo: 48%;
+        --badge: 0.8vw;
+        --pad: 0.45vw;
+        gap: 1.6vw 0.6vw;
+    }
+
+    .disp-grid[data-density="xs"] {
+        --cols: 12;
+        --num: 2.45vw;
+        --logo: 46%;
+        --badge: 0.68vw;
+        --pad: 0.35vw;
+        gap: 1.3vw 0.45vw;
+    }
+
+    /* وضع العمودين: كل عمود نصف الشاشة → نصف عدد الأعمدة بنفس مقاس الكرت */
+    /* (grid-template-columns مكرر هنا ليغلب قاعدة الـ 7 أعمدة العامة الأعلى في الملف) */
+    .disp-grid.disp-grid--split                     { --cols: 4; gap: 1.9vw 0.75vw; }
+    .disp-grid.disp-grid--split[data-density="l"]  { --cols: 3; gap: 2.3vw 1vw; }
+    .disp-grid.disp-grid--split[data-density="s"]  { --cols: 5; gap: 1.6vw 0.6vw; }
+    .disp-grid.disp-grid--split[data-density="xs"] { --cols: 6; gap: 1.3vw 0.45vw; }
+
+    .disp-grid.disp-grid--split {
+        grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    }
+
+    .disp-split {
+        gap: 1.25vw;
+    }
+
+    .disp-split-col {
+        padding: 0.8vw 0.8vw 1.2vw;
+        border-radius: 1vw;
+    }
+
+    .disp-split-head {
+        font-size: 1.7vw;
+        gap: 0.7vw;
+        margin-bottom: 1.6vw;
+        padding-bottom: 0.5vw;
+        border-bottom-width: 0.2vw;
+    }
+
+    .disp-split-count {
+        font-size: 1.2vw;
+        padding: 0.1vw 0.8vw;
+    }
+
+    /* ── الكرت ── */
+    .disp-card {
+        padding: calc(var(--badge) * 1.9) var(--pad) calc(var(--pad) * 1.3);
+        gap: calc(var(--pad) * 0.9);
+        border-width: 0.16vw;
+        border-radius: 1vw;
+    }
+
+    .disp-card-badge {
+        font-size: var(--badge);
+        padding: 0.3em 0.95em;
+        box-shadow: 0 0.15vw 0.5vw rgba(0, 0, 0, 0.18);
+    }
+
+    .disp-card-logo .app-logo {
+        width: var(--logo);
+        border-radius: 0.75vw;
+    }
+
     .disp-card-id {
-        font-size: clamp(1.2rem, 1.55vw, 2rem);
+        font-size: var(--num);
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* جاهز = أوضح عنصر على الشاشة: كرت أزرق مصمت + رقم أبيض
+       (العميل يلمح طلبه الجاهز من أول نظرة حتى من آخر المحل) */
+    .disp-card--ready {
+        background: linear-gradient(160deg, #3b7bff 0%, #1d4ed8 100%);
+        border-color: #1d4ed8;
+        box-shadow: 0 0.5vw 1.4vw -0.5vw rgba(29, 78, 216, 0.55);
+        gap: calc(var(--pad) * 0.9);
+    }
+
+    .disp-card--ready .disp-card-id {
+        color: #ffffff;
+    }
+
+    .disp-card--ready .disp-card-logo .app-logo {
+        background: #ffffff;
+        padding: 0.25vw;
+    }
+
+    .disp-card-badge--ready {
+        background: #ffffff;
+        color: #1d4ed8;
     }
 }
 
