@@ -8,6 +8,7 @@ import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
 import { useSound } from '../hooks/useSound'
 import { useAuth } from '../context/AuthContext'
 import { formatClock, formatDate } from '../utils/formatTime'
+import { sortByLatest } from '../utils/orderSort'
 import { supabase } from '../lib/supabase'
 import DeliveredColumn from '../components/DeliveredColumn'
 import BranchSelect from './BranchSelect'
@@ -158,8 +159,9 @@ function DisplayDashboardInner() {
 
   // تطبيق وضع العرض (يُضبط من شاشة الفرع): الكل / الجاهز / النشط / عمودين
   const isSplit = displayMode === 'split'
-  const gridReady = displayMode === 'all' || displayMode === 'ready' || isSplit ? visReady : []
-  const gridPreparing = displayMode === 'all' || displayMode === 'preparing' || isSplit ? visPreparing : []
+  // الأحدث أولاً (= على اليمين في RTL): طلب جديد أو طلب صار جاهزاً ينزل يميناً
+  const gridReady = displayMode === 'all' || displayMode === 'ready' || isSplit ? sortByLatest(visReady) : []
+  const gridPreparing = displayMode === 'all' || displayMode === 'preparing' || isSplit ? sortByLatest(visPreparing) : []
   const showDelivered = displayMode === 'all'
   const displayedActive = gridReady.length + gridPreparing.length
   const emptyTitle = displayMode === 'ready' ? 'لا توجد طلبات جاهزة' : 'لا توجد طلبات نشطة'
@@ -262,11 +264,11 @@ function DisplayDashboardInner() {
           <>
             {displayedActive > 0 && (
               <div className="disp-grid" data-density={density}>
-                {/* الأولوية للجاهز ثم قيد التحضير */}
-                {[
+                {/* خط زمني واحد بالأحدث: أي طلب جديد أو تحديث (صار جاهزاً) ينزل على اليمين */}
+                {sortByLatest([
                   ...gridReady.map(order => ({ order, mode: 'ready' })),
                   ...gridPreparing.map(order => ({ order, mode: 'preparing' })),
-                ].map(({ order, mode }) => (
+                ], x => x.order).map(({ order, mode }) => (
                   <DisplayCard
                     key={order.id}
                     order={order}
@@ -277,7 +279,7 @@ function DisplayDashboardInner() {
               </div>
             )}
             {/* قسم "تم تسليمها" — يظهر فقط في وضع "الكل" */}
-            {showDelivered && <DeliveredColumn orders={visDelivered} />}
+            {showDelivered && <DeliveredColumn orders={sortByLatest(visDelivered)} />}
           </>
         )}
       </main>

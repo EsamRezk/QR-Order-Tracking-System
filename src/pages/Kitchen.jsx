@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBranch } from '../hooks/useBranch'
 import { useOrders } from '../hooks/useOrders'
@@ -6,7 +6,11 @@ import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
+import {
+  DELIVERY_APPS, DIRECT_APP, resolveDeliveryApp, hexToRgba,
+  resolveDisplayNumber, resolveAppOrderNumber, resolveFoodicsNumber,
+} from '../config/deliveryApps'
+import { sortByLatest } from '../utils/orderSort'
 import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
 import BranchSelect from './BranchSelect'
 import LoadingScreen from '../components/LoadingScreen'
@@ -42,6 +46,33 @@ const FILTER_CONFIRM = {
   ready: 'هل تريد عرض الطلبات الجاهزة فقط؟',
 }
 
+// قائمة فلتر التطبيقات: كل تطبيقات التوصيل + "مباشر" (طلبات بلا تطبيق)
+const APP_FILTER_OPTIONS = [
+  ...Object.entries(DELIVERY_APPS).map(([key, app]) => ({ key, name: app.name })),
+  { key: DIRECT_APP.key, name: DIRECT_APP.name },
+]
+
+// الأرقام العربية/الفارسية → إنجليزية (كيبورد الجوال العربي يكتب ٠١٢٣…)
+function normalizeDigits(text) {
+  return String(text ?? '')
+    .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/\s+/g, '')
+    .toLowerCase()
+}
+
+// هل الطلب يطابق نص البحث؟ — الرقم المعروض (آخر 4) أو رقم التطبيق الكامل أو رقم فوديكس
+function matchesSearch(order, query) {
+  if (!query) return true
+  return [
+    resolveDisplayNumber(order),
+    resolveAppOrderNumber(order),
+    resolveFoodicsNumber(order),
+    order.order_id,
+    order.foodics_order_number,
+  ].some(value => value != null && normalizeDigits(value).includes(query))
+}
+
 // خيارات سلة الحذف (التحويل الجماعي إلى "تم الاستلام")
 const BULK_OPTIONS = [
   { scope: 'preparing', label: 'تحويل "قيد التحضير" إلى تم الاستلام' },
@@ -69,6 +100,9 @@ function KitchenInner() {
   const { displayMode, setDisplayMode, showHeader, setShowHeader } = useBranchDisplaySetting(branch?.id, initialDisplaySetting)
   // إظهار/إخفاء قسم "تم الاستلام" (محلي لهذه الشاشة فقط)
   const [showDelivered, setShowDelivered] = useState(false)
+  // بحث برقم الطلب + فلتر التطبيق (محليان لهذه الشاشة فقط — لا يؤثران على شاشة العرض)
+  const [search, setSearch] = useState('')
+  const [appFilter, setAppFilter] = useState('all')
   // فلتر شاشة الفرع (محلي فقط): 'all' | 'active' | 'ready'
   const [filterMode, setFilterMode] = useState('all')
   // الفلتر المنتظر تأكيده (يفتح نافذة التأكيد)
@@ -189,18 +223,49 @@ function KitchenInner() {
     both: preparing.length + ready.length,
   }
 
-  // ترتيب الأولوية: قيد التحضير أولاً، ثم الجاهز. (تم الاستلام في قسمه المنفصل)
+  // البحث + فلتر التطبيق
+  const searchQuery = normalizeDigits(search)
+  const isFiltering = searchQuery !== '' || appFilter !== 'all'
+  const passesFilters = useCallback(
+    (order) =>
+      (appFilter === 'all' || resolveDeliveryApp(order).key === appFilter) &&
+      matchesSearch(order, searchQuery),
+    [appFilter, searchQuery]
+  )
+
+  // عدد الطلبات النشطة لكل تطبيق (يظهر جنب اسمه في القائمة)
+  const appCounts = useMemo(() => {
+    const counts = {}
+    for (const order of [...preparing, ...ready]) {
+      const key = resolveDeliveryApp(order).key
+      counts[key] = (counts[key] || 0) + 1
+    }
+    return counts
+  }, [preparing, ready])
+
+  // خط زمني واحد بالأحدث: أحدث طلب أو أحدث تحديث (صار جاهزاً) أول كرت = على اليمين.
   // الفلتر المحلي: 'ready' = الجاهز فقط، غير ذلك = قيد التحضير + الجاهز.
-  const activeOrders = filterMode === 'ready'
-    ? ready.map(order => ({ order, mode: 'ready' }))
-    : [
-        ...preparing.map(order => ({ order, mode: 'preparing' })),
-        ...ready.map(order => ({ order, mode: 'ready' })),
-      ]
+  const activeOrders = sortByLatest(
+    (filterMode === 'ready'
+      ? ready.map(order => ({ order, mode: 'ready' }))
+      : [
+          ...preparing.map(order => ({ order, mode: 'preparing' })),
+          ...ready.map(order => ({ order, mode: 'ready' })),
+        ]
+    ).filter(({ order }) => passesFilters(order)),
+    x => x.order
+  )
   const hasActive = activeOrders.length > 0
   // قسم "تم الاستلام" يظهر فقط في وضع "الكل"
   const deliveredVisible = filterMode === 'all'
-  const hasDelivered = delivered.length > 0
+  const deliveredOrders = sortByLatest(delivered.filter(passesFilters))
+  const hasDelivered = deliveredOrders.length > 0
+  // مع البحث: نفتح "تم الاستلام" تلقائياً لو فيه نتائج (الطلب ممكن يكون اتسلّم)
+  const deliveredOpen = showDelivered || (isFiltering && hasDelivered)
+  const clearFilters = () => {
+    setSearch('')
+    setAppFilter('all')
+  }
 
   if (loading) return <LoadingScreen fullScreen />
 
@@ -326,12 +391,64 @@ function KitchenInner() {
               الكل
             </button>
           </div>
+
+          {/* بحث برقم الطلب + فلتر التطبيق (لهذه الشاشة فقط) */}
+          <div className="kt-filters">
+            <div className="kt-search">
+              <svg className="kt-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
+              </svg>
+              <input
+                type="search"
+                inputMode="numeric"
+                enterKeyHint="search"
+                autoComplete="off"
+                placeholder="ابحث برقم الطلب"
+                aria-label="ابحث برقم الطلب"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+              {search && (
+                <button type="button" className="kt-search-clear" aria-label="مسح البحث" onClick={() => setSearch('')}>
+                  ×
+                </button>
+              )}
+            </div>
+
+            <div className={`kt-display-select-box kt-app-filter ${appFilter !== 'all' ? 'kt-app-filter--on' : ''}`}>
+              <select
+                value={appFilter}
+                onChange={e => setAppFilter(e.target.value)}
+                aria-label="فلترة بالتطبيق"
+              >
+                <option value="all">كل التطبيقات</option>
+                {APP_FILTER_OPTIONS.map(({ key, name }) => (
+                  <option key={key} value={key}>
+                    {name}{appCounts[key] ? ` (${appCounts[key]})` : ''}
+                  </option>
+                ))}
+              </select>
+              <svg className="kt-display-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+          </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="kitchen-main">
-        {!hasActive && !(deliveredVisible && hasDelivered) ? (
+        {isFiltering && !hasActive && !(deliveredVisible && hasDelivered) ? (
+          <div className="kitchen-empty-wrap">
+            <div className="kitchen-empty">
+              <div className="kitchen-empty-title">لا توجد طلبات مطابقة</div>
+              <div className="kitchen-empty-subtitle">جرّب رقم تاني أو تطبيق تاني</div>
+              <button type="button" className="kt-clear-filters" onClick={clearFilters}>
+                مسح البحث والفلتر
+              </button>
+            </div>
+          </div>
+        ) : !hasActive && !(deliveredVisible && hasDelivered) ? (
           <div className="kitchen-empty-wrap">
             <div className="kitchen-empty">
               <div className="kitchen-empty-icon">
@@ -352,7 +469,7 @@ function KitchenInner() {
             <section className="kitchen-section">
               <div className="kitchen-section-header">
                 <h2 className="kitchen-section-title">
-                  {filterMode === 'ready' ? 'الطلبات الجاهزة' : 'الطلبات النشطة'}
+                  {isFiltering ? 'نتائج البحث' : filterMode === 'ready' ? 'الطلبات الجاهزة' : 'الطلبات النشطة'}
                 </h2>
                 <span className="kitchen-section-count">{activeOrders.length}</span>
               </div>
@@ -373,7 +490,7 @@ function KitchenInner() {
                 </div>
               ) : (
                 <div className="kitchen-section-empty">
-                  {filterMode === 'ready' ? 'لا توجد طلبات جاهزة حالياً' : 'لا توجد طلبات نشطة حالياً'}
+                  {isFiltering ? 'لا توجد طلبات نشطة مطابقة' : filterMode === 'ready' ? 'لا توجد طلبات جاهزة حالياً' : 'لا توجد طلبات نشطة حالياً'}
                 </div>
               )}
             </section>
@@ -384,16 +501,16 @@ function KitchenInner() {
                 <label className="kitchen-delivered-toggle">
                   <input
                     type="checkbox"
-                    checked={showDelivered}
+                    checked={deliveredOpen}
                     onChange={e => setShowDelivered(e.target.checked)}
                   />
                   <span>تم الاستلام</span>
-                  <span className="kitchen-section-count">{delivered.length}</span>
+                  <span className="kitchen-section-count">{deliveredOrders.length}</span>
                 </label>
 
-                {showDelivered && (
+                {deliveredOpen && (
                   <div className="kitchen-grid">
-                    {delivered.map(order => (
+                    {deliveredOrders.map(order => (
                       <KitchenCard key={order.id} order={order} mode="delivered" />
                     ))}
                   </div>
