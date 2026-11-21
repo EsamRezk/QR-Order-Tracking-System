@@ -19,6 +19,20 @@ const READY_TIMEOUT_MS = (parseInt(import.meta.env.VITE_READY_TIMEOUT_MINUTES, 1
 // نص البادج العلوي لكل حالة على شاشة العرض (حالتان فقط)
 const DISP_BADGE = { preparing: 'قيد التحضير', ready: 'جاهز' }
 
+/**
+ * كثافة الشبكة حسب عدد الطلبات — حتى تبقى كل الطلبات ظاهرة على شاشة التلفاز
+ * (1920×1080 بلا تمرير) وبأكبر رقم ممكن: طلبات قليلة = كروت وأرقام أكبر.
+ * l / m / s / xs — الأعمدة والمقاسات الفعلية في DisplayDashboard.css (≥1200px فقط).
+ * وضع العمودين: كل عمود نصف الشاشة، فالعتبات أصغر (حسب العمود الأكثر طلبات).
+ */
+function gridDensity(count, split = false) {
+  const [l, m, s] = split ? [6, 12, 15] : [12, 24, 40]
+  if (count <= l) return 'l'
+  if (count <= m) return 'm'
+  if (count <= s) return 's'
+  return 'xs'
+}
+
 export default function DisplayDashboard() {
   const [searchParams] = useSearchParams()
 
@@ -149,6 +163,9 @@ function DisplayDashboardInner() {
   const showDelivered = displayMode === 'all'
   const displayedActive = gridReady.length + gridPreparing.length
   const emptyTitle = displayMode === 'ready' ? 'لا توجد طلبات جاهزة' : 'لا توجد طلبات نشطة'
+  const density = isSplit
+    ? gridDensity(Math.max(gridReady.length, gridPreparing.length), true)
+    : gridDensity(displayedActive)
 
   /* ── Main Dashboard ── */
   return (
@@ -224,7 +241,7 @@ function DisplayDashboardInner() {
               <div className="disp-split-head disp-split-head--ready">
                 جاهز <span className="disp-split-count">{gridReady.length}</span>
               </div>
-              <div className="disp-grid disp-grid--split">
+              <div className="disp-grid disp-grid--split" data-density={density}>
                 {gridReady.map(order => (
                   <DisplayCard key={order.id} order={order} mode="ready" fading={fadingOrders.has(order.id)} />
                 ))}
@@ -234,7 +251,7 @@ function DisplayDashboardInner() {
               <div className="disp-split-head disp-split-head--preparing">
                 قيد التجهيز <span className="disp-split-count">{gridPreparing.length}</span>
               </div>
-              <div className="disp-grid disp-grid--split">
+              <div className="disp-grid disp-grid--split" data-density={density}>
                 {gridPreparing.map(order => (
                   <DisplayCard key={order.id} order={order} mode="preparing" fading={fadingOrders.has(order.id)} />
                 ))}
@@ -244,7 +261,7 @@ function DisplayDashboardInner() {
         ) : (
           <>
             {displayedActive > 0 && (
-              <div className="disp-grid">
+              <div className="disp-grid" data-density={density}>
                 {/* الأولوية للجاهز ثم قيد التحضير */}
                 {[
                   ...gridReady.map(order => ({ order, mode: 'ready' })),
@@ -292,7 +309,10 @@ function DisplayCard({ order, mode, fading = false }) {
       </div>
 
       <div className="disp-card-order">
-        <span className="disp-card-id" style={{ color: app.ink }}>#{resolveDisplayNumber(order)}</span>
+        {/* "#" أصغر من الرقم: يوفّر عرضاً فيكبر الرقم نفسه (المهم للعميل من بعيد) */}
+        <span className="disp-card-id" style={mode === 'preparing' ? { color: app.ink } : undefined}>
+          <span className="disp-card-hash">#</span>{resolveDisplayNumber(order)}
+        </span>
       </div>
     </div>
   )
