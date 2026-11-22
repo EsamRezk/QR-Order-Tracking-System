@@ -290,12 +290,13 @@ function DisplayDashboardInner() {
 /**
  * كرت شاشة العرض — مبسّط: بادج الحالة العلوي + لوجو التطبيق + رقم الطلب فقط.
  * (بلا زر / بلا نوع الطلب / بلا اسم التطبيق / بلا عدّاد وقت)
- * قيد التحضير = لون التطبيق + بادج أصفر، جاهز = أزرق + بادج أزرق.
+ * قيد التحضير وجاهز نفس الكرت (إطار بلون التطبيق) — الفرق في نص الشارة البيضاء فقط.
  */
 function DisplayCard({ order, mode, fading = false }) {
   const app = resolveDeliveryApp(order)
+  // قيد التحضير وجاهز نفس الكرت: إطار + تدرج بلون هوية التطبيق (الفرق في الشارة فقط)
   const cardStyle =
-    mode === 'preparing'
+    mode === 'preparing' || mode === 'ready'
       ? {
           borderColor: app.color,
           background: `linear-gradient(150deg, ${hexToRgba(app.color, 0.16)} 0%, #ffffff 55%)`,
@@ -319,7 +320,7 @@ function DisplayCard({ order, mode, fading = false }) {
           style={{
             // عدد الخانات: رقم أطول من 4 يصغر خطه بدل ما ينكسر أو يطلع بره الكرت
             '--digits': Math.max(4, displayNumber.length),
-            ...(mode === 'preparing' ? { color: app.ink } : null),
+            color: app.ink,
           }}
         >
           <span className="disp-card-hash">#</span>{displayNumber}

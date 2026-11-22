@@ -757,12 +757,12 @@ function PushPanel({ push, branchName, onEnable, onTest, onDisable, onClose }) {
 }
 
 function KitchenCard({ order, mode, onAction, busy = false }) {
-  // هوية تطبيق التوصيل: تُحدّد لون كارت "قيد التحضير" فقط. (جاهز=أزرق، تم الاستلام=أخضر عبر CSS)
+  // هوية تطبيق التوصيل: تُحدّد لون كارت "قيد التحضير" و"جاهز" (نفس الكرت). تم الاستلام=أخضر عبر CSS
   const app = resolveDeliveryApp(order)
 
-  // لون الكارت: قيد التحضير = لون التطبيق (inline)؛ غير ذلك = لون الحالة عبر class.
+  // لون الكارت: قيد التحضير/جاهز = لون التطبيق (inline)؛ تم الاستلام = أخضر عبر class.
   const cardStyle =
-    mode === 'preparing'
+    mode === 'preparing' || mode === 'ready'
       ? {
           borderColor: app.color,
           background: `linear-gradient(150deg, ${hexToRgba(app.color, 0.16)} 0%, #ffffff 55%)`,

@@ -640,9 +640,11 @@
     border: 1px solid rgba(0, 0, 0, 0.18);
 }
 
+/* جاهز: نفس شارة قيد التحضير (بيضاء + كتابة سوداء) */
 .kitchen-card-badge--ready {
-    background: var(--blue);
-    color: #ffffff;
+    background: #ffffff;
+    color: #000000;
+    border: 1px solid rgba(0, 0, 0, 0.18);
 }
 
 .kitchen-card-badge--delivered {
@@ -705,10 +707,6 @@
 }
 
 /* بطاقة الطلب الجاهز — أزرق */
-.kitchen-card--ready {
-    border-color: rgba(37, 99, 235, 0.5);
-    background: linear-gradient(150deg, rgba(37, 99, 235, 0.14) 0%, #ffffff 55%);
-}
 
 /* بطاقة الطلب المُستلَم — أخضر */
 .kitchen-card--delivered {

@@ -541,12 +541,6 @@
 }
 
 /* جاهز — أزرق */
-.disp-card--ready {
-    border-color: rgba(37, 99, 235, 0.5);
-    background: linear-gradient(150deg, rgba(37, 99, 235, 0.14) 0%, #ffffff 55%);
-    gap: 1rem;
-
-}
 
 .disp-card--fading {
     animation: display-card-out 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -581,9 +575,11 @@
     border: 1px solid rgba(0, 0, 0, 0.18);
 }
 
+/* جاهز: نفس شارة قيد التحضير (بيضاء + كتابة سوداء) — الفرق في النص فقط */
 .disp-card-badge--ready {
-    background: #2563eb;
-    color: #ffffff;
+    background: #ffffff;
+    color: #000000;
+    border: 1px solid rgba(0, 0, 0, 0.18);
 }
 
 .disp-card-logo {
@@ -633,10 +629,6 @@
     white-space: nowrap;
     direction: ltr;
     unicode-bidi: isolate;
-}
-
-.disp-card--ready .disp-card-id {
-    color: #1d4ed8;
 }
 
 /* "#" أصغر وأخف من الرقم نفسه */
@@ -862,28 +854,6 @@
         font-variant-numeric: tabular-nums;
     }
 
-    /* جاهز = أوضح عنصر على الشاشة: كرت أزرق مصمت + رقم أبيض
-       (العميل يلمح طلبه الجاهز من أول نظرة حتى من آخر المحل) */
-    .disp-card--ready {
-        background: linear-gradient(160deg, #3b7bff 0%, #1d4ed8 100%);
-        border-color: #1d4ed8;
-        box-shadow: 0 0.5vw 1.4vw -0.5vw rgba(29, 78, 216, 0.55);
-        gap: calc(var(--pad) * 0.9);
-    }
-
-    .disp-card--ready .disp-card-id {
-        color: #ffffff;
-    }
-
-    .disp-card--ready .disp-card-logo .app-logo {
-        background: #ffffff;
-        padding: 0.25vw;
-    }
-
-    .disp-card-badge--ready {
-        background: #ffffff;
-        color: #1d4ed8;
-    }
 }
 
 @media (max-width: 1024px) {
