@@ -72,8 +72,9 @@ function App() {
                 <Kitchen />
               </ProtectedRoute>
             } />
+            {/* التحليلات للأدمن فقط — حسابات الفروع (user) تتحوّل لصفحتها الافتراضية */}
             <Route path="/analytics" element={
-              <ProtectedRoute allowedRoles={['user', 'admin']}>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <Analytics />
               </ProtectedRoute>
             } />

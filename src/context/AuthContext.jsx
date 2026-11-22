@@ -11,6 +11,14 @@ const SESSION_KEY = 'kz_session'
 export const UNAUTHORIZED_ERROR = 'غير مصرح'
 export const SESSION_REJECTED_NOTICE = 'انتهت جلسة الدخول أو لا تملك صلاحية لهذه الصفحة — سجّل الدخول مرة أخرى'
 
+// الصفحة الافتراضية بعد الدخول: الماسح أُلغي (/scan → المطبخ)، والتحليلات للأدمن فقط
+// (حساب فرع مسجّل عليه /analytics قديماً يروح المطبخ بدل حلقة تحويل لا نهائية)
+function resolveHomeRoute(role, route) {
+  if (!route || route === '/scan') return '/kitchen'
+  if (route === '/analytics' && role !== 'admin') return '/kitchen'
+  return route
+}
+
 function getStoredSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
@@ -78,7 +86,7 @@ export function AuthProvider({ children }) {
     setSession(newSession)
 
     // Redirect based on user's configured route (الماسح أُلغي — الافتراضي المطبخ)
-    const route = (user.route && user.route !== '/scan') ? user.route : '/kitchen'
+    const route = resolveHomeRoute(user.role, user.route)
     const needsBranch = ['/display', '/kitchen'].includes(route)
     if (needsBranch && user.branchCode) {
       navigate(`${route}?branch=${user.branchCode}`)
@@ -108,7 +116,7 @@ export function AuthProvider({ children }) {
 
   const getDefaultRoute = useCallback(() => {
     if (!session) return '/login'
-    const route = (session.route && session.route !== '/scan') ? session.route : '/kitchen'
+    const route = resolveHomeRoute(session.role, session.route)
     const needsBranch = ['/display', '/kitchen'].includes(route)
     if (needsBranch && session.branchCode) {
       return `${route}?branch=${session.branchCode}`

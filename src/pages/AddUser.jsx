@@ -19,7 +19,6 @@ const ROUTE_OPTIONS = {
   user: [
     { value: '/kitchen', label: '/kitchen — شاشة الفرع' },
     { value: '/display', label: '/display — شاشة العرض' },
-    { value: '/analytics', label: '/analytics — التحليلات' },
   ],
   admin: [
     { value: '/analytics', label: '/analytics — التحليلات' },
