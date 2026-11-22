@@ -633,9 +633,11 @@
     z-index: 2;
 }
 
+/* قيد التحضير: شارة بيضاء + كتابة سوداء (إطار خفيف علشان تبان فوق الكرت الفاتح) */
 .kitchen-card-badge--preparing {
-    background: #FFC400;
-    color: #3A2A00;
+    background: #ffffff;
+    color: #000000;
+    border: 1px solid rgba(0, 0, 0, 0.18);
 }
 
 .kitchen-card-badge--ready {
