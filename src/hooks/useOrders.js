@@ -7,6 +7,11 @@ const STATUS_RANK = { new: 0, preparing: 1, ready: 2, completed: 3, cancelled: 3
 // مهلة أمان للتحديث التفاؤلي: لو لا تأكيد صريح ولا Realtime خلالها → رجوع تلقائي
 const PENDING_TTL_MS = 15000
 
+// شبكة أمان: Realtime لا يعيد إرسال التحديثات اللي فاتت وقت انقطاع الاتصال
+// (واي فاي الفرع، التلفاز يدخل وضع توفير...) — فالشاشة كانت تفضل ناقصة لحد
+// ما حد يعمل refresh. نعيد الجلب دورياً + عند رجوع الاتصال/الشاشة.
+const SAFETY_REFETCH_MS = 30000
+
 // حقول التحديث التفاؤلي — مطابقة لما تكتبه RPCs المطبخ (migration 032)
 function optimisticPatch(action) {
   const now = new Date().toISOString()
@@ -115,7 +120,11 @@ export function useOrders(branchId, initialOrders) {
     if (!branchId) return
     // نقرأ من v_orders_display (نفس أعمدة orders لكن raw_qr_data مُقلّم = payload أخف بكثير).
     // النشط والمكتمل بالتوازي (Promise.all) لتقليل زمن التحميل.
-    const [active, completedRes] = await Promise.all([
+    // فشل الشبكة = نحتفظ بالمعروض كما هو (لا نفضّي الشاشة بنتيجة ناقصة)؛
+    // المحاولة الدورية الجاية تكمّل.
+    let active, completedRes
+    try {
+    ;[active, completedRes] = await Promise.all([
       // الطلبات النشطة (جديد/قيد التحضير/جاهز) — كلها، على دفعات 1000 لتجاوز حد 1000 صف.
       fetchAllPaged(() =>
         supabase
@@ -124,7 +133,7 @@ export function useOrders(branchId, initialOrders) {
           .eq('branch_id', branchId)
           .in('status', ['new', 'preparing', 'ready'])
           .order('created_at', { ascending: false })
-      , 1000),
+      , 1000, { throwOnError: true }),
       // الطلبات المكتملة (تم تسليمها) — آخر 50 فقط لقسم "تم تسليمها". Realtime يضيف الجديد.
       supabase
         .from('v_orders_display')
@@ -134,6 +143,14 @@ export function useOrders(branchId, initialOrders) {
         .order('completed_at', { ascending: false, nullsFirst: false })
         .limit(50),
     ])
+    } catch (err) {
+      console.warn('fetchOrders failed — keeping current orders', err)
+      return
+    }
+    if (completedRes?.error) {
+      console.warn('fetchOrders (completed) failed — keeping current orders', completedRes.error)
+      return
+    }
 
     // إعادة تطبيق التحديثات التفاؤلية المعلقة فوق النتيجة — كي لا يُرجِع
     // refetch متزامنٌ كارتاً تحرك للتو (القاعدة لم تلحق بعد).
@@ -193,10 +210,26 @@ export function useOrders(branchId, initialOrders) {
       .subscribe((status, err) => {
         if (err) console.error('Realtime Error:', err)
         console.log('Realtime Status:', status)
+        // كل (إعادة) اشتراك = ممكن تكون فاتتنا تحديثات وقت الانقطاع → نجيب الحالة كاملة
+        if (status === 'SUBSCRIBED') fetchOrders()
       })
+
+    // جلب دوري احتياطي + عند رجوع الشاشة للواجهة أو رجوع الإنترنت
+    const safetyTimer = setInterval(() => {
+      if (document.visibilityState !== 'hidden') fetchOrders()
+    }, SAFETY_REFETCH_MS)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchOrders()
+    }
+    const onOnline = () => fetchOrders()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', onOnline)
 
     const pending = pendingRef.current
     return () => {
+      clearInterval(safetyTimer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', onOnline)
       supabase.removeChannel(channel)
       // تنظيف مؤقّتات الرجوع التلقائي عند الخروج/تغيير الفرع
       pending.forEach(entry => clearTimeout(entry.timer))
