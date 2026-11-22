@@ -133,11 +133,21 @@ body {
 }
 
 /* شاشة العرض وهيدرها مخفي (توجل "الهيدر" من شاشة الفرع):
-   نخفي معه العناصر العائمة العامة — اللوجو + زر القائمة الجانبية —
-   فتصير الشاشة طلبات فقط. الـ class تُدار من DisplayDashboard على body. */
-body.kz-display-header-hidden .kz-fixed-logo,
-body.kz-display-header-hidden .kz-sidebar-toggle {
+   نخفي اللوجو العائم فتصير الشاشة طلبات فقط. الـ class تُدار من DisplayDashboard على body.
+   ⚠️ زر القائمة (الـ 3 شرطات) لا يُخفى: حسابات الفروع تدخل على /display مباشرة،
+   ومن غيره ما يقدروش يوصلوا لشاشة الفرع. يفضل باهت ويوضح عند اللمس/التركيز. */
+body.kz-display-header-hidden .kz-fixed-logo {
   display: none !important;
+}
+
+body.kz-display-header-hidden .kz-sidebar-toggle {
+  opacity: 0.45;
+}
+
+body.kz-display-header-hidden .kz-sidebar-toggle:hover,
+body.kz-display-header-hidden .kz-sidebar-toggle:focus-visible,
+body.kz-display-header-hidden .kz-sidebar-toggle:active {
+  opacity: 1;
 }
 
 /* Custom scrollbar */

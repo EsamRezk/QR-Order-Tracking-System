@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   },
   {
     path: '/display',
-    label: 'شاشة الفرع',
+    label: 'شاشة العرض',
     needsBranch: true,
     icon: (
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
