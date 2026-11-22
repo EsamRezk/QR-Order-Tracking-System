@@ -302,6 +302,8 @@ function DisplayCard({ order, mode, fading = false }) {
         }
       : undefined
 
+  const displayNumber = String(resolveDisplayNumber(order))
+
   return (
     <div className={`disp-card disp-card--${mode} ${fading ? 'disp-card--fading' : ''}`} style={cardStyle}>
       <span className={`disp-card-badge disp-card-badge--${mode}`}>{DISP_BADGE[mode]}</span>
@@ -312,8 +314,15 @@ function DisplayCard({ order, mode, fading = false }) {
 
       <div className="disp-card-order">
         {/* "#" أصغر من الرقم: يوفّر عرضاً فيكبر الرقم نفسه (المهم للعميل من بعيد) */}
-        <span className="disp-card-id" style={mode === 'preparing' ? { color: app.ink } : undefined}>
-          <span className="disp-card-hash">#</span>{resolveDisplayNumber(order)}
+        <span
+          className="disp-card-id"
+          style={{
+            // عدد الخانات: رقم أطول من 4 يصغر خطه بدل ما ينكسر أو يطلع بره الكرت
+            '--digits': Math.max(4, displayNumber.length),
+            ...(mode === 'preparing' ? { color: app.ink } : null),
+          }}
+        >
+          <span className="disp-card-hash">#</span>{displayNumber}
         </span>
       </div>
     </div>

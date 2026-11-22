@@ -627,7 +627,10 @@
     line-height: 1;
     color: var(--text-primary);
     max-width: 100%;
-    overflow-wrap: anywhere;
+    /* الرقم كامل جنب بعضه دايماً — ممنوع ينكسر على سطرين */
+    white-space: nowrap;
+    direction: ltr;
+    unicode-bidi: isolate;
 }
 
 .disp-card--ready .disp-card-id {
@@ -639,7 +642,7 @@
     font-size: 0.6em;
     font-weight: 800;
     opacity: 0.55;
-    margin-left: 0.04em;
+    margin-right: 0.04em;
     vertical-align: 0.28em;
 }
 
@@ -691,10 +694,12 @@
 }
 
 /* ══════════════════════════════════
-   تلفاز / شاشة كبيرة (50 بوصة) — ≥1200px
+   تلفاز / شاشة كبيرة (50 بوصة) — ≥769px
+   ⚠️ متصفحات التلفاز كثيراً ما تعرض الصفحة بعرض CSS أصغر من دقة الشاشة
+   (مثلاً 960px على تلفاز Full HD) — لذلك الحد 769px وليس 1200px،
+   وكل المقاسات بوحدة vw: الشكل نفسه بالظبط على أي عرض (960/1280/1920/4K).
    العميل يقرأ رقمه من 3–5 أمتار: الرقم هو العنصر الأكبر في الكرت،
-   واللوجو أصغر منه. كل المقاسات بوحدة vw حتى تتناسب مع أي دقة
-   (Full HD أو 4K بدون تكبير) بنفس الشكل.
+   واللوجو أصغر منه، والرقم لا ينكسر على سطرين أبداً.
    الكثافة (data-density من الـ JSX) تختار عدد الأعمدة حسب عدد الطلبات
    فتظهر كلها في شاشة واحدة بلا تمرير:
      l  ≤12 طلب  →  6 أعمدة (أكبر رقم)
@@ -702,7 +707,7 @@
      s  ≤40 طلب  → 10 أعمدة
      xs >40 طلب  → 12 عمود
    ══════════════════════════════════ */
-@media (min-width: 1200px) {
+@media (min-width: 769px) {
     /* ── هيدر مقروء من بعيد ── */
     .dash-header-inner {
         padding: 0.55vw 2vw;
@@ -846,8 +851,9 @@
         border-radius: 0.75vw;
     }
 
+    /* --digits من الـ JSX: رقم أطول من 4 خانات يصغر بنفس النسبة بدل ما يطلع بره */
     .disp-card-id {
-        font-size: var(--num);
+        font-size: calc(var(--num) * 4 / var(--digits, 4));
         letter-spacing: -0.01em;
         white-space: nowrap;
         overflow-wrap: normal;
@@ -888,10 +894,6 @@
         padding-left: 0;
     }
 
-    /* وضع العمودين على التابلت — 4 كروت في الصف لكل عمود */
-    .disp-grid.disp-grid--split {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 768px) {
