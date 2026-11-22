@@ -10,6 +10,15 @@
 //   ELSE IF delivery_status = 2 (Ready)           → 'ready'
 //   ELSE IF delivery_status ≥ 5 (Delivered/Cancel)→ 'completed'/'cancelled'
 //
+//   ⚠️ قاعدة التسليم (2026-11-22): Delivered (5) يقفل الطلب عندنا **فقط** لو
+//   الطلب عدّى بـ Ready قبلها (Sent to Kitchen → Ready → Delivered).
+//   السبب: طباعة الفاتورة في فوديكس بتعلّم الطلب Delivered فوراً وهو لسه
+//   بيتحضّر (قفزة 1 → 5). في الحالة دي الطلب يفضل "قيد التحضير" عندنا،
+//   ونعلّمه raw_qr_data.foodics_delivered_early = true علشان:
+//     - أي صدى 5 لاحق من فوديكس ما يقفلوش (حتى بعد ما المطبخ يضغط "جهز")
+//     - foodics-update-status ما يبعتش Ready/Delivered لفوديكس (منع رجوع الحالة هناك)
+//   الإقفال وقتها بزر "تم التسليم" عندنا عادي.
+//
 // الـ delivery webhook يحمل **الطلب الكامل** داخل payload.order. لذلك نقرأه مباشرة
 // بلا أي نداء API (يتجنّب مشكلة الصلاحيات + حدّ المعدّل). مسار احتياطي: GET /orders.
 //
@@ -128,7 +137,7 @@ async function processOrder(
     // الطلب الموجود محلياً (idempotency + forward-only + تأكيد المزامنة)
     const { data: existing } = await supabase
       .from('orders')
-      .select('id, status, foodics_delivery_status, synced_to_foodics')
+      .select('id, status, foodics_delivery_status, synced_to_foodics, delivered_early:raw_qr_data->foodics_delivered_early')
       .eq('foodics_order_id', orderId)
       .maybeSingle()
 
@@ -159,6 +168,25 @@ async function processOrder(
     const targetStatus = deliveryStatusToLocal(deliveryStatus)
     if (!targetStatus) {
       return ({ status: 'no_actionable_delivery_status', delivery_status: deliveryStatus, foodics_order_id: orderId })
+    }
+
+    // قاعدة التسليم: Delivered من فوديكس يقفل الطلب فقط لو عدّى بـ Ready قبلها.
+    // قفزة مباشرة (Sent to Kitchen → Delivered) = طباعة فاتورة والطلب لسه بيتحضّر
+    // → الحالة عندنا ما تتغيرش. (لو الطلب علّمناه early قبل كده، Ready المحلية
+    // جاية من زرنا مش من فوديكس → برضه ما نقفلوش.)
+    if (
+      targetStatus === 'completed' &&
+      existing &&
+      ['new', 'preparing', 'ready'].includes(existing.status) &&
+      (existing.status !== 'ready' || existing.delivered_early === true)
+    ) {
+      if (existing.delivered_early !== true) {
+        await supabase.from('orders')
+          .update({ raw_qr_data: { foodics_order: order, foodics_delivered_early: true } })
+          .eq('id', existing.id)
+      }
+      console.log('Delivered without Ready — kept', existing.status, '| order:', existing.id)
+      return ({ status: 'skipped_delivered_without_ready', at: existing.status, order_id: existing.id })
     }
 
     // الحالة نفسها بالفعل → no-op (غالباً صدى الـ PUT الصادر منا):

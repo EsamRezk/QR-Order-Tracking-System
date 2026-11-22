@@ -89,7 +89,13 @@ type SyncRow = {
   foodics_order_id: string | null
   foodics_delivery_status: number | null
   delivered_at: string | null
+  // فوديكس علّمت الطلب Delivered بدري (طباعة فاتورة) — راجع foodics-webhook
+  delivered_early?: boolean | null
 }
+
+// الأعمدة اللازمة للمزامنة (+ علم التسليم المبكر من raw_qr_data)
+const SYNC_COLUMNS =
+  'id, foodics_order_id, foodics_delivery_status, delivered_at, delivered_early:raw_qr_data->foodics_delivered_early'
 
 async function syncRowToFoodics(config: FoodicsConfig, row: SyncRow): Promise<string> {
   const target = row.foodics_delivery_status
@@ -99,6 +105,14 @@ async function syncRowToFoodics(config: FoodicsConfig, row: SyncRow): Promise<st
     (target !== FOODICS_DELIVERY_STATUS.READY && target !== FOODICS_DELIVERY_STATUS.DELIVERED)
   ) {
     return 'skipped'
+  }
+
+  // فوديكس عندها الطلب Delivered بالفعل (طباعة فاتورة قبل التحضير): ما نبعتش
+  // Ready/Delivered — Ready كانت هترجّع حالته هناك لورا. نعلّمه متزامن ونخرج.
+  if (row.delivered_early === true) {
+    await supabase.rpc('fn_foodics_sync_mark_synced', { p_order_id: row.id, p_delivery_status: target })
+    console.log('Skip PUT — Foodics already Delivered | order:', row.id, '| local target:', target)
+    return 'synced'
   }
 
   const base = (config.api_base_url || 'https://api.foodics.com/v5').replace(/\/$/, '')
@@ -172,7 +186,7 @@ async function syncRowToFoodics(config: FoodicsConfig, row: SyncRow): Promise<st
 async function syncOrderById(orderId: string) {
   const { data: row } = await supabase
     .from('orders')
-    .select('id, source, foodics_order_id, foodics_delivery_status, delivered_at, synced_to_foodics')
+    .select(`${SYNC_COLUMNS}, source, synced_to_foodics`)
     .eq('id', orderId)
     .maybeSingle()
   if (!row || row.source !== 'foodics' || !row.foodics_order_id) return
@@ -198,7 +212,7 @@ async function syncManyByIds(orderIds: string[]) {
 
   const { data: rows } = await supabase
     .from('orders')
-    .select('id, foodics_order_id, foodics_delivery_status, delivered_at, synced_to_foodics')
+    .select(`${SYNC_COLUMNS}, synced_to_foodics`)
     .in('id', orderIds)
     .eq('synced_to_foodics', false)
   if (!rows || rows.length === 0) return
@@ -219,7 +233,7 @@ async function syncManyByIds(orderIds: string[]) {
 async function runResync() {
   const { data: rows, error } = await supabase
     .from('orders')
-    .select('id, foodics_order_id, foodics_delivery_status, delivered_at')
+    .select(SYNC_COLUMNS)
     .eq('synced_to_foodics', false)
     .eq('source', 'foodics')
     .not('foodics_order_id', 'is', null)
