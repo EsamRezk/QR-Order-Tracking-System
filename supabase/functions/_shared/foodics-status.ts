@@ -50,6 +50,9 @@ export const HANDLED_EVENTS = new Set<string>([
 // ───────────────────────────────────────────────────────────────────
 export const FOODICS_ORDER_STATUS = {
   DECLINED: 3, // ❓ CONFIRM
+  // ✅ مؤكّد من الإنتاج (2026-11-23): زر "تم التسليم" عند الكاشير يقفل الطلب
+  //    (status → 4) ويسيب delivery_status زي ما هو (2) — مش بيبعت Delivered (5).
+  CLOSED: 4,
   VOID: 7,     // ❓ CONFIRM
 }
 export function isCancelledOrderStatus(orderStatus: number): boolean {

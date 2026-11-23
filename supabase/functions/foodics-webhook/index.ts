@@ -19,6 +19,13 @@
 //     - foodics-update-status ما يبعتش Ready/Delivered لفوديكس (منع رجوع الحالة هناك)
 //   الإقفال وقتها بزر "تم التسليم" عندنا عادي.
 //
+//   ⚠️ قاعدة الإقفال (2026-11-23): "تم التسليم" من كاشير فوديكس بيقفل الطلب
+//   (order.status = 4 Closed) ويسيب delivery_status على 2 — مش بيبعت 5.
+//   - Closed + الطلب كان جاهز (عندنا أو delivery_status ≥ 2 في فوديكس) → completed
+//   - Closed والطلب لسه بيتحضّر (طباعة فاتورة) → الحالة ما تتغيرش + علم
+//     raw_qr_data.foodics_closed_early = true، علشان القفلة دي ما تشيلوش
+//     من الشاشة لما المطبخ يضغط "جهز" بعدين (صدى Closed + Ready).
+//
 // الـ delivery webhook يحمل **الطلب الكامل** داخل payload.order. لذلك نقرأه مباشرة
 // بلا أي نداء API (يتجنّب مشكلة الصلاحيات + حدّ المعدّل). مسار احتياطي: GET /orders.
 //
@@ -41,6 +48,8 @@ import {
   STATUS_RANK,
   isCancelledOrderStatus,
   deliveryStatusToLocal,
+  FOODICS_ORDER_STATUS,
+  FOODICS_DELIVERY_STATUS,
 } from '../_shared/foodics-status.ts'
 import { notifyBranch, deliveryAppName } from '../_shared/push.ts'
 
@@ -137,7 +146,7 @@ async function processOrder(
     // الطلب الموجود محلياً (idempotency + forward-only + تأكيد المزامنة)
     const { data: existing } = await supabase
       .from('orders')
-      .select('id, status, foodics_delivery_status, synced_to_foodics, delivered_early:raw_qr_data->foodics_delivered_early')
+      .select('id, status, foodics_delivery_status, synced_to_foodics, delivered_early:raw_qr_data->foodics_delivered_early, closed_early:raw_qr_data->foodics_closed_early')
       .eq('foodics_order_id', orderId)
       .maybeSingle()
 
@@ -163,6 +172,45 @@ async function processOrder(
       return ({ status: 'ignored_cancelled_unknown', foodics_order_id: orderId })
     }
 
+    // علامات الطلب في raw_qr_data — أي تحديث للـ raw لازم يحافظ عليها كلها
+    const flaggedRaw = (extra: Record<string, boolean>) => ({
+      foodics_order: order,
+      ...(existing?.delivered_early === true ? { foodics_delivered_early: true } : {}),
+      ...(existing?.closed_early === true ? { foodics_closed_early: true } : {}),
+      ...extra,
+    })
+
+    // 2) إقفال من الكاشير (Closed = "تم التسليم" في فوديكس)
+    if (
+      orderStatus === FOODICS_ORDER_STATUS.CLOSED &&
+      existing &&
+      ['new', 'preparing', 'ready'].includes(existing.status)
+    ) {
+      const readyInFoodics = deliveryStatus !== null && deliveryStatus >= FOODICS_DELIVERY_STATUS.READY
+      const wasReady = existing.status === 'ready' || readyInFoodics
+      const closedEarlyBefore = existing.closed_early === true || existing.delivered_early === true
+      if (wasReady && !closedEarlyBefore) {
+        await supabase.from('orders')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            foodics_delivery_status: deliveryStatus,
+            synced_to_foodics: true, // الإقفال جاي من فوديكس نفسها
+          })
+          .eq('id', existing.id)
+        console.log('Closed by cashier after Ready → completed | order:', existing.id)
+        return ({ status: 'completed_closed', from: existing.status, order_id: existing.id })
+      }
+      if (!wasReady && existing.closed_early !== true) {
+        // اتقفل قبل ما يجهز (طباعة فاتورة) → نعلّمه ونكمّل عادي (الحالة ما تتغيرش)
+        await supabase.from('orders')
+          .update({ raw_qr_data: flaggedRaw({ foodics_closed_early: true }) })
+          .eq('id', existing.id)
+        existing.closed_early = true
+        console.log('Closed before Ready — flagged, kept', existing.status, '| order:', existing.id)
+      }
+    }
+
     // تحديد الحالة المحلية المستهدفة من delivery_status (الخريطة في foodics-status.ts)
     // delivery_status = null أو قيم وسيطة (Assigned/Enroute تتولاها فوديكس) → لا تغيير حالة
     const targetStatus = deliveryStatusToLocal(deliveryStatus)
@@ -182,7 +230,7 @@ async function processOrder(
     ) {
       if (existing.delivered_early !== true) {
         await supabase.from('orders')
-          .update({ raw_qr_data: { foodics_order: order, foodics_delivered_early: true } })
+          .update({ raw_qr_data: flaggedRaw({ foodics_delivered_early: true }) })
           .eq('id', existing.id)
       }
       console.log('Delivered without Ready — kept', existing.status, '| order:', existing.id)
