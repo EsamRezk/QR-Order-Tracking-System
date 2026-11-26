@@ -6,3 +6,14 @@ DirectoryIndex index.html
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.html [L]
 </IfModule>
+
+# Cache: the page, sw.js and manifest are revalidated on every load,
+# so a new deploy reaches browsers and the installed PWA immediately.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|json)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <Files "sw.js">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </Files>
+</IfModule>

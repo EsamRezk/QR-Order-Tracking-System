@@ -3,7 +3,7 @@
 // ٢) تنبيهات الموبايل (Web Push): يعرض تنبيه "طلب جديد" حتى والتطبيق مقفول،
 //    والضغط عليه يفتح شاشة الفرع. المُرسِل: supabase/functions/_shared/push.ts
 
-const CACHE_NAME = 'qr-tracker-v2'
+const CACHE_NAME = 'qr-tracker-v3'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -30,6 +30,15 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
+  // فتح صفحة (navigation): نتأكد من السيرفر دايماً (no-cache) علشان أي نسخة جديدة
+  // تظهر فوراً، والمخزّن احتياطي بس لو النت واقع
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request.url, { cache: 'no-cache', credentials: 'same-origin' })
+        .catch(() => caches.match(event.request).then((r) => r || caches.match('/index.html')))
+    )
+    return
+  }
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   )

@@ -12,6 +12,7 @@ import Logs from './pages/Logs'
 import AdminSidebar from './components/AdminSidebar'
 import UserSidebar from './components/UserSidebar'
 import AppLogo from './components/AppLogo'
+import { useAutoReloadOnDeploy } from './hooks/useAutoReloadOnDeploy'
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -50,6 +51,8 @@ class ErrorBoundary extends Component {
 }
 
 function App() {
+  // أي نسخة جديدة من الموقع تنزل لوحدها على كل الأجهزة (تلفاز + جوال PWA) — راجع الهوك
+  useAutoReloadOnDeploy()
   return (
     <ErrorBoundary>
       <BrowserRouter>

@@ -6,7 +6,6 @@ import { useBranchDisplaySetting } from '../hooks/useBranchDisplaySetting'
 import { isDeliveryAppOrder, resolveDeliveryApp, hexToRgba, resolveDisplayNumber } from '../config/deliveryApps'
 import { DeliveryAppLogo } from '../components/DeliveryAppBadge'
 import { useSound } from '../hooks/useSound'
-import { useAutoReloadOnDeploy } from '../hooks/useAutoReloadOnDeploy'
 import { useAuth } from '../context/AuthContext'
 import { formatClock, formatDate } from '../utils/formatTime'
 import { sortByLatest } from '../utils/orderSort'
@@ -47,8 +46,6 @@ export default function DisplayDashboard() {
 }
 
 function DisplayDashboardInner() {
-  // تلفاز الفرع ما حدش بيعمل له refresh: يحمّل أي نسخة جديدة لوحده
-  useAutoReloadOnDeploy()
   const { session } = useAuth()
   const { branch, loading, error, errorHint, initialOrders, initialDisplaySetting } = useBranch()
   const { preparing, ready, delivered } = useOrders(branch?.id, initialOrders)
