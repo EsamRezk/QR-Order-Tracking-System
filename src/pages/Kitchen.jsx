@@ -52,6 +52,9 @@ const APP_FILTER_OPTIONS = [
   { key: DIRECT_APP.key, name: DIRECT_APP.name },
 ]
 
+// مفتاح حفظ خيار "إخفاء المباشر" على هذا الجوال
+const APP_FILTER_STORAGE_KEY = 'kz_kitchen_app_filter'
+
 // الأرقام العربية/الفارسية → إنجليزية (كيبورد الجوال العربي يكتب ٠١٢٣…)
 function normalizeDigits(text) {
   return String(text ?? '')
@@ -102,7 +105,21 @@ function KitchenInner() {
   const [showDelivered, setShowDelivered] = useState(false)
   // بحث برقم الطلب + فلتر التطبيق (محليان لهذه الشاشة فقط — لا يؤثران على شاشة العرض)
   const [search, setSearch] = useState('')
-  const [appFilter, setAppFilter] = useState('all')
+  // 'all' | 'no-direct' (إخفاء الطلبات المباشرة) | مفتاح تطبيق
+  // 'all' و'no-direct' بيتحفظوا على الجوال (إعداد دائم)، وفلتر تطبيق معيّن لا (مؤقت)
+  const [appFilter, setAppFilterState] = useState(() => {
+    try {
+      return localStorage.getItem(APP_FILTER_STORAGE_KEY) === 'no-direct' ? 'no-direct' : 'all'
+    } catch {
+      return 'all'
+    }
+  })
+  const setAppFilter = useCallback((value) => {
+    setAppFilterState(value)
+    if (value === 'all' || value === 'no-direct') {
+      try { localStorage.setItem(APP_FILTER_STORAGE_KEY, value) } catch { /* تخزين غير متاح */ }
+    }
+  }, [])
   // فلتر شاشة الفرع (محلي فقط): 'all' | 'active' | 'ready'
   const [filterMode, setFilterMode] = useState('all')
   // الفلتر المنتظر تأكيده (يفتح نافذة التأكيد)
@@ -225,13 +242,23 @@ function KitchenInner() {
 
   // البحث + فلتر التطبيق
   const searchQuery = normalizeDigits(search)
-  const isFiltering = searchQuery !== '' || appFilter !== 'all'
-  const passesFilters = useCallback(
-    (order) =>
-      (appFilter === 'all' || resolveDeliveryApp(order).key === appFilter) &&
-      matchesSearch(order, searchQuery),
-    [appFilter, searchQuery]
+  // "إخفاء المباشر" إعداد دائم للشاشة مش بحث — ما يحوّلش العنوان لـ"نتائج البحث"
+  const hideDirect = appFilter === 'no-direct'
+  const isFiltering = searchQuery !== '' || (appFilter !== 'all' && !hideDirect)
+  const passesApp = useCallback(
+    (order) => {
+      if (appFilter === 'all') return true
+      const key = resolveDeliveryApp(order).key
+      return hideDirect ? key !== 'direct' : key === appFilter
+    },
+    [appFilter, hideDirect]
   )
+  const passesFilters = useCallback(
+    (order) => passesApp(order) && matchesSearch(order, searchQuery),
+    [passesApp, searchQuery]
+  )
+  // عدّادات التابات: لو المباشر مخفي ما يتحسبش
+  const visibleCount = (list) => (hideDirect ? list.filter(passesApp).length : list.length)
 
   // عدد الطلبات النشطة لكل تطبيق (يظهر جنب اسمه في القائمة)
   const appCounts = useMemo(() => {
@@ -264,7 +291,12 @@ function KitchenInner() {
   const deliveredOpen = showDelivered || (isFiltering && hasDelivered)
   const clearFilters = () => {
     setSearch('')
-    setAppFilter('all')
+    // فلتر تطبيق معيّن يرجع للإعداد المحفوظ (إخفاء المباشر يفضل لو كان مفعّل)
+    if (!hideDirect) {
+      let saved = 'all'
+      try { saved = localStorage.getItem(APP_FILTER_STORAGE_KEY) === 'no-direct' ? 'no-direct' : 'all' } catch { /* تخزين غير متاح */ }
+      setAppFilter(saved)
+    }
   }
 
   if (loading) return <LoadingScreen fullScreen />
@@ -369,7 +401,7 @@ function KitchenInner() {
               onClick={() => selectFilter('active')}
             >
               النشطة
-              <span className="kt-tab-count">{preparing.length + ready.length}</span>
+              <span className="kt-tab-count">{visibleCount(preparing) + visibleCount(ready)}</span>
             </button>
             <button
               type="button"
@@ -379,7 +411,7 @@ function KitchenInner() {
               onClick={() => selectFilter('ready')}
             >
               الجاهزة
-              <span className="kt-tab-count">{ready.length}</span>
+              <span className="kt-tab-count">{visibleCount(ready)}</span>
             </button>
             <button
               type="button"
@@ -421,7 +453,8 @@ function KitchenInner() {
                 onChange={e => setAppFilter(e.target.value)}
                 aria-label="فلترة بالتطبيق"
               >
-                <option value="all">كل التطبيقات</option>
+                <option value="all">كل الطلبات</option>
+                <option value="no-direct">إخفاء المباشر</option>
                 {APP_FILTER_OPTIONS.map(({ key, name }) => (
                   <option key={key} value={key}>
                     {name}{appCounts[key] ? ` (${appCounts[key]})` : ''}
